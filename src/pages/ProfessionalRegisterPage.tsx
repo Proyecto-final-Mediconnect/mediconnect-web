@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
 import { AuthLayout } from '../features/auth/components/AuthLayout';
-import { RegisterForm } from '../features/auth/components/RegisterForm';
+import { ProfessionalRegisterForm } from '../features/auth/components/ProfessionalRegisterForm';
 
-export function RegisterPage() {
+export function ProfessionalRegisterPage() {
   return (
     <AuthLayout
-      title="Crear cuenta de paciente"
-      subtitle="Empezá a cuidar tu salud con MediConnect."
+      title="Crear cuenta profesional"
+      subtitle="Ofrecé tus servicios de salud en MediConnect."
       footer={
         <p>
           ¿Ya tenés cuenta?{' '}
@@ -17,17 +17,17 @@ export function RegisterPage() {
             Iniciá sesión
           </Link>
           {' · '}
-          ¿Sos profesional?{' '}
+          ¿Sos paciente?{' '}
           <Link
-            to="/registro/profesional"
+            to="/registro"
             className="font-semibold text-brand hover:underline"
           >
-            Registrate como profesional
+            Registrate como paciente
           </Link>
         </p>
       }
     >
-      <RegisterForm />
+      <ProfessionalRegisterForm />
     </AuthLayout>
   );
 }
