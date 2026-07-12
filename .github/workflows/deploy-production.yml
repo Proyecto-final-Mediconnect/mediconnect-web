@@ -1,0 +1,26 @@
+name: Deploy Production
+
+# Dispara el redeploy del Static Site en Render SOLO después de que "CI" haya
+# pasado sobre main (workflow_run + conclusion == success). Render tiene
+# Auto-Deploy = No para que el deploy lo controle este workflow.
+#
+# Gate: la protección de rama de `main` (Sprint 0 §2.6) exige el check "CI" en
+# verde antes de mergear, así que nada llega a main sin haber pasado el pipeline.
+#
+# Nota: workflow_run usa la definición del archivo en la rama por defecto (main),
+# así que este gate recién queda activo cuando ci.yml + este archivo estén en main.
+on:
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
+    branches: [main]
+
+jobs:
+  deploy:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Render deploy
+        run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK"
+        env:
+          RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
