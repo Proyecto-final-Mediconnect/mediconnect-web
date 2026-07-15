@@ -18,6 +18,12 @@ on:
       - 'release/**'
       - 'main'
 
+# Cancela runs obsoletos del mismo ref: si pusheás dos veces seguidas, el primero
+# se descarta en vez de encolarse. Ahorra minutos de runner.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   quality:
     name: Lint · Type-check · Unit
@@ -34,7 +40,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version-file: '.nvmrc'
           cache: pnpm
 
       - name: Install dependencies
