@@ -1,4 +1,5 @@
 import type { ProfessionalProfile } from '../types/professionalProfile';
+import { apiError } from './apiError';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
@@ -14,7 +15,8 @@ export async function getMyProfile(): Promise<ProfessionalProfile> {
       message?: string | string[];
     } | null;
     const message = data?.message;
-    throw new Error(
+    throw apiError(
+      response.status,
       Array.isArray(message)
         ? message.join(' ')
         : (message ?? 'No se pudo cargar tu perfil.'),

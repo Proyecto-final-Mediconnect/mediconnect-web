@@ -18,9 +18,21 @@ export type ProfessionalProfile = {
 };
 
 /**
+ * Cuenta los decimales sobre la representación DECIMAL del número, igual que el
+ * `maxDecimalPlaces` de class-validator en el backend. Con aritmética (`n * 100 % 1`)
+ * el punto flotante rechazaría precios válidos: `0.07 * 100` da 7.000000000000001.
+ * La notación exponencial (`1e-7`) no puede expresar centavos, así que se rechaza.
+ */
+function decimalPlaces(value: number): number {
+  const text = String(value);
+  if (text.includes('e') || text.includes('E')) return Infinity;
+  return text.split('.')[1]?.length ?? 0;
+}
+
+/**
  * Validación del formulario de perfil público (ENG-48). Espeja las reglas del
- * backend: bio ≤ 500 caracteres, precio ≥ 0 y hasta 3 especialidades. La foto
- * se sube por separado (su propio endpoint), no entra en este schema.
+ * backend: bio ≤ 500 caracteres, precio ≥ 0 con hasta 2 decimales, y hasta 3
+ * especialidades. La foto se sube por separado (su propio endpoint), no entra acá.
  */
 export const professionalProfileSchema = z.object({
   bio: z
@@ -31,6 +43,11 @@ export const professionalProfileSchema = z.object({
     .number()
     .min(0, 'El precio no puede ser negativo')
     .max(99_999_999, 'El precio es demasiado alto')
+    // El backend valida `maxDecimalPlaces: 2`. Sin esto, un 100.555 pasaba el front
+    // y volvía como 400 desde la API.
+    .refine((n) => decimalPlaces(n) <= 2, {
+      message: 'El precio puede tener hasta 2 decimales',
+    })
     .nullable(),
   specialtyIds: z
     .array(z.string())

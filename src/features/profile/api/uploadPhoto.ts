@@ -1,4 +1,5 @@
 import type { ProfessionalProfile } from '../types/professionalProfile';
+import { apiError } from './apiError';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
@@ -20,10 +21,9 @@ export async function uploadPhoto(file: File): Promise<ProfessionalProfile> {
 
   if (!response.ok) {
     const message = data?.message;
-    throw new Error(
-      Array.isArray(message)
-        ? message.join(' ')
-        : (message ?? 'No se pudo subir la foto.'),
+    throw apiError(
+      response.status,
+      Array.isArray(message) ? message.join(' ') : (message ?? 'No se pudo subir la foto.'),
     );
   }
 

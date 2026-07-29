@@ -41,4 +41,25 @@ describe('professionalProfileSchema', () => {
         .success,
     ).toBe(false);
   });
+
+  it('rechaza más de 2 decimales, igual que el backend', () => {
+    // Antes pasaba el front y volvía 400 desde la API (maxDecimalPlaces: 2).
+    expect(
+      professionalProfileSchema.safeParse({
+        ...valid,
+        consultationPrice: 100.555,
+      }).success,
+    ).toBe(false);
+  });
+
+  it('acepta hasta 2 decimales, sin falsos negativos por punto flotante', () => {
+    // 0.07 * 100 da 7.000000000000001: contar decimales con aritmética rechazaría
+    // precios válidos.
+    for (const consultationPrice of [15000, 15000.5, 15000.07, 0.07, 0.1]) {
+      expect(
+        professionalProfileSchema.safeParse({ ...valid, consultationPrice })
+          .success,
+      ).toBe(true);
+    }
+  });
 });

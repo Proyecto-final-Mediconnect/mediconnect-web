@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
+import { Navigate } from 'react-router-dom';
 import { Button } from '../../../shared/ui/Button';
+import { isUnauthorized } from '../api/apiError';
 import { compressImage } from '../lib/compressImage';
 import {
   useMyProfile,
@@ -13,12 +15,25 @@ import { ProfilePreview } from './ProfilePreview';
 const MAX_SPECIALTIES = 3;
 const MAX_BIO = 500;
 
+/**
+ * Tope ANTES de comprimir. `createImageBitmap` decodifica la imagen entera en
+ * memoria, así que un archivo de 50 MB se decodificaba completo antes de que
+ * alguien mirara su tamaño. La foto comprimida termina pesando muy poco: esto es
+ * solo el freno de entrada.
+ */
+const MAX_INPUT_BYTES = 12 * 1024 * 1024;
+
 type FieldErrors = Partial<
   Record<'bio' | 'consultationPrice' | 'specialtyIds', string>
 >;
 
 export function ProfessionalProfileForm() {
-  const { data: profile, isLoading, isError, error } = useMyProfile();
+  const {
+    data: profile,
+    isPending,
+    isError,
+    error,
+  } = useMyProfile();
   const { data: specialties = [] } = useSpecialties();
   const updateProfile = useUpdateProfile();
   const uploadPhoto = useUploadPhoto();
@@ -27,6 +42,7 @@ export function ProfessionalProfileForm() {
   const [price, setPrice] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [photoError, setPhotoError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const seeded = useRef(false);
 
@@ -45,15 +61,24 @@ export function ProfessionalProfileForm() {
     }
   }, [profile]);
 
-  if (isLoading) {
-    return <p className="text-muted">Cargando tu perfil…</p>;
+  // Sesión vencida o ausente: la página no tiene nada que mostrar, va al login.
+  // TODO(ENG-44): cuando esté el <RequireAuth> compartido (mediconnect-web#11),
+  // la ruta /perfil se envuelve con él y esto se puede borrar.
+  if (isError && isUnauthorized(error)) {
+    return <Navigate to="/ingresar" replace />;
   }
-  if (isError || !profile) {
+  // `isError` y "todavía no hay datos" son estados distintos: mezclarlos hacía que
+  // un refetch en curso (pending pero no fetching, con error en null) cayera en la
+  // rama de error y mostrara el literal genérico en vez del mensaje del backend.
+  if (isError) {
     return (
       <p role="alert" className="text-danger">
         {error instanceof Error ? error.message : 'No se pudo cargar tu perfil.'}
       </p>
     );
+  }
+  if (isPending || !profile) {
+    return <p className="text-muted">Cargando tu perfil…</p>;
   }
 
   function toggleSpecialty(id: string) {
@@ -68,6 +93,11 @@ export function ProfessionalProfileForm() {
     const file = e.target.files?.[0];
     e.target.value = ''; // permite re-elegir la misma foto
     if (!file) return;
+    if (file.size > MAX_INPUT_BYTES) {
+      setPhotoError('Elegí una imagen de menos de 12 MB.');
+      return;
+    }
+    setPhotoError(null);
     const compressed = await compressImage(file);
     uploadPhoto.mutate(compressed);
   }
@@ -140,11 +170,12 @@ export function ProfessionalProfileForm() {
               disabled={uploadPhoto.isPending}
             />
             <p className="mt-1 text-xs text-muted">JPG, PNG o WEBP.</p>
-            {uploadPhoto.isError && (
+            {(photoError !== null || uploadPhoto.isError) && (
               <p role="alert" className="mt-1 text-sm text-danger">
-                {uploadPhoto.error instanceof Error
-                  ? uploadPhoto.error.message
-                  : 'No se pudo subir la foto.'}
+                {photoError ??
+                  (uploadPhoto.error instanceof Error
+                    ? uploadPhoto.error.message
+                    : 'No se pudo subir la foto.')}
               </p>
             )}
           </div>
@@ -173,8 +204,10 @@ export function ProfessionalProfileForm() {
             ) : (
               <span />
             )}
-            <span className="text-xs text-muted">
-              {bio.length}/{MAX_BIO}
+            {/* aria-live: un lector de pantalla tiene que enterarse de que se está
+                acercando al límite, no solo verlo. */}
+            <span className="text-xs text-muted" aria-live="polite">
+              {bio.length}/{MAX_BIO} caracteres
             </span>
           </div>
         </div>

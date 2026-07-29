@@ -10,6 +10,13 @@ type ProfilePreviewProps = {
   currency: string;
 };
 
+/**
+ * `professionals.currency` es `CHAR(3) NOT NULL DEFAULT 'ARS'`, así que en la
+ * práctica siempre llega un código válido. Pero `Intl.NumberFormat` tira `RangeError`
+ * con cualquier código que no sea ISO 4217, y el fallback tiene que seguir siendo
+ * legible: sin la guarda, un currency raro terminaba imprimiéndose crudo al lado del
+ * número (ej. `"XX 15000"`).
+ */
 function formatPrice(amount: number, currency: string): string {
   try {
     return new Intl.NumberFormat('es-AR', {
@@ -18,7 +25,12 @@ function formatPrice(amount: number, currency: string): string {
       maximumFractionDigits: 0,
     }).format(amount);
   } catch {
-    return `${currency} ${amount}`;
+    const amountText = new Intl.NumberFormat('es-AR', {
+      maximumFractionDigits: 0,
+    }).format(amount);
+    return /^[A-Za-z]{3}$/.test(currency)
+      ? `${currency.toUpperCase()} ${amountText}`
+      : `$ ${amountText}`;
   }
 }
 
