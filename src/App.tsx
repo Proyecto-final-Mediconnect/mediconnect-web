@@ -3,6 +3,7 @@ import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ProfessionalRegisterPage } from './pages/ProfessionalRegisterPage';
+import { ProfessionalProfilePage } from './pages/ProfessionalProfilePage';
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         path="/registro/profesional"
         element={<ProfessionalRegisterPage />}
       />
+      <Route path="/perfil" element={<ProfessionalProfilePage />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
