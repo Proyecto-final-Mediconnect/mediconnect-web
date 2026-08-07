@@ -6,6 +6,7 @@ import { ModeratorDashboardPage } from './pages/ModeratorDashboardPage';
 import { PatientDashboardPage } from './pages/PatientDashboardPage';
 import { ProfessionalDashboardPage } from './pages/ProfessionalDashboardPage';
 import { ProfessionalRegisterPage } from './pages/ProfessionalRegisterPage';
+import { ProfessionalProfilePage } from './pages/ProfessionalProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
         path="/registro/profesional"
         element={<ProfessionalRegisterPage />}
       />
+      <Route path="/perfil" element={<ProfessionalProfilePage />} />
 
       {/* Privadas — un dashboard por rol (ENG-44) */}
       <Route
