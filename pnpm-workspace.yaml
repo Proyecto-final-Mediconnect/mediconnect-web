@@ -1,0 +1,8 @@
+# Política de build scripts (pnpm 10+). Sin declararla, `pnpm install` falla
+# con ERR_PNPM_IGNORED_BUILDS y rompe todos los scripts, incluido el CI.
+#
+# `@sentry/cli` lo arrastra @sentry/vite-plugin (ENG-98) para subir source maps.
+# Se habilita para que resuelva su binario en cualquier plataforma: en Windows
+# llega por el paquete `@sentry/cli-win32-x64`, pero el CI corre en Linux.
+allowBuilds:
+  '@sentry/cli': true
