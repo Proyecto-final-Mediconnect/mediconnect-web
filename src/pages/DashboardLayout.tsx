@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { AppHeader } from '../shared/ui/AppHeader';
 
 type DashboardLayoutProps = {
@@ -46,5 +47,31 @@ export function PendingCard({
       </div>
       <p className="mt-2 text-sm text-muted">{description}</p>
     </div>
+  );
+}
+
+/** Sección ya implementada: misma tarjeta, pero navegable. Se distingue de
+ *  `PendingCard` por el borde sólido, para que el dashboard muestre de un
+ *  vistazo qué se puede usar y qué todavía no. */
+export function SectionCard({
+  title,
+  description,
+  to,
+}: {
+  title: string;
+  description: string;
+  to: string;
+}) {
+  return (
+    <Link
+      to={to}
+      className="block rounded-xl border border-slate-200 bg-white p-5 transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+    >
+      <h2 className="font-semibold text-ink">{title}</h2>
+      <p className="mt-2 text-sm text-muted">{description}</p>
+      <span className="mt-3 inline-block text-sm font-medium text-brand">
+        Abrir →
+      </span>
+    </Link>
   );
 }
