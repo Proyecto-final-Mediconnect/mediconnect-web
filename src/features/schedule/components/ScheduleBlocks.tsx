@@ -139,8 +139,19 @@ export function ScheduleBlocks({ blocks }: ScheduleBlocksProps) {
               <Button
                 type="button"
                 variant="ghost"
-                onClick={() => deleteBlock.mutate(block.id)}
-                disabled={deleteBlock.isPending}
+                onClick={() => {
+                  setError(null);
+                  // Sin `onError` el borrado fallaba en silencio: la fila seguía
+                  // ahí y el usuario no tenía forma de saber por qué.
+                  deleteBlock.mutate(block.id, {
+                    onError: (err: Error) => setError(err.message),
+                  });
+                }}
+                // Solo se deshabilita el botón del bloqueo que se está
+                // borrando, no todos los de la lista.
+                disabled={
+                  deleteBlock.isPending && deleteBlock.variables === block.id
+                }
                 aria-label={`Quitar el bloqueo del ${block.blockDate}`}
               >
                 Quitar

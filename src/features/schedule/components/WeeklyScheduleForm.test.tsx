@@ -123,7 +123,7 @@ describe('WeeklyScheduleForm (ENG-53)', () => {
     expect(putBodies).toHaveLength(0);
   });
 
-  it('permite cargar turno mañana y turno tarde el mismo día', async () => {
+  it('"Agregar franja" continúa después de la última, sin pisarla', async () => {
     mockFetch();
     const user = userEvent.setup();
     renderForm();
@@ -131,11 +131,85 @@ describe('WeeklyScheduleForm (ENG-53)', () => {
     await screen.findByRole('checkbox', { name: /martes/i });
     await user.click(screen.getByRole('button', { name: /agregar franja/i }));
 
-    // La segunda franja arranca igual que la primera → se superponen.
+    // La franja nueva arranca a las 13:00, donde termina la de la mañana, así
+    // que se puede guardar sin tocar nada más.
+    await user.click(screen.getByRole('button', { name: /guardar agenda/i }));
+
+    await waitFor(() => expect(putBodies).toHaveLength(1));
+    expect(putBodies[0]).toEqual({
+      rules: [
+        {
+          weekday: 2,
+          startTime: '09:00',
+          endTime: '13:00',
+          slotDurationMinutes: 30,
+        },
+        {
+          weekday: 2,
+          startTime: '13:00',
+          endTime: '17:00',
+          slotDurationMinutes: 30,
+        },
+      ],
+    });
+  });
+
+  it('rechaza franjas superpuestas y no manda nada al backend', async () => {
+    mockFetch();
+    const user = userEvent.setup();
+    renderForm();
+
+    await screen.findByRole('checkbox', { name: /martes/i });
+    await user.click(screen.getByRole('button', { name: /agregar franja/i }));
+
+    // Se pisa a mano la hora de inicio de la segunda franja para solapar.
+    const desde = screen.getAllByLabelText(/desde/i);
+    await user.clear(desde[1]);
+    await user.type(desde[1], '11:00');
+
     await user.click(screen.getByRole('button', { name: /guardar agenda/i }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/superponen/i);
     expect(putBodies).toHaveLength(0);
+  });
+
+  it('un borrado de bloqueo que falla muestra el error en pantalla', async () => {
+    // Antes el delete no tenía onError: la fila quedaba ahí y el usuario no se
+    // enteraba de nada.
+    vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+      const url = String(input);
+      if (url.includes('/schedule/blocks/') && init?.method === 'DELETE') {
+        return Promise.resolve(
+          jsonResponse({ message: 'No se pudo borrar el bloqueo.' }, 500),
+        );
+      }
+      if (url.endsWith('/professionals/me/schedule')) {
+        return Promise.resolve(
+          jsonResponse({
+            rules: [],
+            blocks: [
+              {
+                id: 'b1',
+                blockDate: '2026-09-08',
+                startTime: null,
+                endTime: null,
+                reason: null,
+              },
+            ],
+          }),
+        );
+      }
+      return Promise.resolve(jsonResponse({}, 404));
+    });
+
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(await screen.findByRole('button', { name: /quitar/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /no se pudo borrar/i,
+    );
   });
 
   it('no manda el id de las franjas guardadas (el backend rechaza campos desconocidos)', async () => {

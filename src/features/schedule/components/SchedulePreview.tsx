@@ -16,23 +16,24 @@ interface SchedulePreviewProps {
   blocks: ScheduleBlock[];
 }
 
+const MESES = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+] as const;
+
 /** `2026-09-02` → `2 de septiembre`. */
 function formatDate(date: string): string {
   const [, month, day] = date.split('-').map(Number);
-  const MESES = [
-    'enero',
-    'febrero',
-    'marzo',
-    'abril',
-    'mayo',
-    'junio',
-    'julio',
-    'agosto',
-    'septiembre',
-    'octubre',
-    'noviembre',
-    'diciembre',
-  ];
   return `${day} de ${MESES[month - 1]}`;
 }
 

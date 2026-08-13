@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Button } from '../../../shared/ui/Button';
 import { useMySchedule, useSaveSchedule } from '../hooks/useSchedule';
+import { toMinutes, toTime } from '../lib/generateSlots';
 import { validateRules } from '../lib/validateRules';
 import {
   saveScheduleSchema,
@@ -19,6 +20,54 @@ const DEFAULT_RULE = {
   slotDurationMinutes: 30,
 } as const;
 
+/** Duración de una franja recién agregada, en minutos (4 h). */
+const DEFAULT_SPAN = 4 * 60;
+const END_OF_DAY = 23 * 60 + 59;
+
+/**
+ * Franja en edición. El `uid` es solo del cliente: existe para que React tenga
+ * una key estable. Con `key={index}`, al quitar la primera de dos franjas React
+ * reusa el DOM de la que se fue y el foco salta al input equivocado.
+ *
+ * No se persiste ni viaja en el `PUT`: el payload se arma con los campos del DTO
+ * explícitamente, y el backend rechaza cualquier extra (`forbidNonWhitelisted`).
+ */
+interface EditableRule extends ScheduleRule {
+  uid: string;
+}
+
+let nextUid = 0;
+
+function withUid(rule: ScheduleRule): EditableRule {
+  return { ...rule, uid: `rule-${nextUid++}` };
+}
+
+/**
+ * Franja nueva para un día, arrancando donde termina la última que ya tiene.
+ *
+ * Antes siempre se agregaba 09:00-13:00, así que apretar "Agregar franja" en un
+ * día que ya tenía la jornada de mañana creaba un duplicado exacto y el usuario
+ * se comía un error de solape sin haber tocado nada.
+ */
+function nextRuleFor(weekday: number, existing: ScheduleRule[]): EditableRule {
+  const dayRules = existing.filter((r) => r.weekday === weekday);
+  if (dayRules.length === 0) return withUid({ weekday, ...DEFAULT_RULE });
+
+  const lastEnd = Math.max(...dayRules.map((r) => toMinutes(r.endTime)));
+  const start = Math.min(lastEnd, END_OF_DAY);
+
+  return withUid({
+    weekday,
+    startTime: toTime(start),
+    endTime: toTime(Math.min(start + DEFAULT_SPAN, END_OF_DAY)),
+    // Se hereda la duración de la última franja: si el profesional atiende de a
+    // 45 min a la mañana, lo más probable es que a la tarde también.
+    slotDurationMinutes:
+      dayRules[dayRules.length - 1].slotDurationMinutes ??
+      DEFAULT_RULE.slotDurationMinutes,
+  });
+}
+
 /**
  * Configuración de la agenda semanal (ENG-53).
  *
@@ -30,7 +79,7 @@ export function WeeklyScheduleForm() {
   const { data: schedule, isPending, isError, error } = useMySchedule();
   const saveSchedule = useSaveSchedule();
 
-  const [rules, setRules] = useState<ScheduleRule[]>([]);
+  const [rules, setRules] = useState<EditableRule[]>([]);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const seeded = useRef(false);
@@ -39,7 +88,7 @@ export function WeeklyScheduleForm() {
   // traería la agenda de nuevo, pisando las franjas que se estén editando.
   useEffect(() => {
     if (schedule && !seeded.current) {
-      setRules(schedule.rules);
+      setRules(schedule.rules.map(withUid));
       seeded.current = true;
     }
   }, [schedule]);
@@ -59,24 +108,26 @@ export function WeeklyScheduleForm() {
 
   function addRule(weekday: number) {
     setSaved(false);
-    setRules((prev) => [...prev, { weekday, ...DEFAULT_RULE }]);
+    setRules((prev) => [...prev, nextRuleFor(weekday, prev)]);
   }
 
-  function removeRule(target: ScheduleRule) {
+  function removeRule(uid: string) {
     setSaved(false);
-    setRules((prev) => prev.filter((r) => r !== target));
+    setRules((prev) => prev.filter((r) => r.uid !== uid));
   }
 
-  function updateRule(target: ScheduleRule, patch: Partial<ScheduleRule>) {
+  function updateRule(uid: string, patch: Partial<ScheduleRule>) {
     setSaved(false);
-    setRules((prev) => prev.map((r) => (r === target ? { ...r, ...patch } : r)));
+    setRules((prev) =>
+      prev.map((r) => (r.uid === uid ? { ...r, ...patch } : r)),
+    );
   }
 
   function toggleDay(weekday: number, active: boolean) {
     setSaved(false);
     setRules((prev) =>
       active
-        ? [...prev, { weekday, ...DEFAULT_RULE }]
+        ? [...prev, withUid({ weekday, ...DEFAULT_RULE })]
         : prev.filter((r) => r.weekday !== weekday),
     );
   }
@@ -112,7 +163,7 @@ export function WeeklyScheduleForm() {
 
     saveSchedule.mutate(payload.data, {
       onSuccess: (fresh) => {
-        setRules(fresh.rules);
+        setRules(fresh.rules.map(withUid));
         setSaved(true);
       },
     });
@@ -159,9 +210,9 @@ export function WeeklyScheduleForm() {
 
                   {active && (
                     <div className="mt-3 space-y-2 pl-7">
-                      {dayRules.map((rule, index) => (
+                      {dayRules.map((rule) => (
                         <div
-                          key={index}
+                          key={rule.uid}
                           className="flex flex-wrap items-end gap-2"
                         >
                           <label className="text-sm">
@@ -170,7 +221,7 @@ export function WeeklyScheduleForm() {
                               type="time"
                               value={rule.startTime}
                               onChange={(e) =>
-                                updateRule(rule, { startTime: e.target.value })
+                                updateRule(rule.uid, { startTime: e.target.value })
                               }
                               className="rounded-lg border border-slate-300 px-3 py-2"
                               required
@@ -183,7 +234,7 @@ export function WeeklyScheduleForm() {
                               type="time"
                               value={rule.endTime}
                               onChange={(e) =>
-                                updateRule(rule, { endTime: e.target.value })
+                                updateRule(rule.uid, { endTime: e.target.value })
                               }
                               className="rounded-lg border border-slate-300 px-3 py-2"
                               required
@@ -197,7 +248,7 @@ export function WeeklyScheduleForm() {
                             <select
                               value={rule.slotDurationMinutes}
                               onChange={(e) =>
-                                updateRule(rule, {
+                                updateRule(rule.uid, {
                                   slotDurationMinutes: Number(e.target.value),
                                 })
                               }
@@ -215,7 +266,7 @@ export function WeeklyScheduleForm() {
                             <Button
                               type="button"
                               variant="ghost"
-                              onClick={() => removeRule(rule)}
+                              onClick={() => removeRule(rule.uid)}
                               aria-label={`Quitar la franja de ${rule.startTime} del ${WEEKDAY_NAMES[weekday].toLowerCase()}`}
                             >
                               Quitar
