@@ -24,12 +24,7 @@ const trustPoints = [
   },
 ];
 
-export function AuthLayout({
-  title,
-  subtitle,
-  children,
-  footer,
-}: AuthLayoutProps) {
+export function AuthLayout({ title, subtitle, children, footer }: AuthLayoutProps) {
   return (
     <div className="flex min-h-svh">
       {/* Panel de marca (desktop) */}
@@ -60,9 +55,7 @@ export function AuthLayout({
           </ul>
         </div>
 
-        <p className="text-sm text-white/60">
-          © {new Date().getFullYear()} MediConnect
-        </p>
+        <p className="text-sm text-white/60">© {new Date().getFullYear()} MediConnect</p>
       </aside>
 
       {/* Formulario */}

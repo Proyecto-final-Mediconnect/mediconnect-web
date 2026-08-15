@@ -10,18 +10,12 @@ export function ProfessionalRegisterPage() {
       footer={
         <p>
           ¿Ya tenés cuenta?{' '}
-          <Link
-            to="/ingresar"
-            className="font-semibold text-brand hover:underline"
-          >
+          <Link to="/ingresar" className="font-semibold text-brand hover:underline">
             Iniciá sesión
           </Link>
           {' · '}
           ¿Sos paciente?{' '}
-          <Link
-            to="/registro"
-            className="font-semibold text-brand hover:underline"
-          >
+          <Link to="/registro" className="font-semibold text-brand hover:underline">
             Registrate como paciente
           </Link>
         </p>

@@ -25,26 +25,18 @@ describe('registerProfessionalSchema', () => {
   });
 
   it('rechaza nombre o apellido demasiado cortos', () => {
-    expect(
-      registerProfessionalSchema.safeParse({ ...valid, firstName: 'A' })
-        .success,
-    ).toBe(false);
-    expect(
-      registerProfessionalSchema.safeParse({ ...valid, lastName: '' }).success,
-    ).toBe(false);
+    expect(registerProfessionalSchema.safeParse({ ...valid, firstName: 'A' }).success).toBe(false);
+    expect(registerProfessionalSchema.safeParse({ ...valid, lastName: '' }).success).toBe(false);
   });
 
   it('rechaza especialidad vacía', () => {
-    expect(
-      registerProfessionalSchema.safeParse({ ...valid, specialty: '' }).success,
-    ).toBe(false);
+    expect(registerProfessionalSchema.safeParse({ ...valid, specialty: '' }).success).toBe(false);
   });
 
   it('rechaza matrícula con formato inválido', () => {
-    expect(
-      registerProfessionalSchema.safeParse({ ...valid, licenseNumber: 'ab' })
-        .success,
-    ).toBe(false);
+    expect(registerProfessionalSchema.safeParse({ ...valid, licenseNumber: 'ab' }).success).toBe(
+      false,
+    );
   });
 
   it('rechaza confirmación que no coincide y apunta al campo correcto', () => {

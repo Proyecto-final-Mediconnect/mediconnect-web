@@ -71,17 +71,12 @@ export function ProfessionalRegisterForm() {
         >
           ✓
         </div>
-        <h2 className="mb-2 text-xl font-semibold text-brand-deep">
-          Revisá tu correo
-        </h2>
+        <h2 className="mb-2 text-xl font-semibold text-brand-deep">Revisá tu correo</h2>
         <p className="text-muted">
-          Te enviamos un enlace para confirmar tu cuenta. Una vez verificada,
-          nuestro equipo validará tu matrícula antes de habilitar tu perfil
-          profesional. Si ya tenías una cuenta, podés{' '}
-          <Link
-            to="/ingresar"
-            className="font-semibold text-brand hover:underline"
-          >
+          Te enviamos un enlace para confirmar tu cuenta. Una vez verificada, nuestro equipo
+          validará tu matrícula antes de habilitar tu perfil profesional. Si ya tenías una cuenta,
+          podés{' '}
+          <Link to="/ingresar" className="font-semibold text-brand hover:underline">
             iniciar sesión
           </Link>
           .

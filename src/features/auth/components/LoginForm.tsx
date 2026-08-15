@@ -45,12 +45,9 @@ export function LoginForm() {
         >
           ✓
         </div>
-        <h2 className="mb-2 text-xl font-semibold text-brand-deep">
-          ¡Sesión iniciada!
-        </h2>
+        <h2 className="mb-2 text-xl font-semibold text-brand-deep">¡Sesión iniciada!</h2>
         <p className="text-muted">
-          Bienvenido/a de nuevo,{' '}
-          <span className="font-medium text-ink">{data.user.email}</span>.
+          Bienvenido/a de nuevo, <span className="font-medium text-ink">{data.user.email}</span>.
         </p>
       </div>
     );
@@ -82,10 +79,7 @@ export function LoginForm() {
       />
 
       {error && (
-        <p
-          role="alert"
-          className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-danger"
-        >
+        <p role="alert" className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-danger">
           {error.message}
         </p>
       )}
