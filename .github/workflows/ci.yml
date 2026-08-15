@@ -1,0 +1,63 @@
+name: CI
+
+# Calidad del frontend web, alineado a la matriz 3.5.4 del Sprint 0.
+# El web NO tiene suite de integración (eso es del backend), así que el pipeline
+# es lint + type-check + unit, más el build a partir del PR a release.
+#
+#   push feature/** · bugfix/**   -> lint + type-check + unit
+#   PR/merge a release/** · main  -> lint + type-check + unit + build
+on:
+  push:
+    branches:
+      - 'feature/**'
+      - 'bugfix/**'
+      - 'release/**'
+      - 'main'
+  pull_request:
+    branches:
+      - 'release/**'
+      - 'main'
+
+# Cancela runs obsoletos del mismo ref: si pusheás dos veces seguidas, el primero
+# se descarta en vez de encolarse. Ahorra minutos de runner.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint · Type-check · Unit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Type-check
+        run: pnpm run typecheck
+
+      - name: Unit tests
+        run: pnpm run test:run
+
+      - name: Build (producción)
+        # El doc pone el build a partir del PR a release, no en el push a feature.
+        # En CI valida que compile; el build real que se publica lo hace Render
+        # (con sus env VITE_*) al dispararse el deploy.
+        if: github.event_name == 'pull_request' || startsWith(github.ref_name, 'release/') || github.ref_name == 'main'
+        run: pnpm run build
