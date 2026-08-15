@@ -7,6 +7,7 @@ import { PatientDashboardPage } from './pages/PatientDashboardPage';
 import { ProfessionalDashboardPage } from './pages/ProfessionalDashboardPage';
 import { ProfessionalRegisterPage } from './pages/ProfessionalRegisterPage';
 import { ProfessionalProfilePage } from './pages/ProfessionalProfilePage';
+import { ProfessionalSchedulePage } from './pages/ProfessionalSchedulePage';
 import { PatientProfilePage } from './pages/PatientProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
 import { SpikeDailyPage } from './pages/SpikeDailyPage';
@@ -47,6 +48,13 @@ function App() {
         element={
           <RequireAuth allow={['PACIENTE', 'PROFESIONAL']}>
             <SpikeDailyPage />
+      {/* La agenda es del profesional: va protegida por rol, a diferencia de
+          /perfil, que quedó público por la deuda que arrastra ENG-48. */}
+      <Route
+        path="/profesional/agenda"
+        element={
+          <RequireAuth allow={['PROFESIONAL']}>
+            <ProfessionalSchedulePage />
           </RequireAuth>
         }
       />
