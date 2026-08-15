@@ -1,5 +1,5 @@
 import { useSession } from '../features/auth/hooks/useSession';
-import { DashboardLayout, PendingCard } from './DashboardLayout';
+import { DashboardLayout, PendingCard, SectionCard } from './DashboardLayout';
 
 export function ProfessionalDashboardPage() {
   const { user } = useSession();
@@ -16,10 +16,10 @@ export function ProfessionalDashboardPage() {
           description="Completá tu bio, especialidades, foto y precio de consulta."
           issue="ENG-48"
         />
-        <PendingCard
+        <SectionCard
           title="Mi agenda"
           description="Configurá tus días y horarios disponibles para recibir turnos."
-          issue="ENG-53"
+          to="/profesional/agenda"
         />
         <PendingCard
           title="Mis consultas"
