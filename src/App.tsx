@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from './features/auth/components/RequireAuth';
+import { BookAppointmentPage } from './pages/BookAppointmentPage';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { ModeratorDashboardPage } from './pages/ModeratorDashboardPage';
@@ -18,10 +19,7 @@ function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/ingresar" element={<LoginPage />} />
       <Route path="/registro" element={<RegisterPage />} />
-      <Route
-        path="/registro/profesional"
-        element={<ProfessionalRegisterPage />}
-      />
+      <Route path="/registro/profesional" element={<ProfessionalRegisterPage />} />
       <Route path="/perfil" element={<ProfessionalProfilePage />} />
       <Route path="/perfil/paciente" element={<PatientProfilePage />} />
 
@@ -49,6 +47,17 @@ function App() {
         element={
           <RequireAuth allow={['PROFESIONAL']}>
             <ProfessionalSchedulePage />
+          </RequireAuth>
+        }
+      />
+      {/* Reservar un turno con un profesional (ENG-54). Solo PACIENTE: es la
+          historia "como paciente autenticado". Se entra desde el catálogo
+          (ENG-49) o el perfil público (ENG-50), los dos en revisión. */}
+      <Route
+        path="/profesionales/:professionalId/turnos"
+        element={
+          <RequireAuth allow={['PACIENTE']}>
+            <BookAppointmentPage />
           </RequireAuth>
         }
       />
