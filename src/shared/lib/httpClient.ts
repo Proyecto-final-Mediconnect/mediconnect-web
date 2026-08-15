@@ -35,8 +35,7 @@ export async function apiRequest<T>(
   const data = await response.json().catch(() => null);
 
   if (!response.ok) {
-    const message = (data as { message?: string | string[] } | null)
-      ?.message;
+    const message = (data as { message?: string | string[] } | null)?.message;
     throw new ApiError(
       response.status,
       Array.isArray(message)

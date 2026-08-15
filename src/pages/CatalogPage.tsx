@@ -17,10 +17,19 @@ export function CatalogPage() {
   const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
   const priceRangeError = validatePriceRange(filters);
 
-  // Debounce sobre los inputs de precio; con un rango inválido no se pide
-  // nada nuevo y sigue en pantalla el último resultado válido.
+  // Debounce sobre los inputs de precio; con un rango inválido no se pide nada
+  // nuevo y sigue en pantalla el último resultado válido. Ojo: NO se cae a
+  // EMPTY_FILTERS, porque eso mostraría el catálogo entero (sin siquiera la
+  // especialidad elegida) apenas se tipea el primer dígito del precio máximo.
   const debouncedFilters = useDebouncedValue(filters, 300);
-  const appliedFilters = priceRangeError ? EMPTY_FILTERS : debouncedFilters;
+  const [appliedFilters, setAppliedFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
+
+  // Ajuste durante el render (no un efecto): React vuelve a renderizar con el
+  // valor nuevo antes de pintar, así que la lista nunca se ve con los filtros
+  // viejos por un frame.
+  if (appliedFilters !== debouncedFilters && !validatePriceRange(debouncedFilters)) {
+    setAppliedFilters(debouncedFilters);
+  }
 
   const catalog = useProfessionalsCatalog(appliedFilters);
   const hasFilters =

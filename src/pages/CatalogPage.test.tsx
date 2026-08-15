@@ -198,6 +198,27 @@ describe('CatalogPage (ENG-49)', () => {
     });
   });
 
+  it('mantiene los filtros válidos mientras el rango de precio está invertido', async () => {
+    const user = userEvent.setup();
+    renderCatalog();
+    await screen.findByText('Nombre1 Apellido1');
+
+    await user.selectOptions(screen.getByLabelText('Especialidad'), SPECIALTIES[1].id);
+    await waitFor(() => expect(lastQuery().specialtyId).toBe(SPECIALTIES[1].id));
+
+    // Tipear el precio máximo pasa por estados inválidos ("1" < 9000). La lista
+    // no puede saltar al catálogo entero: la especialidad elegida sigue puesta.
+    await user.type(screen.getByLabelText('Precio mínimo'), '9000');
+    await user.type(screen.getByLabelText('Precio máximo'), '1');
+
+    expect(
+      await screen.findByText('El precio máximo debe ser mayor o igual que el mínimo.'),
+    ).toBeVisible();
+    await waitFor(() => expect(lastQuery().specialtyId).toBe(SPECIALTIES[1].id));
+    // El único request sin especialidad es la carga inicial de la página.
+    expect(professionalRequests.filter((url) => !url.includes('specialtyId'))).toHaveLength(1);
+  });
+
   it('muestra un mensaje claro cuando los filtros no dan resultados', async () => {
     const user = userEvent.setup();
     renderCatalog();
