@@ -52,3 +52,22 @@ export async function getMyAppointments(): Promise<Appointment[]> {
 
   return (await response.json()) as Appointment[];
 }
+
+/**
+ * Cancela un turno futuro propio (ENG-55). Devuelve el turno ya en `CANCELADO`.
+ *
+ * `PATCH` sin body: el turno no se borra, cambia de estado, y lo único que se
+ * puede pedir es la cancelación. Mandar un cuerpo daría 400 — el backend corre
+ * con `forbidNonWhitelisted`.
+ */
+export async function cancelAppointment(appointmentId: string): Promise<Appointment> {
+  const response = await apiFetch(`/appointments/${appointmentId}/cancel`, {
+    method: 'PATCH',
+  });
+
+  if (!response.ok) {
+    throw await toApiError(response, 'No se pudo cancelar el turno.');
+  }
+
+  return (await response.json()) as Appointment;
+}

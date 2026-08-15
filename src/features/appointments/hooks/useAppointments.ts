@@ -1,6 +1,11 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isClientError } from '../../../shared/api/apiError';
-import { bookAppointment, getAvailability, getMyAppointments } from '../api/appointmentsApi';
+import {
+  bookAppointment,
+  cancelAppointment,
+  getAvailability,
+  getMyAppointments,
+} from '../api/appointmentsApi';
 
 const MY_APPOINTMENTS_KEY = ['appointments', 'me'] as const;
 
@@ -48,6 +53,20 @@ export function useBookAppointment() {
       // de tomar tiene que pasar a "ocupado" sin recargar la página.
       void queryClient.invalidateQueries({ queryKey: ['availability'] });
       void queryClient.invalidateQueries({ queryKey: MY_APPOINTMENTS_KEY });
+    },
+  });
+}
+
+export function useCancelAppointment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: cancelAppointment,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: MY_APPOINTMENTS_KEY });
+      // Cancelar libera el horario: la grilla de reserva vuelve a ofrecerlo.
+      // Sin esto, el paciente cancela y sigue viendo su propio turno "ocupado".
+      void queryClient.invalidateQueries({ queryKey: ['availability'] });
     },
   });
 }
