@@ -45,9 +45,7 @@ describe('ProfessionalRegisterForm', () => {
     expect(screen.getByLabelText('Apellido')).toBeInTheDocument();
     expect(screen.getByLabelText('Especialidad')).toBeInTheDocument();
     expect(screen.getByLabelText('Número de matrícula')).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /crear cuenta profesional/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /crear cuenta profesional/i })).toBeInTheDocument();
   });
 
   it('no llama al backend con datos inválidos', async () => {
@@ -55,13 +53,9 @@ describe('ProfessionalRegisterForm', () => {
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     renderForm();
 
-    await user.click(
-      screen.getByRole('button', { name: /crear cuenta profesional/i }),
-    );
+    await user.click(screen.getByRole('button', { name: /crear cuenta profesional/i }));
 
-    expect(
-      await screen.findByText('El email no tiene un formato válido'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('El email no tiene un formato válido')).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -78,9 +72,7 @@ describe('ProfessionalRegisterForm', () => {
     renderForm();
 
     await fillValidForm(user);
-    await user.click(
-      screen.getByRole('button', { name: /crear cuenta profesional/i }),
-    );
+    await user.click(screen.getByRole('button', { name: /crear cuenta profesional/i }));
 
     expect(await screen.findByText('Revisá tu correo')).toBeInTheDocument();
   });

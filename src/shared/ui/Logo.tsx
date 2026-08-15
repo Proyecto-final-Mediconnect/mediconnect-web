@@ -5,11 +5,7 @@ type LogoProps = {
 };
 
 /** Logo de MediConnect: corazón con línea de pulso + wordmark. */
-export function Logo({
-  tone = 'dark',
-  showText = true,
-  className = '',
-}: LogoProps) {
+export function Logo({ tone = 'dark', showText = true, className = '' }: LogoProps) {
   return (
     <span className={`inline-flex items-center gap-2 ${className}`}>
       <img src="/logo.png" alt="MediConnect" className="h-9 w-9" />

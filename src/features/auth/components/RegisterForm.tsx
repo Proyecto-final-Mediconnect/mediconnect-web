@@ -5,9 +5,7 @@ import { TextField } from '../../../shared/ui/TextField';
 import { useRegisterPatient } from '../hooks/useRegisterPatient';
 import { registerPatientSchema } from '../types/register';
 
-type FieldErrors = Partial<
-  Record<'email' | 'password' | 'passwordConfirmation', string>
->;
+type FieldErrors = Partial<Record<'email' | 'password' | 'passwordConfirmation', string>>;
 
 export function RegisterForm() {
   const [email, setEmail] = useState('');
@@ -57,16 +55,11 @@ export function RegisterForm() {
         >
           ✓
         </div>
-        <h2 className="mb-2 text-xl font-semibold text-brand-deep">
-          Revisá tu correo
-        </h2>
+        <h2 className="mb-2 text-xl font-semibold text-brand-deep">Revisá tu correo</h2>
         <p className="text-muted">
-          Si tu email todavía no estaba registrado, te enviamos un enlace para
-          confirmar tu cuenta. Si ya tenías una cuenta, podés{' '}
-          <Link
-            to="/ingresar"
-            className="font-semibold text-brand hover:underline"
-          >
+          Si tu email todavía no estaba registrado, te enviamos un enlace para confirmar tu cuenta.
+          Si ya tenías una cuenta, podés{' '}
+          <Link to="/ingresar" className="font-semibold text-brand hover:underline">
             iniciar sesión
           </Link>
           .

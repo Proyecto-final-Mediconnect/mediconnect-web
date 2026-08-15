@@ -4,7 +4,6 @@ import type { RegisterProfessionalInput } from '../types/registerProfessional';
 
 export function useRegisterProfessional() {
   return useMutation({
-    mutationFn: (input: RegisterProfessionalInput) =>
-      registerProfessional(input),
+    mutationFn: (input: RegisterProfessionalInput) => registerProfessional(input),
   });
 }
