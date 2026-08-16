@@ -4,24 +4,28 @@ name: CI
 # El web NO tiene suite de integración (eso es del backend), así que el pipeline
 # es lint + type-check + unit, más el build a partir del PR a release.
 #
-#   push feature/** · bugfix/**   -> lint + type-check + unit
-#   PR/merge a release/** · main  -> lint + type-check + unit + build
+#   push a cualquier rama        -> lint + type-check + unit
+#   PR (contra cualquier base)   -> lint + type-check + unit + build
+#   push a release/** · main     -> lint + type-check + unit + build
+#
+# Los filtros de rama que había acá no matcheaban ninguna rama real: el equipo
+# nombra las ramas como las genera Linear (`<usuario>/eng-NN-titulo`), y
+# `feature/**` / `bugfix/**` quedaron de las dos ramas previas a esa convención.
+# Resultado: el trigger de `push` no se disparaba nunca, y un PR apilado sobre
+# otra rama de feature —como ENG-55 sobre ENG-54— no recibía ningún check,
+# aunque la protección de rama los exige para mergear.
 on:
   push:
     branches:
-      - 'feature/**'
-      - 'bugfix/**'
-      - 'release/**'
-      - 'main'
+      - '**'
   pull_request:
-    branches:
-      - 'release/**'
-      - 'main'
 
-# Cancela runs obsoletos del mismo ref: si pusheás dos veces seguidas, el primero
-# se descarta en vez de encolarse. Ahorra minutos de runner.
+# Cancela runs obsoletos de la misma rama. Se agrupa por `head_ref` cuando el
+# evento es un PR: sin eso, cada push a una rama con PR abierto arrancaría DOS
+# runs —el de `push` y el de `pull_request`— en grupos distintos, y ninguno
+# cancelaría al otro. Con `head_ref` comparten grupo y sobrevive el último.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
 jobs:
