@@ -1,5 +1,5 @@
 import { apiFetch } from '../../../shared/api/apiFetch';
-import { apiError } from '../../profile/api/apiError';
+import { toApiError } from '../../../shared/api/apiError';
 import type { MeetingSession, SpikeRoom } from '../types/dailyRoom';
 
 /**
@@ -9,33 +9,16 @@ import type { MeetingSession, SpikeRoom } from '../types/dailyRoom';
  * servidor y exponerla en el bundle permitiría a cualquiera crear salas contra
  * la cuenta del proyecto. Todo pasa por el backend, que además es quien firma
  * los meeting tokens.
- *
- * Reusa `features/profile/api/apiError` en vez de crear otro helper: ENG-53 lo
- * está moviendo a `shared/api/apiError`, y adelantarse acá haría que los dos PRs
- * peleen por el mismo archivo nuevo.
  */
 
 const BASE = '/video/spike';
-
-/** Traduce una respuesta fallida al `ApiError` con status que espera la UI. */
-async function toError(response: Response, fallback: string) {
-  const data = (await response.json().catch(() => null)) as {
-    message?: string | string[];
-  } | null;
-  const message = data?.message;
-
-  return apiError(
-    response.status,
-    Array.isArray(message) ? message.join(' ') : (message ?? fallback),
-  );
-}
 
 /** Crea una sala privada de prueba con un token por rol. */
 export async function createSpikeRoom(): Promise<SpikeRoom> {
   const response = await apiFetch(`${BASE}/rooms`, { method: 'POST' });
 
   if (!response.ok) {
-    throw await toError(response, 'No se pudo crear la sala de prueba.');
+    throw await toApiError(response, 'No se pudo crear la sala de prueba.');
   }
 
   return (await response.json()) as SpikeRoom;
@@ -52,7 +35,7 @@ export async function getSpikeSessions(roomName: string): Promise<MeetingSession
   const response = await apiFetch(`${BASE}/rooms/${encodeURIComponent(roomName)}/sessions`);
 
   if (!response.ok) {
-    throw await toError(response, 'No se pudieron leer las métricas.');
+    throw await toApiError(response, 'No se pudieron leer las métricas.');
   }
 
   return (await response.json()) as MeetingSession[];
@@ -66,6 +49,6 @@ export async function deleteSpikeRoom(roomName: string): Promise<void> {
 
   // 204 sin cuerpo: no se parsea la respuesta exitosa.
   if (!response.ok) {
-    throw await toError(response, 'No se pudo borrar la sala.');
+    throw await toApiError(response, 'No se pudo borrar la sala.');
   }
 }
