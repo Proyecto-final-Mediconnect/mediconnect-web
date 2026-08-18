@@ -48,6 +48,9 @@ function App() {
         element={
           <RequireAuth allow={['PACIENTE', 'PROFESIONAL']}>
             <SpikeDailyPage />
+          </RequireAuth>
+        }
+      />
       {/* La agenda es del profesional: va protegida por rol, a diferencia de
           /perfil, que quedó público por la deuda que arrastra ENG-48. */}
       <Route
