@@ -27,6 +27,9 @@ export function LandingPage() {
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <Logo />
         <nav className="flex items-center gap-2">
+          <Link to="/profesionales">
+            <Button variant="ghost">Ver profesionales</Button>
+          </Link>
           <Link to="/ingresar">
             <Button variant="ghost">Iniciar sesión</Button>
           </Link>
@@ -52,14 +55,14 @@ export function LandingPage() {
             profesionales de forma simple y segura.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
-            <Link to="/registro">
+            <Link to="/profesionales">
               <Button variant="primary" className="px-6 py-3 text-base">
-                Crear mi cuenta
+                Buscar profesionales
               </Button>
             </Link>
-            <Link to="/ingresar">
+            <Link to="/registro">
               <Button variant="secondary" className="px-6 py-3 text-base">
-                Ya tengo cuenta
+                Crear mi cuenta
               </Button>
             </Link>
           </div>

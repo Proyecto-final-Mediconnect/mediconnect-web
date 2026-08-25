@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from './features/auth/components/RequireAuth';
 import { BookAppointmentPage } from './pages/BookAppointmentPage';
+import { CatalogPage } from './pages/CatalogPage';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { ModeratorDashboardPage } from './pages/ModeratorDashboardPage';
@@ -19,6 +20,9 @@ function App() {
     <Routes>
       {/* Públicas */}
       <Route path="/" element={<LandingPage />} />
+      {/* Catálogo público (ENG-49): la búsqueda de profesionales no requiere
+          sesión, así que va sin guard. */}
+      <Route path="/profesionales" element={<CatalogPage />} />
       <Route path="/ingresar" element={<LoginPage />} />
       <Route path="/registro" element={<RegisterPage />} />
       <Route path="/registro/profesional" element={<ProfessionalRegisterPage />} />

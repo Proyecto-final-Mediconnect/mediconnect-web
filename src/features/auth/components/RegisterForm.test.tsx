@@ -34,9 +34,7 @@ describe('RegisterForm', () => {
     expect(screen.getByLabelText('Email')).toBeInTheDocument();
     expect(screen.getByLabelText('Contraseña')).toBeInTheDocument();
     expect(screen.getByLabelText('Confirmar contraseña')).toBeInTheDocument();
-    expect(
-      screen.getByRole('button', { name: /crear cuenta/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /crear cuenta/i })).toBeInTheDocument();
   });
 
   it('muestra errores de validación y no llama al backend con datos inválidos', async () => {
@@ -46,9 +44,7 @@ describe('RegisterForm', () => {
 
     await user.click(screen.getByRole('button', { name: /crear cuenta/i }));
 
-    expect(
-      await screen.findByText('El email no tiene un formato válido'),
-    ).toBeInTheDocument();
+    expect(await screen.findByText('El email no tiene un formato válido')).toBeInTheDocument();
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -66,10 +62,7 @@ describe('RegisterForm', () => {
 
     await user.type(screen.getByLabelText('Email'), 'user@test.com');
     await user.type(screen.getByLabelText('Contraseña'), 'Password1');
-    await user.type(
-      screen.getByLabelText('Confirmar contraseña'),
-      'Password1',
-    );
+    await user.type(screen.getByLabelText('Confirmar contraseña'), 'Password1');
     await user.click(screen.getByRole('button', { name: /crear cuenta/i }));
 
     expect(await screen.findByText('Revisá tu correo')).toBeInTheDocument();

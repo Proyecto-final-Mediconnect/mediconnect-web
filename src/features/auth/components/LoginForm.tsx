@@ -79,10 +79,7 @@ export function LoginForm() {
       />
 
       {error && (
-        <p
-          role="alert"
-          className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-danger"
-        >
+        <p role="alert" className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-danger">
           {error.message}
         </p>
       )}

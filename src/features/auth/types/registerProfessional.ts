@@ -32,19 +32,14 @@ export const registerProfessionalSchema = z
     licenseNumber: z
       .string()
       .trim()
-      .regex(
-        /^[A-Za-z0-9./-]{3,20}$/,
-        'El número de matrícula no tiene un formato válido',
-      ),
+      .regex(/^[A-Za-z0-9./-]{3,20}$/, 'El número de matrícula no tiene un formato válido'),
   })
   .refine((data) => data.password === data.passwordConfirmation, {
     message: 'Las contraseñas no coinciden',
     path: ['passwordConfirmation'],
   });
 
-export type RegisterProfessionalInput = z.infer<
-  typeof registerProfessionalSchema
->;
+export type RegisterProfessionalInput = z.infer<typeof registerProfessionalSchema>;
 
 export type RegisterProfessionalResponse = {
   message: string;
