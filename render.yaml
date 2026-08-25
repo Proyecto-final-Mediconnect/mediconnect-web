@@ -1,0 +1,56 @@
+# Configuración del static site de la web en Render (ENG-124).
+#
+# ---------------------------------------------------------------------------
+# Por qué este archivo existe
+# ---------------------------------------------------------------------------
+# Es el tercer incidente de la misma familia: ENG-96 (el seed nunca corrió y el
+# catálogo de especialidades estuvo vacío en Supabase por meses), ENG-122 (las
+# migraciones no se aplicaban en el deploy) y ahora esto. En los tres casos el
+# problema no fue la configuración en sí, sino DÓNDE vivía: en el dashboard de
+# Render, fuera del repositorio, sin log, sin que ningún PR la mostrara y sin
+# nada que avisara cuando faltaba.
+#
+# La conclusión que quedó escrita en el workflow de ENG-122 aplica igual acá:
+# un paso del que se depende y que nadie puede ver es peor que no tenerlo.
+#
+# ---------------------------------------------------------------------------
+# OJO: para que Render LEA este archivo, el servicio tiene que estar asociado a
+# un Blueprint
+# ---------------------------------------------------------------------------
+# Si el static site se creó a mano desde el dashboard (que es el caso hoy),
+# Render NO lee este archivo y la Rewrite Rule hay que cargarla a mano en
+# Settings → Redirects/Rewrites.
+#
+# Mientras eso siga así, este archivo cumple dos funciones:
+#   1. Documentar cuál es la configuración esperada, para que se pueda comparar
+#      contra lo que hay cargado en el dashboard.
+#   2. Ser la base de la migración a Blueprint, que es lo que cierra el problema
+#      de raíz y está pendiente en ENG-124.
+#
+# Si migran el servicio a Blueprint, verifiquen que `buildCommand` y
+# `staticPublishPath` coincidan con lo que hoy tiene cargado el dashboard antes
+# de aplicar, o el primer deploy por Blueprint puede salir distinto al actual.
+
+services:
+  - type: web
+    name: mediconnect-web
+    runtime: static
+    buildCommand: pnpm install --frozen-lockfile && pnpm run build
+    staticPublishPath: ./dist
+
+    routes:
+      # La regla que faltaba. Sin esto, el static site busca un archivo en cada
+      # ruta (`/profesionales`, `/ingresar`, …) y devuelve 404 text/plain, porque
+      # esas rutas no son archivos: las resuelve React Router en el cliente.
+      #
+      # Tiene que ser `rewrite` y no `redirect`. Un redirect cambiaría la URL en
+      # la barra del navegador, y entonces el deep link —que es justamente lo que
+      # se quiere arreglar— seguiría sin funcionar.
+      #
+      # Los archivos que existen en el build (`/assets/*`, `/favicon.svg`,
+      # `/logo.png`) se siguen sirviendo con su content-type: la regla actúa
+      # cuando no hay archivo que coincida. Está como criterio de aceptación en
+      # ENG-124 y hay que verificarlo después de aplicarla, no darlo por hecho.
+      - type: rewrite
+        source: /*
+        destination: /index.html
