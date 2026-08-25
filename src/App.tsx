@@ -11,6 +11,7 @@ import { ProfessionalProfilePage } from './pages/ProfessionalProfilePage';
 import { ProfessionalSchedulePage } from './pages/ProfessionalSchedulePage';
 import { PatientProfilePage } from './pages/PatientProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
+import { SpikeDailyPage } from './pages/SpikeDailyPage';
 
 function App() {
   return (
@@ -37,6 +38,17 @@ function App() {
         element={
           <RequireAuth allow={['PROFESIONAL']}>
             <ProfessionalDashboardPage />
+          </RequireAuth>
+        }
+      />
+      {/* Banco de pruebas del spike de Daily (ENG-51). No es producto: se borra
+          cuando ENG-56 implemente la videoconsulta desde un turno confirmado.
+          Va con sesión igual, porque crear salas consume cuota de Daily. */}
+      <Route
+        path="/spike/daily"
+        element={
+          <RequireAuth allow={['PACIENTE', 'PROFESIONAL']}>
+            <SpikeDailyPage />
           </RequireAuth>
         }
       />
