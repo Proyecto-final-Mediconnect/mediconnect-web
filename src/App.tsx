@@ -8,6 +8,7 @@ import { ModeratorDashboardPage } from './pages/ModeratorDashboardPage';
 import { MyAppointmentsPage } from './pages/MyAppointmentsPage';
 import { PatientDashboardPage } from './pages/PatientDashboardPage';
 import { ProfessionalDashboardPage } from './pages/ProfessionalDashboardPage';
+import { ProfessionalPublicProfilePage } from './pages/ProfessionalPublicProfilePage';
 import { ProfessionalRegisterPage } from './pages/ProfessionalRegisterPage';
 import { ProfessionalProfilePage } from './pages/ProfessionalProfilePage';
 import { ProfessionalSchedulePage } from './pages/ProfessionalSchedulePage';
@@ -23,6 +24,12 @@ function App() {
       {/* Catálogo público (ENG-49): la búsqueda de profesionales no requiere
           sesión, así que va sin guard. */}
       <Route path="/profesionales" element={<CatalogPage />} />
+      {/* Perfil público de un profesional (ENG-50): tampoco requiere sesión.
+          Es el paso intermedio entre el catálogo y la reserva. Convive con
+          `/profesionales/:professionalId/turnos` — React Router ordena por
+          especificidad, no por declaración, así que la ruta de turnos gana
+          sobre esta cuando el path tiene el segmento extra. */}
+      <Route path="/profesionales/:professionalId" element={<ProfessionalPublicProfilePage />} />
       <Route path="/ingresar" element={<LoginPage />} />
       <Route path="/registro" element={<RegisterPage />} />
       <Route path="/registro/profesional" element={<ProfessionalRegisterPage />} />

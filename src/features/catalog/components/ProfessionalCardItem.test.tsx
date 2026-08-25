@@ -2,6 +2,7 @@
 import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { ProfessionalCardItem } from './ProfessionalCardItem';
 import type { ProfessionalCard } from '../types/catalog';
 
@@ -17,10 +18,14 @@ const base: ProfessionalCard = {
 };
 
 function renderCard(overrides: Partial<ProfessionalCard> = {}) {
+  // La tarjeta ahora es un `<Link>` al perfil público (ENG-50), así que
+  // necesita un router alrededor.
   return render(
-    <ul>
-      <ProfessionalCardItem professional={{ ...base, ...overrides }} />
-    </ul>,
+    <MemoryRouter>
+      <ul>
+        <ProfessionalCardItem professional={{ ...base, ...overrides }} />
+      </ul>
+    </MemoryRouter>,
   );
 }
 
@@ -50,5 +55,14 @@ describe('ProfessionalCardItem', () => {
     renderCard({ primarySpecialty: null, specialties: [] });
 
     expect(screen.getByText('Especialidad a confirmar')).toBeVisible();
+  });
+
+  it('toda la tarjeta enlaza al perfil público del profesional', () => {
+    renderCard();
+
+    expect(screen.getByRole('link', { name: 'Ver el perfil de Ana Álvarez' })).toHaveAttribute(
+      'href',
+      `/profesionales/${base.id}`,
+    );
   });
 });
