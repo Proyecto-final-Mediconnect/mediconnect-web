@@ -1,7 +1,9 @@
 import { Link, useParams } from 'react-router-dom';
 import { PublicProfile } from '../features/catalog/components/PublicProfile';
-import { usePublicProfile } from '../features/catalog/hooks/usePublicProfile';
-import { ApiError } from '../shared/lib/httpClient';
+import {
+  isMissingProfileError,
+  usePublicProfile,
+} from '../features/catalog/hooks/usePublicProfile';
 import { Button } from '../shared/ui/Button';
 import { Logo } from '../shared/ui/Logo';
 
@@ -44,7 +46,7 @@ export function ProfessionalPublicProfilePage() {
             profile={profile.data}
             isLoading={profile.isPending}
             isError={profile.isError}
-            isNotFound={profile.error instanceof ApiError && profile.error.status === 404}
+            isNotFound={isMissingProfileError(profile.error)}
             errorMessage={profile.error?.message}
             onRetry={() => void profile.refetch()}
           />

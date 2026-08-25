@@ -111,6 +111,17 @@ describe('ProfessionalPublicProfilePage', () => {
     expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
   });
 
+  it('ante un id malformado (400) muestra el mismo estado que un 404, sin spinner de más', async () => {
+    // El backend valida el id con ParseUUIDPipe: /profesionales/juan-perez
+    // responde 400. Si no se cortara el reintento, el usuario vería "Cargando
+    // perfil…" durante el backoff de react-query antes del mensaje.
+    mockFetch(400, { message: 'Validation failed (uuid is expected)' });
+    renderPage();
+
+    expect(await screen.findByText('No encontramos este profesional')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
+  });
+
   it('no oculta el precio a consultar cuando el profesional no cargó precio', async () => {
     mockFetch(200, { ...PROFILE, price: null });
     renderPage();
