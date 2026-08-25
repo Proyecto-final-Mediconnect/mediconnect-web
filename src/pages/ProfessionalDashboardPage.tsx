@@ -1,5 +1,5 @@
 import { useSession } from '../features/auth/hooks/useSession';
-import { DashboardLayout, PendingCard, SectionCard } from './DashboardLayout';
+import { DashboardLayout, SectionCard } from './DashboardLayout';
 
 export function ProfessionalDashboardPage() {
   const { user } = useSession();
@@ -8,10 +8,10 @@ export function ProfessionalDashboardPage() {
   return (
     <DashboardLayout title={saludo} subtitle="Gestioná tu perfil, tu agenda y tus consultas.">
       <div className="grid gap-4 md:grid-cols-3">
-        <PendingCard
+        <SectionCard
           title="Mi perfil público"
           description="Completá tu bio, especialidades, foto y precio de consulta."
-          issue="ENG-48"
+          to="/perfil"
         />
         <SectionCard
           title="Mi agenda"

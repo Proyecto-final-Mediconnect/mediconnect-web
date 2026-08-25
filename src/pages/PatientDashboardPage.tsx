@@ -8,10 +8,10 @@ export function PatientDashboardPage() {
   return (
     <DashboardLayout title={saludo} subtitle="Este es tu espacio en MediConnect.">
       <div className="grid gap-4 md:grid-cols-3">
-        <PendingCard
+        <SectionCard
           title="Buscar profesionales"
           description="Explorá el catálogo de especialistas verificados y reservá tu turno."
-          issue="ENG-49"
+          to="/profesionales"
         />
         <SectionCard
           title="Mis turnos"
