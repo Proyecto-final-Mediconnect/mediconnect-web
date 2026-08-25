@@ -1,25 +1,22 @@
 import { useSession } from '../features/auth/hooks/useSession';
-import { DashboardLayout, PendingCard } from './DashboardLayout';
+import { DashboardLayout, PendingCard, SectionCard } from './DashboardLayout';
 
 export function PatientDashboardPage() {
   const { user } = useSession();
   const saludo = user?.firstName ? `Hola, ${user.firstName}` : 'Hola';
 
   return (
-    <DashboardLayout
-      title={saludo}
-      subtitle="Este es tu espacio en MediConnect."
-    >
+    <DashboardLayout title={saludo} subtitle="Este es tu espacio en MediConnect.">
       <div className="grid gap-4 md:grid-cols-3">
         <PendingCard
           title="Buscar profesionales"
           description="Explorá el catálogo de especialistas verificados y reservá tu turno."
           issue="ENG-49"
         />
-        <PendingCard
+        <SectionCard
           title="Mis turnos"
-          description="Vas a ver acá tus consultas agendadas y su estado."
-          issue="ENG-55"
+          description="Tus consultas agendadas, su estado y las que ya pasaron."
+          to="/mis-turnos"
         />
         <PendingCard
           title="Mi historia clínica"

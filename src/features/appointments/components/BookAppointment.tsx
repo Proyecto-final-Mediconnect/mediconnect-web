@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Button } from '../../../shared/ui/Button';
 import { useAvailability, useBookAppointment, useMyAppointments } from '../hooks/useAppointments';
+import { statusLabel } from '../lib/myAppointments';
 import { BOOKING_WEEKS, MAX_WEEK_OFFSET, formatDate, formatPrice, weekRange } from '../lib/weeks';
 import type { Appointment, AvailabilitySlot } from '../types/appointment';
 import { WeeklyAvailabilityCalendar } from './WeeklyAvailabilityCalendar';
@@ -237,9 +238,7 @@ function MyAppointmentsWithProfessional({ appointments }: { appointments: Appoin
               {formatDate(appointment.date)} · {appointment.startTime}
             </span>
             <span className="rounded-full bg-surface px-2.5 py-0.5 text-xs text-muted">
-              {appointment.status === 'RESERVADO_SIN_PAGAR'
-                ? 'Reservado (sin pagar)'
-                : appointment.status}
+              {statusLabel(appointment.status)}
             </span>
           </li>
         ))}

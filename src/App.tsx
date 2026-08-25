@@ -4,6 +4,7 @@ import { BookAppointmentPage } from './pages/BookAppointmentPage';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { ModeratorDashboardPage } from './pages/ModeratorDashboardPage';
+import { MyAppointmentsPage } from './pages/MyAppointmentsPage';
 import { PatientDashboardPage } from './pages/PatientDashboardPage';
 import { ProfessionalDashboardPage } from './pages/ProfessionalDashboardPage';
 import { ProfessionalRegisterPage } from './pages/ProfessionalRegisterPage';
@@ -70,6 +71,17 @@ function App() {
         element={
           <RequireAuth allow={['PACIENTE']}>
             <BookAppointmentPage />
+          </RequireAuth>
+        }
+      />
+      {/* Mis turnos (ENG-55). Los dos roles, una sola ruta: `/appointments/me`
+          devuelve los turnos donde el usuario es paciente o profesional. El
+          MODERADOR no entra porque no tiene turnos propios. */}
+      <Route
+        path="/mis-turnos"
+        element={
+          <RequireAuth allow={['PACIENTE', 'PROFESIONAL']}>
+            <MyAppointmentsPage />
           </RequireAuth>
         }
       />
