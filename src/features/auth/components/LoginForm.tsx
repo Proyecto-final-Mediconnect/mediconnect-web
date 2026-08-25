@@ -1,8 +1,13 @@
 import { useState, type FormEvent } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../../shared/ui/Button';
 import { TextField } from '../../../shared/ui/TextField';
+import { getMe } from '../api/getMe';
 import { useLogin } from '../hooks/useLogin';
+import { SESSION_QUERY_KEY } from '../hooks/useSession';
 import { loginSchema } from '../types/login';
+import { dashboardPathFor } from '../types/session';
 
 type FieldErrors = Partial<Record<'email' | 'password', string>>;
 
@@ -11,7 +16,22 @@ export function LoginForm() {
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
 
-  const { mutate, isPending, isSuccess, data, error } = useLogin();
+  const { mutate, isPending, error } = useLogin();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const queryClient = useQueryClient();
+
+  /** Tras loguearse, el rol de negocio se lee de `GET /me` (viene de la base,
+   *  no del JWT) y se redirige al dashboard correspondiente. Si el usuario
+   *  había intentado entrar a una ruta privada, vuelve a esa. */
+  async function redirectAfterLogin() {
+    const user = await getMe();
+    queryClient.setQueryData(SESSION_QUERY_KEY, user);
+
+    const from = (location.state as { from?: { pathname?: string } } | null)
+      ?.from?.pathname;
+    navigate(from ?? dashboardPathFor(user.role), { replace: true });
+  }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -30,27 +50,7 @@ export function LoginForm() {
     setErrors({});
     // La sesión la setea el backend en una cookie httpOnly; el front no
     // manipula tokens (mitiga robo vía XSS).
-    mutate(result.data);
-  }
-
-  if (isSuccess && data) {
-    return (
-      <div
-        role="status"
-        className="rounded-xl border border-brand/30 bg-surface-teal p-6 text-center"
-      >
-        <div
-          aria-hidden
-          className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand text-2xl text-white"
-        >
-          ✓
-        </div>
-        <h2 className="mb-2 text-xl font-semibold text-brand-deep">¡Sesión iniciada!</h2>
-        <p className="text-muted">
-          Bienvenido/a de nuevo, <span className="font-medium text-ink">{data.user.email}</span>.
-        </p>
-      </div>
-    );
+    mutate(result.data, { onSuccess: () => void redirectAfterLogin() });
   }
 
   return (
