@@ -1,6 +1,10 @@
 import { apiFetch } from '../../../shared/api/apiFetch';
 import { toApiError } from '../../../shared/api/apiError';
-import type { MeetingSession, SpikeRoom } from '../types/dailyRoom';
+import type {
+  MeetingSession,
+  SpikeRoom,
+  VideoConsultationAccess,
+} from '../types/dailyRoom';
 
 /**
  * Cliente de los endpoints del spike de Daily (ENG-51).
@@ -51,4 +55,27 @@ export async function deleteSpikeRoom(roomName: string): Promise<void> {
   if (!response.ok) {
     throw await toApiError(response, 'No se pudo borrar la sala.');
   }
+}
+
+/**
+ * Entra a la videoconsulta de un turno (ENG-56) y devuelve la URL tokenizada.
+ *
+ * `POST` porque la primera llamada **crea** la consulta, la sesión de video y la
+ * sala en Daily: el primero de los dos que entra la crea y el segundo la reusa.
+ * No es una lectura, y la URL que devuelve lleva una credencial adentro, así que
+ * tampoco debe quedar cacheada.
+ */
+export async function joinVideoConsultation(
+  appointmentId: string,
+): Promise<VideoConsultationAccess> {
+  const response = await apiFetch(
+    `/appointments/${encodeURIComponent(appointmentId)}/video`,
+    { method: 'POST' },
+  );
+
+  if (!response.ok) {
+    throw await toApiError(response, 'No se pudo abrir la videoconsulta.');
+  }
+
+  return (await response.json()) as VideoConsultationAccess;
 }

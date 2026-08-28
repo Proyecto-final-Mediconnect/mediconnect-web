@@ -15,6 +15,7 @@ import { ProfessionalSchedulePage } from './pages/ProfessionalSchedulePage';
 import { PatientProfilePage } from './pages/PatientProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
 import { SpikeDailyPage } from './pages/SpikeDailyPage';
+import { VideoConsultationPage } from './pages/VideoConsultationPage';
 
 function App() {
   return (
@@ -93,6 +94,17 @@ function App() {
         element={
           <RequireAuth allow={['PACIENTE', 'PROFESIONAL']}>
             <MyAppointmentsPage />
+          </RequireAuth>
+        }
+      />
+      {/* Videoconsulta de un turno (ENG-56). Los dos roles comparten la ruta: el
+          backend decide quién entra y con qué permisos leyendo el turno, no la
+          URL. Se llega desde "Mis turnos" dentro de la ventana de ingreso. */}
+      <Route
+        path="/turnos/:appointmentId/videoconsulta"
+        element={
+          <RequireAuth allow={['PACIENTE', 'PROFESIONAL']}>
+            <VideoConsultationPage />
           </RequireAuth>
         }
       />
