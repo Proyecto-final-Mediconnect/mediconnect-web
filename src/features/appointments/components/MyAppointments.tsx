@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '../../../shared/ui/Button';
 import { useSession } from '../../auth/hooks/useSession';
 import { useCancelAppointment, useMyAppointments } from '../hooks/useAppointments';
@@ -190,6 +191,20 @@ function AppointmentRow({
           {statusLabel(appointment.status)}
         </span>
       </div>
+
+      {/* Historia clínica (ENG-58). Solo del lado del profesional: es quien
+          escribe el asiento. El backend igual exige un turno entre los dos, así
+          que este link es la puerta, no la autorización. */}
+      {!isPatient && counterpart && (
+        <div className="mt-4">
+          <Link
+            to={`/pacientes/${counterpart.id}/historia-clinica`}
+            className="text-sm font-semibold text-brand hover:underline"
+          >
+            Historia clínica de {counterpart.firstName}
+          </Link>
+        </div>
+      )}
 
       {cancellable && !isConfirming && (
         <div className="mt-4">
