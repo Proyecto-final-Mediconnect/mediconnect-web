@@ -8,10 +8,19 @@ export function PatientDashboardPage() {
   return (
     <DashboardLayout title={saludo} subtitle="Este es tu espacio en MediConnect.">
       <div className="grid gap-4 md:grid-cols-3">
-        <PendingCard
+        {/* Va primero a propósito: la fila en `patients` no la crea el alta,
+            nace al guardar este formulario (ENG-47). Sin ella, reservar un
+            turno responde 409 "Completá tu perfil de paciente antes de
+            reservar", así que este es el primer paso real del recorrido. */}
+        <SectionCard
+          title="Mi perfil"
+          description="Completá tus datos personales para poder reservar turnos."
+          to="/perfil/paciente"
+        />
+        <SectionCard
           title="Buscar profesionales"
           description="Explorá el catálogo de especialistas verificados y reservá tu turno."
-          issue="ENG-49"
+          to="/profesionales"
         />
         <SectionCard
           title="Mis turnos"
