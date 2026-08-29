@@ -16,6 +16,7 @@ import { PatientClinicalRecordPage } from './pages/PatientClinicalRecordPage';
 import { PatientProfilePage } from './pages/PatientProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
 import { SpikeDailyPage } from './pages/SpikeDailyPage';
+import { VideoConsultationPage } from './pages/VideoConsultationPage';
 
 function App() {
   return (
@@ -97,9 +98,20 @@ function App() {
           </RequireAuth>
         }
       />
-      {/* Historia clinica de un paciente, desde el profesional (ENG-58). Solo
+      {/* Videoconsulta de un turno (ENG-56). Los dos roles comparten la ruta: el
+          backend decide quién entra y con qué permisos leyendo el turno, no la
+          URL. Se llega desde "Mis turnos" dentro de la ventana de ingreso. */}
+      <Route
+        path="/turnos/:appointmentId/videoconsulta"
+        element={
+          <RequireAuth allow={['PACIENTE', 'PROFESIONAL']}>
+            <VideoConsultationPage />
+          </RequireAuth>
+        }
+      />
+      {/* Historia clínica de un paciente, desde el profesional (ENG-58). Solo
           PROFESIONAL: la vista del paciente sobre su propia HC es ENG-59 y va
-          por su propia ruta. Quien puede escribir en que HC lo valida el
+          por su propia ruta. Quién puede escribir en qué HC lo valida el
           backend, que exige un turno entre los dos. */}
       <Route
         path="/pacientes/:patientId/historia-clinica"

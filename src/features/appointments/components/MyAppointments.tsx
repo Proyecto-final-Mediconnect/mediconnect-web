@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useNow } from '../../../shared/hooks/useNow';
 import { Button } from '../../../shared/ui/Button';
 import { useSession } from '../../auth/hooks/useSession';
+import { joinStateOf, timeUntilOpen } from '../../video/lib/joinWindow';
 import { useCancelAppointment, useMyAppointments } from '../hooks/useAppointments';
 import {
   canCancel,
@@ -161,6 +163,12 @@ function AppointmentRow({
   const isPatient = appointment.patient?.id === userId;
   const cancellable = canCancel(appointment, userId);
 
+  // Reloj propio: el botón de la videoconsulta aparece 10 minutos antes del
+  // turno, y sin un tick React no tendría motivo para volver a renderizar. El
+  // paciente que deja la pantalla abierta esperando es justo el que lo necesita.
+  const now = useNow();
+  const joinState = joinStateOf(appointment, now);
+
   return (
     <li
       className={`rounded-xl border bg-white p-5 ${
@@ -192,9 +200,33 @@ function AppointmentRow({
         </span>
       </div>
 
+      {/* La videoconsulta va primero: es la acción con ventana horaria, y
+          cuando está abierta es lo único urgente de la fila. */}
+      {joinState.kind === 'OPEN' && (
+        <div className="mt-4">
+          <Link
+            to={`/turnos/${appointment.id}/videoconsulta`}
+            className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-hover focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+          >
+            Ingresar a videoconsulta
+          </Link>
+        </div>
+      )}
+
+      {/* El aviso previo solo aparece dentro de las 24 horas: en un turno de
+          dentro de tres semanas, "se abre en 21 días" es ruido. */}
+      {joinState.kind === 'TOO_EARLY' &&
+        joinState.opensAt.getTime() - now.getTime() < 24 * 60 * 60_000 && (
+          <p className="mt-4 text-sm text-muted">
+            La videoconsulta se abre {timeUntilOpen(joinState.opensAt, now)}.
+          </p>
+        )}
+
       {/* Historia clínica (ENG-58). Solo del lado del profesional: es quien
-          escribe el asiento. El backend igual exige un turno entre los dos, así
-          que este link es la puerta, no la autorización. */}
+          escribe el asiento. Va como link secundario y sin ventana horaria — se
+          escribe durante la consulta y también días después. El backend igual
+          exige un turno entre los dos, así que este link es la puerta, no la
+          autorización. */}
       {!isPatient && counterpart && (
         <div className="mt-4">
           <Link
