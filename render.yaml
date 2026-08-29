@@ -38,6 +38,34 @@ services:
     buildCommand: pnpm install --frozen-lockfile && pnpm run build
     staticPublishPath: ./dist
 
+    # El deploy lo dispara `deploy-production.yml` con el hook de Render, y solo
+    # después de que CI pase sobre `main` (workflow_run + conclusion == success).
+    # Por eso el servicio tiene hoy Auto-Deploy = No en el dashboard.
+    #
+    # En un Blueprint `autoDeploy` viene en `true` por defecto, así que migrar el
+    # servicio con este archivo SIN esta línea reactivaría el deploy automático en
+    # cada push a `main`, en paralelo al workflow y salteándose el gate de CI que
+    # exige Sprint 0 §2.6. Sería el mismo tipo de incidente que este archivo viene
+    # a cerrar.
+    autoDeploy: false
+
+    envVars:
+      # El CI pinea pnpm 10 explícito (`pnpm/action-setup` con `version: 10`).
+      # Acá hay que pinearlo igual: `pnpm-workspace.yaml` usa `allowBuilds`, que
+      # es sintaxis de pnpm 10+, y con pnpm 9 el install falla con
+      # ERR_PNPM_IGNORED_BUILDS y se rompe el build entero.
+      #
+      # Se fija por env var y NO con `packageManager` en package.json:
+      # `pnpm/action-setup@v4` aborta por versión duplicada si ese campo existe
+      # y además está el input `version`, así que agregarlo ahí rompería el CI.
+      - key: PNPM_VERSION
+        value: "10"
+      # Espeja `.nvmrc`, que es de donde toma la versión el CI. Render suele
+      # respetar `.nvmrc`, pero el build corre `tsc -b` y no conviene que la
+      # versión de Node dependa de una inferencia.
+      - key: NODE_VERSION
+        value: "24"
+
     routes:
       # La regla que faltaba. Sin esto, el static site busca un archivo en cada
       # ruta (`/profesionales`, `/ingresar`, …) y devuelve 404 text/plain, porque
