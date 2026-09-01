@@ -200,6 +200,8 @@ function AppointmentRow({
         </span>
       </div>
 
+      {/* La videoconsulta va primero: es la acción con ventana horaria, y
+          cuando está abierta es lo único urgente de la fila. */}
       {joinState.kind === 'OPEN' && (
         <div className="mt-4">
           <Link
@@ -219,6 +221,22 @@ function AppointmentRow({
             La videoconsulta se abre {timeUntilOpen(joinState.opensAt, now)}.
           </p>
         )}
+
+      {/* Historia clínica (ENG-58). Solo del lado del profesional: es quien
+          escribe el asiento. Va como link secundario y sin ventana horaria — se
+          escribe durante la consulta y también días después. El backend igual
+          exige un turno entre los dos, así que este link es la puerta, no la
+          autorización. */}
+      {!isPatient && counterpart && (
+        <div className="mt-4">
+          <Link
+            to={`/pacientes/${counterpart.id}/historia-clinica`}
+            className="text-sm font-semibold text-brand hover:underline"
+          >
+            Historia clínica de {counterpart.firstName}
+          </Link>
+        </div>
+      )}
 
       {cancellable && !isConfirming && (
         <div className="mt-4">
