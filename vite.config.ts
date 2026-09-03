@@ -48,5 +48,7 @@ export default defineConfig({
     // ningún servidor real (fetch está mockeado); solo tiene que ser una URL
     // absoluta válida para que los asserts puedan parsear el query string.
     env: { VITE_API_BASE_URL: 'http://localhost:3000' },
+    // jsdom no trae la API de <dialog>; el setup la rellena. Ver src/test/setup.ts.
+    setupFiles: ['./src/test/setup.ts'],
   },
 });

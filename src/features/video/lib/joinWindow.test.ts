@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import type { Appointment } from '../../appointments/types/appointment';
-import { canJoin, joinStateOf, joinWindowFor, timeUntilOpen } from './joinWindow';
+import {
+  canJoin,
+  firstJoinable,
+  joinStateOf,
+  joinWindowFor,
+  timeUntilOpen,
+} from './joinWindow';
 
 /**
  * La ventana de ingreso es el criterio de aceptación de ENG-56, así que se prueba
@@ -121,5 +127,51 @@ describe('timeUntilOpen', () => {
   it('usa días para turnos lejanos', () => {
     expect(timeUntilOpen(opensAt, new Date('2026-08-26T14:50:00.000Z'))).toBe('mañana');
     expect(timeUntilOpen(opensAt, new Date('2026-08-24T14:50:00.000Z'))).toBe('en 3 días');
+  });
+});
+
+describe('firstJoinable', () => {
+  /** Turno de las 10:00 del 20/08/2026 (13:00 UTC), 30 minutos. */
+  function turno(overrides: Partial<Appointment> & { id: string }): Appointment {
+    return {
+      scheduledAt: '2026-08-20T13:00:00Z',
+      date: '2026-08-20',
+      startTime: '10:00',
+      durationMinutes: 30,
+      price: 12000,
+      currency: 'ARS',
+      status: 'CONFIRMADO',
+      professional: null,
+      patient: null,
+      ...overrides,
+    };
+  }
+
+  it('sin turnos abiertos no devuelve ninguno', () => {
+    // Faltan dos horas: la sala todavía no abrió.
+    const now = new Date('2026-08-20T11:00:00Z');
+
+    expect(firstJoinable([turno({ id: 'a' })], now)).toBeNull();
+  });
+
+  it('devuelve el turno cuya sala está abierta', () => {
+    // Cinco minutos antes: dentro de la ventana de 10.
+    const now = new Date('2026-08-20T12:55:00Z');
+
+    expect(firstJoinable([turno({ id: 'a' })], now)?.id).toBe('a');
+  });
+
+  it('con dos abiertos gana el más cercano en el tiempo', () => {
+    const now = new Date('2026-08-20T12:55:00Z');
+    const despues = turno({ id: 'b', scheduledAt: '2026-08-20T13:05:00Z' });
+    const antes = turno({ id: 'a' });
+
+    expect(firstJoinable([despues, antes], now)?.id).toBe('a');
+  });
+
+  it('ignora los cancelados aunque caigan en la ventana', () => {
+    const now = new Date('2026-08-20T12:55:00Z');
+
+    expect(firstJoinable([turno({ id: 'a', status: 'CANCELADO' })], now)).toBeNull();
   });
 });

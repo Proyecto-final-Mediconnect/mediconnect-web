@@ -5,13 +5,17 @@ import { LoginForm } from '../features/auth/components/LoginForm';
 export function LoginPage() {
   return (
     <AuthLayout
-      title="Iniciá sesión"
-      subtitle="Accedé a tu cuenta de paciente."
+      eyebrow="Ingresar"
+      title="Entrá a tu cuenta"
+      subtitle="La misma cuenta sirve para pacientes y profesionales."
       footer={
         <p>
-          ¿No tenés cuenta?{' '}
-          <Link to="/registro" className="font-semibold text-brand hover:underline">
-            Creá una
+          ¿Todavía no tenés cuenta?{' '}
+          <Link
+            to="/registro"
+            className="font-semibold text-brand-hover underline-offset-2 hover:underline"
+          >
+            Creá una gratis
           </Link>
         </p>
       }

@@ -4,6 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+// Los turnos llevan enlaces (videoconsulta, pago): sin Router, `Link` explota.
+import { MemoryRouter } from 'react-router-dom';
 import { BookAppointment } from './BookAppointment';
 
 const PRO_ID = '22222222-2222-4222-8222-222222222222';
@@ -106,7 +108,9 @@ function renderBooking() {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <BookAppointment professionalId={PRO_ID} />
+      <MemoryRouter>
+        <BookAppointment professionalId={PRO_ID} />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }

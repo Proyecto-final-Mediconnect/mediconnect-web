@@ -29,7 +29,7 @@ export function TextField({
 
   return (
     <div className="flex flex-col gap-1.5 text-left">
-      <label htmlFor={id} className="text-sm font-medium text-ink">
+      <label htmlFor={id} className="text-sm font-semibold text-brand-deep">
         {label}
       </label>
       <div className="relative">
@@ -38,9 +38,9 @@ export function TextField({
           type={inputType}
           aria-invalid={!!error}
           aria-describedby={errorId}
-          className={`w-full rounded-lg border px-3.5 py-2.5 text-ink outline-none transition-colors placeholder:text-muted/60 focus:border-brand focus:ring-2 focus:ring-brand/30 ${
+          className={`w-full rounded-[10px] border px-4 py-3 text-[15px] font-medium text-ink outline-none transition-colors placeholder:font-normal placeholder:text-muted-soft focus:border-brand focus:ring-2 focus:ring-brand/25 ${
             isPassword ? 'pr-11' : ''
-          } ${error ? 'border-danger' : 'border-slate-300'}`}
+          } ${error ? 'border-danger' : 'border-line-strong'}`}
           {...props}
         />
         {isPassword && (

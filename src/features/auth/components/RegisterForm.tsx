@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../../shared/ui/Button';
 import { TextField } from '../../../shared/ui/TextField';
+import { PasswordRules } from './PasswordRules';
 import { useRegisterPatient } from '../hooks/useRegisterPatient';
 import { registerPatientSchema } from '../types/register';
 
@@ -47,20 +48,33 @@ export function RegisterForm() {
     return (
       <div
         role="status"
-        className="rounded-xl border border-brand/30 bg-surface-teal p-6 text-center"
+        className="rounded-[14px] border border-brand/30 bg-surface-teal p-7"
       >
+        {/* El tilde va en azul profundo y no en teal: el blanco sobre #14b8a6 da
+            2,2:1, por debajo del mínimo de WCAG AA. */}
         <div
           aria-hidden
-          className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand text-2xl text-white"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-deep text-xl text-white"
         >
           ✓
         </div>
-        <h2 className="mb-2 text-xl font-semibold text-brand-deep">Revisá tu correo</h2>
-        <p className="text-muted">
-          Si tu email todavía no estaba registrado, te enviamos un enlace para confirmar tu cuenta.
-          Si ya tenías una cuenta, podés{' '}
-          <Link to="/ingresar" className="font-semibold text-brand hover:underline">
-            iniciar sesión
+        <h2 className="font-display mt-5 text-[26px] leading-[1.2] text-brand-deep">
+          Revisá tu correo
+        </h2>
+        <p className="mt-2.5 text-sm leading-[1.7] text-ink">
+          Si tu email todavía no estaba registrado, te enviamos un enlace para confirmar tu
+          cuenta.
+        </p>
+        {/* El mensaje es deliberadamente ambiguo sobre si el email existía: decir
+            "ya tenés cuenta" convertiría este formulario en un detector de
+            usuarios registrados. */}
+        <p className="mt-4 text-[13px] leading-[1.7] text-muted">
+          ¿Ya tenías cuenta?{' '}
+          <Link
+            to="/ingresar"
+            className="font-semibold text-brand-hover underline-offset-2 hover:underline"
+          >
+            Iniciá sesión
           </Link>
           .
         </p>
@@ -87,12 +101,14 @@ export function RegisterForm() {
         label="Contraseña"
         type="password"
         autoComplete="new-password"
-        placeholder="Mínimo 8 caracteres"
+        placeholder="Tu contraseña"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
         error={errors.password}
         {...passwordToggle}
       />
+
+      <PasswordRules value={password} />
       <TextField
         id="passwordConfirmation"
         name="passwordConfirmation"

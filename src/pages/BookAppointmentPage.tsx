@@ -20,7 +20,7 @@ export function BookAppointmentPage() {
 
   return (
     <DashboardLayout
-      title="Reservar un turno"
+      barTitle="Elegí día y horario"
       subtitle="Elegí un horario disponible en la agenda del profesional."
     >
       <BookAppointment professionalId={professionalId} />

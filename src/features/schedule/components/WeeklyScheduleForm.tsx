@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { Button } from '../../../shared/ui/Button';
 import { useMySchedule, useSaveSchedule } from '../hooks/useSchedule';
-import { toMinutes, toTime } from '../lib/generateSlots';
+import { slotsForRule, toMinutes, toTime } from '../lib/generateSlots';
 import { validateRules } from '../lib/validateRules';
 import {
   saveScheduleSchema,
@@ -63,17 +62,34 @@ function nextRuleFor(weekday: number, existing: ScheduleRule[]): EditableRule {
     // Se hereda la duración de la última franja: si el profesional atiende de a
     // 45 min a la mañana, lo más probable es que a la tarde también.
     slotDurationMinutes:
-      dayRules[dayRules.length - 1].slotDurationMinutes ??
-      DEFAULT_RULE.slotDurationMinutes,
+      dayRules[dayRules.length - 1].slotDurationMinutes ?? DEFAULT_RULE.slotDurationMinutes,
   });
+}
+
+/** Cuántos turnos genera una franja. Si las horas están mal (fin antes que
+ *  inicio) devuelve 0 en vez de romper: el error lo reporta `validateRules`. */
+function slotCount(rule: ScheduleRule): number {
+  try {
+    return slotsForRule(rule).length;
+  } catch {
+    return 0;
+  }
 }
 
 /**
  * Configuración de la agenda semanal (ENG-53).
  *
  * Un día puede tener VARIAS franjas (mañana y tarde), que es como está modelada
- * la tabla `schedule_rules` — una fila por franja, sin unique por día — y como
+ * la tabla `schedule_rules` —una fila por franja, sin unique por día— y como
  * trabaja de verdad un profesional de la salud.
+ *
+ * La pantalla se editaba a ciegas: los siete días formaban una columna larga, la
+ * vista previa quedaba abajo de todo y el botón de guardar todavía más abajo, así
+ * que para ver el efecto de cambiar una hora había que scrollear hasta el final y
+ * volver. Ahora el formulario y la vista previa van lado a lado —la preview
+ * reacciona a cada cambio, sin guardar— y la barra de guardado queda pegada al
+ * pie con el total de la semana. Cada día además muestra cuántos turnos genera,
+ * que es la pregunta que uno se hace al cargar una franja.
  */
 export function WeeklyScheduleForm() {
   const { data: schedule, isPending, isError, error } = useMySchedule();
@@ -105,6 +121,7 @@ export function WeeklyScheduleForm() {
   }
 
   const rulesOf = (weekday: number) => rules.filter((r) => r.weekday === weekday);
+  const totalSemanal = rules.reduce((total, rule) => total + slotCount(rule), 0);
 
   function addRule(weekday: number) {
     setSaved(false);
@@ -118,9 +135,7 @@ export function WeeklyScheduleForm() {
 
   function updateRule(uid: string, patch: Partial<ScheduleRule>) {
     setSaved(false);
-    setRules((prev) =>
-      prev.map((r) => (r.uid === uid ? { ...r, ...patch } : r)),
-    );
+    setRules((prev) => prev.map((r) => (r.uid === uid ? { ...r, ...patch } : r)));
   }
 
   function toggleDay(weekday: number, active: boolean) {
@@ -172,77 +187,97 @@ export function WeeklyScheduleForm() {
   const saveError = saveSchedule.error;
 
   return (
-    <div className="space-y-6">
-      <form onSubmit={handleSubmit} className="space-y-4">
+    // El formulario va PRIMERO en el DOM y la preview después, aunque en pantalla
+    // ancha queden lado a lado: con teclado se recorren los campos antes que un
+    // panel que solo se lee.
+    <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_368px]">
+      <form onSubmit={handleSubmit}>
         <section
           aria-labelledby="week-title"
-          className="rounded-xl border border-slate-200 p-5"
+          className="overflow-hidden rounded-[14px] border border-line bg-white"
         >
-          <h2 id="week-title" className="text-lg font-semibold text-ink">
-            Días y horarios de atención
-          </h2>
-          <p className="mt-1 text-sm text-muted">
-            Activá los días que atendés. Podés cargar más de una franja por día
-            si trabajás mañana y tarde.
-          </p>
+          <header className="border-b border-line-soft px-6 py-[18px]">
+            <h2 id="week-title" className="text-[17px] font-bold text-brand-deep">
+              Días y horarios de atención
+            </h2>
+            <p className="mt-1.5 text-[13px] leading-[1.6] text-muted">
+              Activá los días que atendés. Podés cargar más de una franja por día si
+              trabajás mañana y tarde.
+            </p>
+          </header>
 
-          <ul className="mt-4 divide-y divide-slate-200">
+          <ul className="divide-y divide-line-soft">
             {WEEKDAY_ORDER.map((weekday) => {
               const dayRules = rulesOf(weekday);
               const active = dayRules.length > 0;
+              const turnosDelDia = dayRules.reduce((t, r) => t + slotCount(r), 0);
 
               return (
-                <li key={weekday} className="py-4">
-                  <label className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={active}
-                      onChange={(e) => toggleDay(weekday, e.target.checked)}
-                      className="size-4 accent-brand"
-                    />
-                    <span className="font-medium text-ink">
-                      {WEEKDAY_NAMES[weekday]}
+                <li key={weekday} className={active ? 'bg-white' : 'bg-surface/60'}>
+                  <div className="flex items-center justify-between gap-4 px-6 py-4">
+                    <label className="flex cursor-pointer items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={active}
+                        onChange={(e) => toggleDay(weekday, e.target.checked)}
+                        className="size-[18px] accent-brand"
+                      />
+                      <span
+                        className={`text-[15px] font-bold ${
+                          active ? 'text-brand-deep' : 'text-muted'
+                        }`}
+                      >
+                        {WEEKDAY_NAMES[weekday]}
+                      </span>
+                    </label>
+
+                    {/* El contador vive fuera del label a propósito: si entrara en
+                        el nombre accesible, el lector de pantalla anunciaría
+                        "Martes 8 turnos, casilla" en vez del día. */}
+                    <span
+                      className={`text-[11px] font-semibold uppercase tracking-[0.08em] ${
+                        active ? 'text-brand-hover' : 'text-muted-soft'
+                      }`}
+                    >
+                      {active
+                        ? `${turnosDelDia} turno${turnosDelDia === 1 ? '' : 's'}`
+                        : 'No atendés'}
                     </span>
-                    {!active && (
-                      <span className="text-sm text-muted">No atendés</span>
-                    )}
-                  </label>
+                  </div>
 
                   {active && (
-                    <div className="mt-3 space-y-2 pl-7">
+                    <div className="grid gap-2.5 px-6 pb-5 pl-[54px]">
                       {dayRules.map((rule) => (
                         <div
                           key={rule.uid}
-                          className="flex flex-wrap items-end gap-2"
+                          className="flex flex-wrap items-end gap-2.5 rounded-[10px] border border-line-soft bg-surface px-3.5 py-3"
                         >
-                          <label className="text-sm">
-                            <span className="mb-1 block text-muted">Desde</span>
+                          <label className="text-[13px]">
+                            <span className="mb-1 block font-semibold text-muted">Desde</span>
                             <input
                               type="time"
                               value={rule.startTime}
                               onChange={(e) =>
                                 updateRule(rule.uid, { startTime: e.target.value })
                               }
-                              className="rounded-lg border border-slate-300 px-3 py-2"
+                              className="rounded-[8px] border border-line-strong bg-white px-3 py-2 font-semibold text-brand-deep focus:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                               required
                             />
                           </label>
 
-                          <label className="text-sm">
-                            <span className="mb-1 block text-muted">Hasta</span>
+                          <label className="text-[13px]">
+                            <span className="mb-1 block font-semibold text-muted">Hasta</span>
                             <input
                               type="time"
                               value={rule.endTime}
-                              onChange={(e) =>
-                                updateRule(rule.uid, { endTime: e.target.value })
-                              }
-                              className="rounded-lg border border-slate-300 px-3 py-2"
+                              onChange={(e) => updateRule(rule.uid, { endTime: e.target.value })}
+                              className="rounded-[8px] border border-line-strong bg-white px-3 py-2 font-semibold text-brand-deep focus:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                               required
                             />
                           </label>
 
-                          <label className="text-sm">
-                            <span className="mb-1 block text-muted">
+                          <label className="text-[13px]">
+                            <span className="mb-1 block font-semibold text-muted">
                               Duración del turno
                             </span>
                             <select
@@ -252,7 +287,7 @@ export function WeeklyScheduleForm() {
                                   slotDurationMinutes: Number(e.target.value),
                                 })
                               }
-                              className="rounded-lg border border-slate-300 px-3 py-2"
+                              className="rounded-[8px] border border-line-strong bg-white px-3 py-2 font-semibold text-brand-deep focus:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                             >
                               {SLOT_DURATIONS.map((d) => (
                                 <option key={d} value={d}>
@@ -262,26 +297,31 @@ export function WeeklyScheduleForm() {
                             </select>
                           </label>
 
-                          {dayRules.length > 1 && (
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              onClick={() => removeRule(rule.uid)}
-                              aria-label={`Quitar la franja de ${rule.startTime} del ${WEEKDAY_NAMES[weekday].toLowerCase()}`}
-                            >
-                              Quitar
-                            </Button>
-                          )}
+                          <span className="ml-auto flex items-center gap-3 pb-2">
+                            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-soft">
+                              {slotCount(rule)} turnos
+                            </span>
+                            {dayRules.length > 1 && (
+                              <button
+                                type="button"
+                                onClick={() => removeRule(rule.uid)}
+                                aria-label={`Quitar la franja de ${rule.startTime} del ${WEEKDAY_NAMES[weekday].toLowerCase()}`}
+                                className="rounded-[7px] border border-line-strong bg-white px-3 py-1.5 text-[12px] font-bold text-muted transition-colors hover:border-danger hover:text-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                              >
+                                Quitar
+                              </button>
+                            )}
+                          </span>
                         </div>
                       ))}
 
-                      <Button
+                      <button
                         type="button"
-                        variant="ghost"
                         onClick={() => addRule(weekday)}
+                        className="justify-self-start rounded-[8px] border border-dashed border-line-strong px-3.5 py-2 text-[13px] font-bold text-brand-hover transition-colors hover:border-brand hover:bg-surface-teal focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                       >
                         + Agregar franja
-                      </Button>
+                      </button>
                     </div>
                   )}
                 </li>
@@ -290,32 +330,48 @@ export function WeeklyScheduleForm() {
           </ul>
         </section>
 
-        {validationError && (
-          <p role="alert" className="text-sm text-danger">
-            {validationError}
-          </p>
-        )}
-        {saveError && (
-          <p role="alert" className="text-sm text-danger">
-            {saveError.message}
-          </p>
-        )}
-        {saved && (
-          <p role="status" className="text-sm text-brand">
-            Agenda guardada.
-          </p>
-        )}
+        {/* Pegada al pie: antes había que scrollear los siete días para llegar al
+            botón, y el resultado del guardado quedaba fuera de vista. */}
+        <div className="sticky bottom-0 mt-3 rounded-[14px] border border-line bg-white/95 px-5 py-4 backdrop-blur">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <p className="text-[13px] text-muted">
+              <strong className="font-bold text-brand-deep">{totalSemanal}</strong> turno
+              {totalSemanal === 1 ? '' : 's'} por semana, antes de los bloqueos.
+            </p>
 
-        <Button type="submit" disabled={saveSchedule.isPending}>
-          {saveSchedule.isPending ? 'Guardando…' : 'Guardar agenda'}
-        </Button>
+            <div className="flex items-center gap-4">
+              {saved && (
+                <p role="status" className="text-[13px] font-semibold text-brand-hover">
+                  Agenda guardada.
+                </p>
+              )}
+              <button
+                type="submit"
+                disabled={saveSchedule.isPending}
+                className="rounded-[9px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saveSchedule.isPending ? 'Guardando…' : 'Guardar agenda'}
+              </button>
+            </div>
+          </div>
+
+          {(validationError || saveError) && (
+            <p
+              role="alert"
+              className="mt-3 rounded-[10px] border border-danger/30 bg-danger/5 px-4 py-2.5 text-[13px] text-danger"
+            >
+              {validationError ?? saveError?.message}
+            </p>
+          )}
+        </div>
       </form>
 
-      {/* Toma `rules` del formulario, no del servidor: la preview tiene que
-          mostrar lo que se está por guardar. */}
-      <SchedulePreview rules={rules} blocks={schedule.blocks} />
-
-      <ScheduleBlocks blocks={schedule.blocks} />
+      <div className="grid gap-4 xl:sticky xl:top-24">
+        {/* Toma `rules` del formulario, no del servidor: la preview tiene que
+            mostrar lo que se está por guardar. */}
+        <SchedulePreview rules={rules} blocks={schedule.blocks} />
+        <ScheduleBlocks blocks={schedule.blocks} />
+      </div>
     </div>
   );
 }

@@ -146,12 +146,12 @@ describe('CatalogPage (ENG-49)', () => {
     await screen.findByText('Nombre1 Apellido1');
 
     professionalResponses = [page([card(9)])];
-    await user.selectOptions(await screen.findByLabelText('Especialidad'), SPECIALTIES[1].id);
+    await user.click(await screen.findByRole('radio', { name: SPECIALTIES[1].name }));
 
     await waitFor(() => expect(lastQuery().specialtyId).toBe(SPECIALTIES[1].id));
     expect(await screen.findByText('Nombre9 Apellido9')).toBeVisible();
     // Sigue siendo la misma SPA: la lista se reemplazó, no hubo navegación.
-    expect(screen.getByRole('heading', { name: 'Profesionales disponibles' })).toBeVisible();
+    expect(screen.getByRole('heading', { name: 'Buscar profesionales' })).toBeVisible();
   });
 
   it('vuelve a la página 1 al cambiar un filtro', async () => {
@@ -165,7 +165,7 @@ describe('CatalogPage (ENG-49)', () => {
     await waitFor(() => expect(lastQuery().page).toBe('2'));
 
     professionalResponses = [page([card(9)])];
-    await user.selectOptions(screen.getByLabelText('Especialidad'), SPECIALTIES[1].id);
+    await user.click(screen.getByRole('radio', { name: SPECIALTIES[1].name }));
 
     await waitFor(() => expect(lastQuery().page).toBe('1'));
   });
@@ -203,7 +203,7 @@ describe('CatalogPage (ENG-49)', () => {
     renderCatalog();
     await screen.findByText('Nombre1 Apellido1');
 
-    await user.selectOptions(screen.getByLabelText('Especialidad'), SPECIALTIES[1].id);
+    await user.click(screen.getByRole('radio', { name: SPECIALTIES[1].name }));
     await waitFor(() => expect(lastQuery().specialtyId).toBe(SPECIALTIES[1].id));
 
     // Tipear el precio máximo pasa por estados inválidos ("1" < 9000). La lista
@@ -225,7 +225,7 @@ describe('CatalogPage (ENG-49)', () => {
     await screen.findByText('Nombre1 Apellido1');
 
     professionalResponses = [page([], { total: 0, totalPages: 0 })];
-    await user.selectOptions(screen.getByLabelText('Especialidad'), SPECIALTIES[1].id);
+    await user.click(screen.getByRole('radio', { name: SPECIALTIES[1].name }));
 
     expect(await screen.findByText('No encontramos profesionales')).toBeVisible();
     expect(screen.getByText(/Ningún profesional coincide con los filtros/)).toBeVisible();
@@ -243,10 +243,10 @@ describe('CatalogPage (ENG-49)', () => {
     renderCatalog();
     await screen.findByText('Nombre1 Apellido1');
 
-    await user.selectOptions(screen.getByLabelText('Especialidad'), SPECIALTIES[1].id);
+    await user.click(screen.getByRole('radio', { name: SPECIALTIES[1].name }));
     await waitFor(() => expect(lastQuery().specialtyId).toBeDefined());
 
-    await user.click(screen.getByRole('button', { name: /limpiar filtros/i }));
+    await user.click(screen.getByRole('button', { name: /limpiar/i }));
 
     await waitFor(() => expect(lastQuery().specialtyId).toBeUndefined());
   });
