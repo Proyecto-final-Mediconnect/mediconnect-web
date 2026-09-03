@@ -1,11 +1,10 @@
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { PublicProfile } from '../features/catalog/components/PublicProfile';
 import {
   isMissingProfileError,
   usePublicProfile,
 } from '../features/catalog/hooks/usePublicProfile';
-import { Button } from '../shared/ui/Button';
-import { Logo } from '../shared/ui/Logo';
+import { PUBLIC_SHELL, PublicHeader } from '../shared/ui/PublicHeader';
 
 /**
  * Perfil público de un profesional (ENG-50). Ruta abierta, igual que el
@@ -13,6 +12,10 @@ import { Logo } from '../shared/ui/Logo';
  *
  * Cierra el recorrido catálogo → perfil → reserva. La reserva sí es privada,
  * así que el salto a login lo hace `RequireAuth` desde la ruta de turnos.
+ *
+ * El enlace de vuelta al catálogo vive adentro de `PublicProfile`, arriba del
+ * nombre, como en el diseño. Acá no va otro: dos "volver" en la misma pantalla
+ * es una de las dos de más.
  */
 export function ProfessionalPublicProfilePage() {
   const { professionalId = '' } = useParams<{ professionalId: string }>();
@@ -20,37 +23,17 @@ export function ProfessionalPublicProfilePage() {
 
   return (
     <div className="min-h-svh bg-surface">
-      <header className="border-b border-slate-200 bg-white">
-        <div className="mx-auto flex max-w-4xl items-center justify-between px-6 py-5">
-          <Link to="/" aria-label="Ir al inicio">
-            <Logo />
-          </Link>
-          <nav className="flex items-center gap-2">
-            <Link to="/ingresar">
-              <Button variant="ghost">Iniciar sesión</Button>
-            </Link>
-            <Link to="/registro">
-              <Button variant="primary">Crear cuenta</Button>
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <PublicHeader />
 
-      <main className="mx-auto max-w-4xl px-6 py-10">
-        <Link to="/profesionales" className="text-sm text-muted hover:text-ink">
-          ← Volver al catálogo
-        </Link>
-
-        <div className="mt-6">
-          <PublicProfile
-            profile={profile.data}
-            isLoading={profile.isPending}
-            isError={profile.isError}
-            isNotFound={isMissingProfileError(profile.error)}
-            errorMessage={profile.error?.message}
-            onRetry={() => void profile.refetch()}
-          />
-        </div>
+      <main className={`${PUBLIC_SHELL} pb-[88px] pt-8`}>
+        <PublicProfile
+          profile={profile.data}
+          isLoading={profile.isPending}
+          isError={profile.isError}
+          isNotFound={isMissingProfileError(profile.error)}
+          errorMessage={profile.error?.message}
+          onRetry={() => void profile.refetch()}
+        />
       </main>
     </div>
   );
