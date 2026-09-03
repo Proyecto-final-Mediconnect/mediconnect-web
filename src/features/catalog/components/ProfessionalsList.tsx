@@ -47,7 +47,7 @@ export function ProfessionalsList({
 
   if (isError) {
     return (
-      <div className="rounded-2xl border border-slate-200 bg-white p-8 text-center">
+      <div className="rounded-[14px] border border-line bg-white p-8 text-center">
         <p className="text-ink">{errorMessage ?? 'No pudimos cargar el catálogo.'}</p>
         <Button variant="secondary" className="mt-4" onClick={onRetry}>
           Reintentar
@@ -58,7 +58,7 @@ export function ProfessionalsList({
 
   if (professionals.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center">
+      <div className="rounded-[14px] border border-dashed border-line-strong bg-white p-10 text-center">
         <p className="text-lg font-semibold text-brand-deep">No encontramos profesionales</p>
         <p className="mt-2 text-muted">
           {hasFilters
@@ -73,11 +73,18 @@ export function ProfessionalsList({
     <div aria-busy={isFiltering}>
       {/* aria-live: al refiltrar, un lector de pantalla anuncia cuántos
           resultados quedaron sin que el usuario tenga que recorrer la lista. */}
-      <p className="mb-4 text-sm text-muted" role="status" aria-live="polite">
+      <p
+        className="mb-4 text-sm font-medium text-muted"
+        role="status"
+        aria-live="polite"
+      >
         {total === 1 ? '1 profesional disponible' : `${total} profesionales disponibles`}
       </p>
 
-      <ul className="grid gap-4 md:grid-cols-2">
+      {/* Una sola columna, a diferencia del grid de dos que había: la tarjeta
+          del canvas es ancha y tiene su propia columna de decisión a la
+          derecha, así que apilarlas de a dos la comprime y rompe esa lectura. */}
+      <ul className="grid gap-3.5">
         {professionals.map((professional) => (
           <ProfessionalCardItem key={professional.id} professional={professional} />
         ))}
