@@ -28,3 +28,6 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+
+# Config local de herramientas de agente (launch.json, skills). No se versiona.
+.claude/
