@@ -3,10 +3,14 @@ import { DashboardLayout, SectionCard } from './DashboardLayout';
 
 export function ProfessionalDashboardPage() {
   const { user } = useSession();
-  const saludo = user?.firstName ? `Hola, ${user.firstName}` : 'Hola';
+  const saludo = user?.firstName ? `Buen día, ${user.firstName}.` : 'Buen día.';
 
   return (
-    <DashboardLayout title={saludo} subtitle="Gestioná tu perfil, tu agenda y tus consultas.">
+    <DashboardLayout
+      barTitle="Panel"
+      greeting={saludo}
+      subtitle="Gestioná tu perfil, tu agenda y tus consultas."
+    >
       <div className="grid gap-4 md:grid-cols-3">
         <SectionCard
           title="Mi perfil público"

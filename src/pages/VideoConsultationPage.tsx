@@ -19,7 +19,8 @@ export function VideoConsultationPage() {
 
   return (
     <DashboardLayout
-      title="Videoconsulta"
+      barTitle="Videoconsulta"
+      greeting="Videoconsulta"
       subtitle="La sala se cierra sola al terminar la consulta."
     >
       <VideoConsultation appointmentId={appointmentId} />
