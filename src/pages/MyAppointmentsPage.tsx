@@ -8,7 +8,11 @@ import { DashboardLayout } from './DashboardLayout';
  */
 export function MyAppointmentsPage() {
   return (
-    <DashboardLayout title="Mis turnos" subtitle="Tus consultas agendadas y las que ya pasaron.">
+    <DashboardLayout
+      barTitle="Mis turnos"
+      greeting="Mis turnos"
+      subtitle="Tus consultas agendadas y las que ya pasaron."
+    >
       <MyAppointments />
     </DashboardLayout>
   );
