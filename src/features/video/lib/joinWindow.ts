@@ -87,3 +87,26 @@ export function timeUntilOpen(opensAt: Date, now: Date = new Date()): string {
   const days = Math.round(hours / 24);
   return days === 1 ? 'mañana' : `en ${days} días`;
 }
+
+/**
+ * El primer turno al que se puede entrar ahora mismo.
+ *
+ * Sirve para el ítem de videoconsulta del menú lateral: la videoconsulta no es
+ * una sección que se navega, es un momento. El menú la ofrece cuando hay algo a
+ * lo que entrar y no antes.
+ *
+ * Si hubiera dos solapados —no debería, pero el backend no lo impide— gana el
+ * más cercano en el tiempo, que es el que la persona está por atender.
+ */
+export function firstJoinable(
+  appointments: Appointment[],
+  now: Date = new Date(),
+): Appointment | null {
+  const abiertos = appointments
+    .filter((appointment) => canJoin(appointment, now))
+    .sort(
+      (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
+    );
+
+  return abiertos[0] ?? null;
+}

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
-import { Button } from '../../../shared/ui/Button';
 import { isUnauthorized } from '../api/apiError';
 import { compressImage } from '../lib/compressImage';
 import {
@@ -46,6 +45,19 @@ export function ProfessionalProfileForm() {
   const [saved, setSaved] = useState(false);
   const seeded = useRef(false);
 
+  /**
+   * Lo último que quedó guardado, para saber si hay cambios sin guardar.
+   *
+   * Es estado y no un ref porque se LEE al renderizar —la barra del pie compara
+   * contra esto en cada tecla—, y un ref leído en el render es justo lo que React
+   * desaconseja.
+   */
+  const [original, setOriginal] = useState<{
+    bio: string;
+    price: string;
+    specialtyIds: string[];
+  }>({ bio: '', price: '', specialtyIds: [] });
+
   // Sembramos el formulario una sola vez cuando llega el perfil, para no pisar
   // ediciones sin guardar (ej. al subir la foto, que también refresca el perfil).
   useEffect(() => {
@@ -56,7 +68,14 @@ export function ProfessionalProfileForm() {
           ? String(profile.consultationPrice)
           : '',
       );
-      setSelectedIds(profile.specialties.map((s) => s.id));
+      const ids = profile.specialties.map((s) => s.id);
+      setSelectedIds(ids);
+      setOriginal({
+        bio: profile.bio ?? '',
+        price:
+          profile.consultationPrice !== null ? String(profile.consultationPrice) : '',
+        specialtyIds: ids,
+      });
       seeded.current = true;
     }
   }, [profile]);
@@ -130,7 +149,16 @@ export function ProfessionalProfileForm() {
     }
 
     setErrors({});
-    updateProfile.mutate(parsed.data, { onSuccess: () => setSaved(true) });
+    updateProfile.mutate(parsed.data, {
+      onSuccess: () => {
+        setSaved(true);
+        // El nuevo punto de comparación es lo que había en el formulario al
+        // enviar, no lo que devuelve el backend: el precio viaja como número y
+        // en el campo es un string, así que comparar contra la respuesta dejaría
+        // el formulario "sucio" para siempre después de guardar.
+        setOriginal({ bio, price, specialtyIds: selectedIds });
+      },
+    });
   }
 
   const selectedSpecialties = specialties.filter((s) =>
@@ -138,167 +166,285 @@ export function ProfessionalProfileForm() {
   );
   const priceNumber = price.trim() === '' ? null : Number(price);
 
+  const sucio =
+    bio !== original.bio ||
+    price !== original.price ||
+    selectedIds.join(',') !== original.specialtyIds.join(',');
+
   return (
-    <div className="grid gap-8 lg:grid-cols-2">
-      <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-6">
-        {/* Foto */}
-        <div className="flex items-center gap-4">
-          {profile.photoUrl ? (
-            <img
-              src={profile.photoUrl}
-              alt="Tu foto de perfil"
-              className="h-20 w-20 rounded-full object-cover"
-            />
-          ) : (
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-surface-teal text-xl font-semibold text-brand">
-              {`${profile.firstName.charAt(0)}${profile.lastName.charAt(0)}`.toUpperCase()}
+    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <form onSubmit={handleSubmit} noValidate className="grid gap-5">
+        <Seccion
+          titulo="Tu foto y tu presentación"
+          detalle="Es lo primero que ve un paciente al abrir tu perfil en el catálogo."
+        >
+          <div className="flex flex-wrap items-center gap-5">
+            {profile.photoUrl ? (
+              <img
+                src={profile.photoUrl}
+                alt="Tu foto de perfil"
+                className="h-20 w-20 flex-none rounded-full object-cover"
+              />
+            ) : (
+              <div className="flex h-20 w-20 flex-none items-center justify-center rounded-full bg-surface-teal text-xl font-bold text-brand-deep">
+                {`${profile.firstName.charAt(0)}${profile.lastName.charAt(0)}`.toUpperCase()}
+              </div>
+            )}
+            <div>
+              <label
+                htmlFor="photo"
+                className="inline-flex cursor-pointer items-center rounded-[9px] border border-line-strong bg-white px-4 py-2.5 text-[13px] font-bold text-brand-deep transition-colors hover:border-brand"
+              >
+                {uploadPhoto.isPending ? 'Subiendo…' : 'Cambiar foto'}
+              </label>
+              <input
+                id="photo"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                onChange={handlePhotoChange}
+                disabled={uploadPhoto.isPending}
+              />
+              <p className="mt-1.5 text-[12px] text-muted-soft">JPG, PNG o WEBP.</p>
+              {(photoError !== null || uploadPhoto.isError) && (
+                <p role="alert" className="mt-1.5 text-[13px] text-danger">
+                  {photoError ??
+                    (uploadPhoto.error instanceof Error
+                      ? uploadPhoto.error.message
+                      : 'No se pudo subir la foto.')}
+                </p>
+              )}
             </div>
-          )}
-          <div>
-            <label
-              htmlFor="photo"
-              className="inline-flex cursor-pointer items-center rounded-lg border border-brand px-4 py-2 text-sm font-semibold text-brand transition-colors hover:bg-brand/5"
-            >
-              {uploadPhoto.isPending ? 'Subiendo…' : 'Cambiar foto'}
+          </div>
+
+          <div className="mt-6 grid gap-1.5">
+            <label htmlFor="bio" className="text-sm font-semibold text-ink">
+              Biografía
+            </label>
+            <textarea
+              id="bio"
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              maxLength={MAX_BIO}
+              rows={6}
+              placeholder="Contales a tus pacientes sobre tu experiencia, enfoque y formación."
+              aria-invalid={!!errors.bio}
+              className={`w-full resize-y rounded-[10px] border bg-white px-4 py-3 text-sm leading-[1.6] text-ink outline-none transition-colors placeholder:text-muted-soft focus:border-brand focus-visible:ring-2 focus-visible:ring-brand ${
+                errors.bio ? 'border-danger' : 'border-line-strong'
+              }`}
+            />
+            <div className="flex justify-between gap-3">
+              {errors.bio ? <p className="text-[13px] text-danger">{errors.bio}</p> : <span />}
+              {/* aria-live: un lector de pantalla tiene que enterarse de que se
+                  está acercando al límite, no solo verlo. */}
+              <span className="text-[12px] text-muted-soft" aria-live="polite">
+                {bio.length}/{MAX_BIO} caracteres
+              </span>
+            </div>
+          </div>
+        </Seccion>
+
+        <Seccion
+          titulo="Especialidades"
+          detalle={`Hasta ${MAX_SPECIALTIES}. Son el filtro con el que los pacientes buscan en el catálogo.`}
+        >
+          <fieldset className="grid gap-3">
+            <legend className="sr-only">
+              Especialidades (elegí hasta {MAX_SPECIALTIES})
+            </legend>
+            <div className="flex flex-wrap gap-2">
+              {specialties.map((s) => {
+                const active = selectedIds.includes(s.id);
+                const disabled = !active && selectedIds.length >= MAX_SPECIALTIES;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => toggleSpecialty(s.id)}
+                    disabled={disabled}
+                    aria-pressed={active}
+                    className={`rounded-full border px-3.5 py-2 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+                      active
+                        ? // Azul profundo y no teal: el blanco sobre #14b8a6 da
+                          // 2.2:1, por debajo del mínimo de WCAG AA.
+                          'border-brand-deep bg-brand-deep text-white'
+                        : 'border-line-strong bg-white text-brand-deep hover:border-brand disabled:cursor-not-allowed disabled:opacity-40'
+                    }`}
+                  >
+                    {s.name}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[12px] text-muted-soft">
+              {selectedIds.length} de {MAX_SPECIALTIES} elegidas
+            </p>
+            {errors.specialtyIds && (
+              <p className="text-[13px] text-danger">{errors.specialtyIds}</p>
+            )}
+          </fieldset>
+        </Seccion>
+
+        <Seccion
+          titulo="Precio de consulta"
+          detalle="Sin precio publicado, el botón de reservar te aparece deshabilitado en el catálogo."
+        >
+          <div className="grid max-w-[280px] gap-1.5">
+            <label htmlFor="price" className="text-sm font-semibold text-ink">
+              Precio de consulta (ARS)
             </label>
             <input
-              id="photo"
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="sr-only"
-              onChange={handlePhotoChange}
-              disabled={uploadPhoto.isPending}
+              id="price"
+              type="number"
+              min={0}
+              step={100}
+              inputMode="numeric"
+              value={price}
+              onChange={(e) => setPrice(e.target.value)}
+              placeholder="15000"
+              aria-invalid={!!errors.consultationPrice}
+              className={`w-full rounded-[10px] border bg-white px-4 py-3 text-sm text-ink outline-none transition-colors placeholder:text-muted-soft focus:border-brand focus-visible:ring-2 focus-visible:ring-brand ${
+                errors.consultationPrice ? 'border-danger' : 'border-line-strong'
+              }`}
             />
-            <p className="mt-1 text-xs text-muted">JPG, PNG o WEBP.</p>
-            {(photoError !== null || uploadPhoto.isError) && (
-              <p role="alert" className="mt-1 text-sm text-danger">
-                {photoError ??
-                  (uploadPhoto.error instanceof Error
-                    ? uploadPhoto.error.message
-                    : 'No se pudo subir la foto.')}
-              </p>
+            {errors.consultationPrice && (
+              <p className="text-[13px] text-danger">{errors.consultationPrice}</p>
             )}
           </div>
-        </div>
-
-        {/* Bio */}
-        <div className="flex flex-col gap-1.5 text-left">
-          <label htmlFor="bio" className="text-sm font-medium text-ink">
-            Biografía
-          </label>
-          <textarea
-            id="bio"
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            maxLength={MAX_BIO}
-            rows={5}
-            placeholder="Contales a tus pacientes sobre tu experiencia, enfoque y formación."
-            aria-invalid={!!errors.bio}
-            className={`w-full resize-y rounded-lg border px-3.5 py-2.5 text-ink outline-none transition-colors placeholder:text-muted/60 focus:border-brand focus:ring-2 focus:ring-brand/30 ${
-              errors.bio ? 'border-danger' : 'border-slate-300'
-            }`}
-          />
-          <div className="flex justify-between">
-            {errors.bio ? (
-              <p className="text-sm text-danger">{errors.bio}</p>
-            ) : (
-              <span />
-            )}
-            {/* aria-live: un lector de pantalla tiene que enterarse de que se está
-                acercando al límite, no solo verlo. */}
-            <span className="text-xs text-muted" aria-live="polite">
-              {bio.length}/{MAX_BIO} caracteres
-            </span>
-          </div>
-        </div>
-
-        {/* Especialidades */}
-        <fieldset className="flex flex-col gap-2 text-left">
-          <legend className="text-sm font-medium text-ink">
-            Especialidades{' '}
-            <span className="font-normal text-muted">
-              (elegí hasta {MAX_SPECIALTIES}) · {selectedIds.length}/
-              {MAX_SPECIALTIES}
-            </span>
-          </legend>
-          <div className="flex flex-wrap gap-2">
-            {specialties.map((s) => {
-              const active = selectedIds.includes(s.id);
-              const disabled = !active && selectedIds.length >= MAX_SPECIALTIES;
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => toggleSpecialty(s.id)}
-                  disabled={disabled}
-                  aria-pressed={active}
-                  className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                    active
-                      ? 'border-brand bg-brand text-white'
-                      : 'border-slate-300 text-ink hover:border-brand disabled:cursor-not-allowed disabled:opacity-40'
-                  }`}
-                >
-                  {s.name}
-                </button>
-              );
-            })}
-          </div>
-          {errors.specialtyIds && (
-            <p className="text-sm text-danger">{errors.specialtyIds}</p>
-          )}
-        </fieldset>
-
-        {/* Precio */}
-        <div className="flex flex-col gap-1.5 text-left">
-          <label htmlFor="price" className="text-sm font-medium text-ink">
-            Precio de consulta (ARS)
-          </label>
-          <input
-            id="price"
-            type="number"
-            min={0}
-            step={100}
-            inputMode="numeric"
-            value={price}
-            onChange={(e) => setPrice(e.target.value)}
-            placeholder="15000"
-            aria-invalid={!!errors.consultationPrice}
-            className={`w-full rounded-lg border px-3.5 py-2.5 text-ink outline-none transition-colors placeholder:text-muted/60 focus:border-brand focus:ring-2 focus:ring-brand/30 ${
-              errors.consultationPrice ? 'border-danger' : 'border-slate-300'
-            }`}
-          />
-          {errors.consultationPrice && (
-            <p className="text-sm text-danger">{errors.consultationPrice}</p>
-          )}
-        </div>
+        </Seccion>
 
         {updateProfile.isError && (
-          <p role="alert" className="text-sm text-danger">
+          <p
+            role="alert"
+            className="rounded-[10px] border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger"
+          >
             {updateProfile.error instanceof Error
               ? updateProfile.error.message
               : 'No se pudo guardar tu perfil.'}
           </p>
         )}
-        {saved && !updateProfile.isPending && (
-          <p role="status" className="text-sm font-medium text-brand">
-            Perfil guardado ✓
-          </p>
-        )}
 
-        <Button type="submit" disabled={updateProfile.isPending}>
-          {updateProfile.isPending ? 'Guardando…' : 'Guardar cambios'}
-        </Button>
+        <div className="sticky bottom-0 rounded-[14px] border border-line bg-white/95 px-5 py-4 backdrop-blur">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <p className="text-[13px] text-muted">
+              {saved && !sucio ? (
+                <span role="status" className="font-semibold text-brand-hover">
+                  Perfil guardado ✓
+                </span>
+              ) : sucio ? (
+                'Tenés cambios sin guardar.'
+              ) : (
+                'Todo al día.'
+              )}
+            </p>
+
+            <button
+              type="submit"
+              disabled={updateProfile.isPending}
+              className="rounded-[9px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {updateProfile.isPending ? 'Guardando…' : 'Guardar cambios'}
+            </button>
+          </div>
+        </div>
       </form>
 
-      <ProfilePreview
-        firstName={profile.firstName}
-        lastName={profile.lastName}
-        photoUrl={profile.photoUrl}
-        bio={bio}
-        specialties={selectedSpecialties}
-        consultationPrice={priceNumber}
-        currency={profile.currency}
-      />
+      <aside className="grid gap-4 xl:sticky xl:top-24">
+        <EstadoMatricula status={profile.status} licenseNumber={profile.licenseNumber} />
+
+        <ProfilePreview
+          firstName={profile.firstName}
+          lastName={profile.lastName}
+          photoUrl={profile.photoUrl}
+          bio={bio}
+          specialties={selectedSpecialties}
+          consultationPrice={priceNumber}
+          currency={profile.currency}
+        />
+      </aside>
     </div>
+  );
+}
+
+/** Bloque del formulario: un título, para qué sirve, y sus campos. */
+function Seccion({
+  titulo,
+  detalle,
+  children,
+}: {
+  titulo: string;
+  detalle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="overflow-hidden rounded-[14px] border border-line bg-white">
+      <header className="border-b border-line-soft px-6 py-[18px]">
+        <h2 className="text-[17px] font-bold text-brand-deep">{titulo}</h2>
+        <p className="mt-1.5 max-w-[560px] text-[13px] leading-[1.6] text-muted">{detalle}</p>
+      </header>
+      <div className="px-6 py-6">{children}</div>
+    </section>
+  );
+}
+
+/**
+ * Estado de la matrícula.
+ *
+ * Es el dato más importante de esta pantalla y no estaba: mientras el estado no
+ * sea VALIDADO el perfil **no aparece en el catálogo** —tanto `catalog.service`
+ * como `public-professionals.service` filtran por ese estado—, así que se puede
+ * completar todo el formulario y no cambiar nada. Se dice acá, al lado de lo que
+ * se está editando, y no solo en el panel.
+ */
+function EstadoMatricula({
+  status,
+  licenseNumber,
+}: {
+  status: string;
+  licenseNumber: string;
+}) {
+  const validado = status === 'VALIDADO';
+
+  const texto: Record<string, string> = {
+    VALIDADO: 'Tu perfil aparece en el catálogo y los pacientes pueden reservarte.',
+    PENDIENTE_VALIDACION_MATRICULA:
+      'Un moderador la revisa a mano. Hasta que la aprueben, tu perfil no aparece en el catálogo.',
+    RECHAZADO: 'Tu perfil no aparece en el catálogo. Escribinos para revisar el caso.',
+    SUSPENDIDO: 'Tu cuenta está suspendida: no aparecés en el catálogo ni recibís turnos.',
+  };
+
+  return (
+    <section
+      aria-labelledby="matricula"
+      className={`overflow-hidden rounded-[14px] border ${
+        validado ? 'border-line bg-white' : 'border-danger/35 bg-danger/[0.04]'
+      }`}
+    >
+      <header className="px-5 py-[18px]">
+        <h2
+          id="matricula"
+          className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted"
+        >
+          Matrícula
+        </h2>
+        <p
+          className={`mt-2 flex items-center gap-2 text-[15px] font-bold ${
+            validado ? 'text-brand-hover' : 'text-danger'
+          }`}
+        >
+          <span
+            aria-hidden="true"
+            className={`inline-block h-1.5 w-1.5 rounded-full ${
+              validado ? 'bg-brand' : 'bg-danger'
+            }`}
+          />
+          {validado ? 'Verificada' : 'En validación'}
+        </p>
+        <p className="mt-2 text-[13px] leading-[1.6] text-muted">
+          {texto[status] ?? 'Estado desconocido.'}
+        </p>
+        <p className="mt-3 font-mono text-[12px] text-muted-soft">{licenseNumber}</p>
+      </header>
+    </section>
   );
 }

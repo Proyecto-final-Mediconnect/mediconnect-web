@@ -37,7 +37,7 @@ export function DailyPrebuiltFrame({ roomUrl, title }: DailyPrebuiltFrameProps) 
       title={title}
       src={roomUrl}
       allow={IFRAME_ALLOW}
-      className="h-[70vh] min-h-[420px] w-full rounded-xl border border-slate-200 bg-black"
+      className="h-[70vh] min-h-[420px] w-full rounded-[14px] border border-line bg-black"
     />
   );
 }

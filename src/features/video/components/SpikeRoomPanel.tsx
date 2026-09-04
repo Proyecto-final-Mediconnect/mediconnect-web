@@ -53,7 +53,7 @@ export function SpikeRoomPanel() {
       )}
 
       {!room && (
-        <div className="rounded-xl border border-slate-200 bg-white p-5">
+        <div className="rounded-[14px] border border-line bg-white p-5">
           <p className="text-sm text-muted">
             Se crea una sala privada que expira sola a los 40 minutos y admite como máximo 2
             participantes. El backend firma un meeting token por rol: con la URL sola no se entra.
@@ -66,7 +66,7 @@ export function SpikeRoomPanel() {
 
       {room && (
         <>
-          <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="rounded-[14px] border border-line bg-white p-5">
             <dl className="grid gap-3 text-sm sm:grid-cols-3">
               <div>
                 <dt className="text-muted">Sala</dt>
@@ -132,7 +132,7 @@ export function SpikeRoomPanel() {
 function SessionsTable({ sessions }: { sessions: MeetingSession[] }) {
   if (sessions.length === 0) {
     return (
-      <p className="rounded-lg border border-slate-200 bg-surface px-4 py-3 text-sm text-muted">
+      <p className="rounded-lg border border-line bg-surface px-4 py-3 text-sm text-muted">
         Todavía no hay sesiones cerradas. Daily publica los datos recién cuando la llamada termina:
         salí de la sala y volvé a consultar.
       </p>
@@ -140,7 +140,7 @@ function SessionsTable({ sessions }: { sessions: MeetingSession[] }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+    <div className="overflow-x-auto rounded-[14px] border border-line bg-white">
       <table className="w-full text-sm">
         <caption className="px-4 pt-4 text-left font-semibold text-ink">
           Sesiones registradas por Daily
@@ -155,7 +155,7 @@ function SessionsTable({ sessions }: { sessions: MeetingSession[] }) {
         </thead>
         <tbody className="text-ink">
           {sessions.map((session) => (
-            <tr key={session.id} className="border-t border-slate-100">
+            <tr key={session.id} className="border-t border-line-soft">
               <td className="px-4 py-2">{new Date(session.startTime).toLocaleString('es-AR')}</td>
               <td className="px-4 py-2">{Math.round(session.durationSeconds / 60)} min</td>
               <td className="px-4 py-2">{session.participants}</td>

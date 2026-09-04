@@ -23,7 +23,10 @@ function renderCard(overrides: Partial<ProfessionalCard> = {}) {
   return render(
     <MemoryRouter>
       <ul>
-        <ProfessionalCardItem professional={{ ...base, ...overrides }} />
+        <ProfessionalCardItem
+          professional={{ ...base, ...overrides }}
+          basePath="/profesionales"
+        />
       </ul>
     </MemoryRouter>,
   );
