@@ -15,7 +15,12 @@ export function buildCatalogQuery(filters: CatalogFilters, page: number): string
     limit: String(PAGE_SIZE),
   });
 
-  if (filters.specialtyId) params.set('specialtyId', filters.specialtyId);
+  // `append`, no `set`: el backend acepta el parámetro repetido
+  // (`?specialtyId=a&specialtyId=b`) y lo resuelve como "alguna de estas".
+  // Con `set` cada especialidad pisaría a la anterior y solo viajaría la última.
+  for (const specialtyId of filters.specialtyIds) {
+    params.append('specialtyId', specialtyId);
+  }
   if (filters.minPrice.trim()) params.set('minPrice', filters.minPrice.trim());
   if (filters.maxPrice.trim()) params.set('maxPrice', filters.maxPrice.trim());
 
