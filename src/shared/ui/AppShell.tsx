@@ -2,6 +2,11 @@ import { useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useMyAppointments } from '../../features/appointments/hooks/useAppointments';
 import { useLogout, useSession } from '../../features/auth/hooks/useSession';
+import {
+  displayNameOf,
+  initialsOf,
+  ROLE_LABEL,
+} from '../../features/auth/types/session';
 import { nextAppointment } from '../../features/dashboard/lib/dashboard';
 import { firstJoinable } from '../../features/video/lib/joinWindow';
 import { useNow } from '../hooks/useNow';
@@ -119,12 +124,6 @@ const NAV_POR_ROL: Record<string, NavItem[][]> = {
   MODERADOR: NAV_MODERADOR,
 };
 
-const ROL_VISIBLE: Record<string, string> = {
-  PACIENTE: 'Paciente',
-  PROFESIONAL: 'Profesional',
-  MODERADOR: 'Moderador',
-};
-
 /**
  * Fila de un ítem del menú.
  *
@@ -232,12 +231,11 @@ export function AppShell({ title, children }: AppShellProps) {
   // devolvían 403. Mientras la sesión no cargó se cae al de paciente, que es el
   // rol más común; el guard de la ruta es RequireAuth, no esto.
   const grupos = NAV_POR_ROL[user?.role ?? ''] ?? NAV_PACIENTE;
-  const nombre = user?.firstName
-    ? `${user.firstName} ${user.lastName ?? ''}`.trim()
-    : (user?.email ?? '');
-  const iniciales =
-    (user?.firstName?.charAt(0) ?? '') + (user?.lastName?.charAt(0) ?? '') || '·';
-  const rol = ROL_VISIBLE[user?.role ?? ''] ?? 'Paciente';
+  // Los mismos helpers que usa la barra pública: el nombre y las iniciales de
+  // una persona no deberían resolverse distinto según en qué pantalla esté.
+  const nombre = user ? displayNameOf(user) : '';
+  const iniciales = user ? initialsOf(user) : '·';
+  const rol = user ? ROLE_LABEL[user.role] : 'Paciente';
 
   return (
     /* La primera columna es `auto`: mide lo que mide la barra, así que al abrirse
@@ -318,7 +316,7 @@ export function AppShell({ title, children }: AppShellProps) {
               aria-hidden="true"
               className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full bg-brand-hover text-xs font-bold text-white"
             >
-              {iniciales.toUpperCase()}
+              {iniciales}
             </span>
             <span className={`grid min-w-0 gap-0.5 ${ETIQUETA}`}>
               <span className="truncate text-[13px] font-bold text-white">{nombre}</span>
@@ -431,8 +429,14 @@ function VideoconsultaLink({
       </span>
       <span className={ETIQUETA}>Videoconsulta</span>
       {enVivo && (
+        // `ml-auto` empuja el cartel al extremo derecho con la barra abierta,
+        // pero plegada tiene que desaparecer: un margen automático se queda con
+        // TODO el espacio libre y le gana al `justify-center` del ítem, así que
+        // el icono quedaba pegado al borde izquierdo mientras el resto de la
+        // barra seguía centrado. La etiqueta mide 0 px plegada, pero el margen
+        // no se entera.
         <span
-          className={`ml-auto text-[10px] font-bold uppercase tracking-[0.08em] ${ETIQUETA}`}
+          className={`ml-auto text-[10px] font-bold uppercase tracking-[0.08em] lg:ml-0 lg:group-hover/rail:ml-auto lg:group-focus-within/rail:ml-auto ${ETIQUETA}`}
         >
           En vivo
         </span>

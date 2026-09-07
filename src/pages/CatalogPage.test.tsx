@@ -49,10 +49,25 @@ let professionalRequests: string[];
 /** Respuestas encoladas para /catalog/professionals (la última se repite). */
 let professionalResponses: ProfessionalsPage[];
 let specialtiesStatus: number;
+/** Sesión que devuelve `GET /me`. `null` = visitante anónimo (401). */
+let sesion: { id: string; email: string; role: string } | null;
 
 function mockFetch() {
   return vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
     const url = String(input);
+
+    // El catálogo público ahora SÍ pregunta quién sos: la barra muestra la sesión
+    // y el botón de reservar cambia según el rol.
+    if (url.endsWith('/me')) {
+      return Promise.resolve(
+        sesion
+          ? new Response(JSON.stringify(sesion), {
+              status: 200,
+              headers: { 'Content-Type': 'application/json' },
+            })
+          : new Response(null, { status: 401 }),
+      );
+    }
 
     if (url.endsWith('/specialties')) {
       return Promise.resolve(
@@ -111,19 +126,51 @@ describe('CatalogPage (ENG-49)', () => {
     professionalRequests = [];
     professionalResponses = [page([card(1), card(2)])];
     specialtiesStatus = 200;
+    sesion = null;
     mockFetch();
   });
 
   afterEach(cleanup);
 
-  it('lista profesionales sin pedir sesión (búsqueda pública)', async () => {
+  /**
+   * Este test decía lo contrario —"sin pedir sesión"— y verificaba que no se
+   * llamara a `/auth/me`. Nunca protegió nada: el endpoint real es `/me`, así que
+   * pasaba igual aunque la página pidiera la sesión.
+   *
+   * Ahora el catálogo público sí la pide, a propósito: sin saber quién mira, un
+   * profesional logueado tocaba "Reservar turno" y el guard lo devolvía a su panel
+   * sin ninguna explicación. Se deja escrito para que el cambio se lea como una
+   * decisión y no como un descuido.
+   */
+  it('pregunta por la sesión, porque el botón de reservar depende del rol', async () => {
     const fetchSpy = mockFetch();
     renderCatalog();
 
     expect(await screen.findByText('Nombre1 Apellido1')).toBeVisible();
 
     const urls = fetchSpy.mock.calls.map((call) => String(call[0]));
-    expect(urls.some((url) => url.includes('/auth/me'))).toBe(false);
+    expect(urls.some((url) => url.endsWith('/me'))).toBe(true);
+  });
+
+  it('al visitante anónimo le ofrece reservar: el login lo trae de vuelta', async () => {
+    renderCatalog();
+
+    const enlaces = await screen.findAllByRole('link', { name: 'Reservar turno' });
+    expect(enlaces[0]).toHaveAttribute('href', '/profesionales/pro-1/turnos');
+  });
+
+  it('al profesional logueado no le ofrece reservar, y le dice por qué', async () => {
+    sesion = { id: 'u-1', email: 'pro@test.test', role: 'PROFESIONAL' };
+    renderCatalog();
+
+    expect(await screen.findByText('Nombre1 Apellido1')).toBeVisible();
+
+    await waitFor(() =>
+      expect(screen.queryAllByRole('link', { name: 'Reservar turno' })).toHaveLength(0),
+    );
+    expect(
+      screen.getAllByText(/Las reservas son para cuentas de paciente/)[0],
+    ).toBeVisible();
   });
 
   it('pide 20 por página en la primera carga', async () => {

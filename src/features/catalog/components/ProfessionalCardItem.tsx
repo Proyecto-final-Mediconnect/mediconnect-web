@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { formatPrice } from '../lib/formatPrice';
 import { describeNextSlot, mockDetailsFor } from '../lib/mockProfessionalDetails';
 import type { ProfessionalCard } from '../types/catalog';
+import { ReservarTurnoCta } from './ReservarTurnoCta';
 
 function initials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -110,12 +111,12 @@ export function ProfessionalCardItem({
             {describeNextSlot(mock.nextSlotInDays)}
           </span>
 
-          <Link
-            to={`/profesionales/${professional.id}/turnos`}
-            className="mt-2.5 rounded-[9px] bg-brand-deep py-3 text-center text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-          >
-            Reservar turno
-          </Link>
+          <ReservarTurnoCta
+            professionalId={professional.id}
+            label="Reservar turno"
+            layout="mt-2.5"
+            botonClassName="rounded-[9px] bg-brand-deep py-3 text-center text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+          />
           <Link
             to={`${basePath}/${professional.id}`}
             aria-label={`Ver el perfil de ${fullName}`}

@@ -9,6 +9,7 @@ import {
   type MockService,
 } from '../lib/mockProfessionalDetails';
 import type { PublicProfessionalProfile } from '../types/catalog';
+import { ReservarTurnoCta } from './ReservarTurnoCta';
 
 type Props = {
   /** Raíz del catálogo del que se vino, para el enlace de volver. Público por
@@ -407,13 +408,13 @@ function PanelReserva({
           </span>
         </div>
 
-        <Link
-          to={`/profesionales/${profile.id}/turnos`}
-          aria-label={`Reservar turno con ${fullName}`}
-          className="w-full rounded-[10px] bg-brand py-[15px] text-center text-[15px] font-bold text-ink-deep transition-colors hover:bg-brand-hover hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-        >
-          Elegir día y horario
-        </Link>
+        <ReservarTurnoCta
+          professionalId={profile.id}
+          label="Elegir día y horario"
+          ariaLabel={`Reservar turno con ${fullName}`}
+          layout="w-full"
+          botonClassName="rounded-[10px] bg-brand py-[15px] text-center text-[15px] font-bold text-ink-deep transition-colors hover:bg-brand-hover hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+        />
 
         <p className="text-xs leading-[1.6] text-muted-soft">
           Vas a poder cancelarlo desde “Mis turnos”. El plazo y el reembolso los

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { ProfessionalCardItem } from './ProfessionalCardItem';
 import type { ProfessionalCard } from '../types/catalog';
@@ -18,21 +19,32 @@ const base: ProfessionalCard = {
 };
 
 function renderCard(overrides: Partial<ProfessionalCard> = {}) {
-  // La tarjeta ahora es un `<Link>` al perfil público (ENG-50), así que
-  // necesita un router alrededor.
+  // Router porque la tarjeta es un `<Link>` al perfil público (ENG-50), y
+  // QueryClient porque el botón de reservar consulta la sesión para saber si
+  // ofrecerlo: reservar es solo para pacientes. Sin sesión (401) se comporta
+  // como con un visitante anónimo, que es lo que estos casos describen.
+  vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 401 }));
+
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
   return render(
-    <MemoryRouter>
-      <ul>
-        <ProfessionalCardItem
-          professional={{ ...base, ...overrides }}
-          basePath="/profesionales"
-        />
-      </ul>
-    </MemoryRouter>,
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <ul>
+          <ProfessionalCardItem
+            professional={{ ...base, ...overrides }}
+            basePath="/profesionales"
+          />
+        </ul>
+      </MemoryRouter>
+    </QueryClientProvider>,
   );
 }
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+});
 
 describe('ProfessionalCardItem', () => {
   it('muestra foto, nombre, especialidad principal y precio', () => {
