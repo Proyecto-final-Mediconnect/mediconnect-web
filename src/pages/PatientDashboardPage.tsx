@@ -1,5 +1,5 @@
 import { useSession } from '../features/auth/hooks/useSession';
-import { DashboardLayout, PendingCard, SectionCard } from './DashboardLayout';
+import { DashboardLayout, SectionCard } from './DashboardLayout';
 
 export function PatientDashboardPage() {
   const { user } = useSession();
@@ -27,10 +27,10 @@ export function PatientDashboardPage() {
           description="Tus consultas agendadas, su estado y las que ya pasaron."
           to="/mis-turnos"
         />
-        <PendingCard
+        <SectionCard
           title="Mi historia clínica"
           description="Tu historial médico, siempre disponible y solo accesible por vos."
-          issue="ENG-59"
+          to="/mi-historia-clinica"
         />
       </div>
     </DashboardLayout>

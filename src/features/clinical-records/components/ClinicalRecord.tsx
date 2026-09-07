@@ -31,6 +31,14 @@ type ClinicalRecordProps = {
   emptyText?: string;
   /** Aclaración sobre el alcance de lo que se lista, si hace falta. */
   scopeNote?: string;
+  /**
+   * Si se muestra el formulario para agregar una entrada.
+   *
+   * El paciente lee su historia pero no escribe en ella (ENG-59): quien firma un
+   * asiento clínico es el profesional. No es solo una decisión de UI — el
+   * backend rechaza el POST de cualquiera que no tenga un turno con el paciente.
+   */
+  canAddEntries?: boolean;
 };
 
 export function ClinicalRecord({
@@ -38,19 +46,22 @@ export function ClinicalRecord({
   consultationId,
   emptyText = 'No hay entradas para mostrar.',
   scopeNote,
+  canAddEntries = true,
 }: ClinicalRecordProps) {
   const record = useClinicalRecord(patientId);
 
   return (
     <div className="space-y-10">
-      <section aria-labelledby="nueva-entrada">
-        <h2 id="nueva-entrada" className="text-lg font-semibold text-brand-deep">
-          Agregar una entrada
-        </h2>
-        <div className="mt-4">
-          <ClinicalEntryForm patientId={patientId} consultationId={consultationId} />
-        </div>
-      </section>
+      {canAddEntries && (
+        <section aria-labelledby="nueva-entrada">
+          <h2 id="nueva-entrada" className="text-lg font-semibold text-brand-deep">
+            Agregar una entrada
+          </h2>
+          <div className="mt-4">
+            <ClinicalEntryForm patientId={patientId} consultationId={consultationId} />
+          </div>
+        </section>
+      )}
 
       <section aria-labelledby="entradas">
         <h2 id="entradas" className="text-lg font-semibold text-brand-deep">
@@ -76,9 +87,7 @@ export function ClinicalRecord({
           </p>
         )}
 
-        {record.data?.length === 0 && (
-          <p className="mt-3 text-sm text-muted">{emptyText}</p>
-        )}
+        {record.data?.length === 0 && <p className="mt-3 text-sm text-muted">{emptyText}</p>}
 
         {record.data && record.data.length > 0 && (
           <ul className="mt-4 space-y-4">
@@ -102,7 +111,19 @@ function EntryCard({ entry }: { entry: ClinicalEntry }) {
           <span className="rounded-full bg-surface-teal px-3 py-1 text-xs font-medium text-brand-hover">
             {ENTRY_TYPE_LABELS[entry.entryType] ?? entry.entryType}
           </span>
-          <p className="mt-2 text-sm text-muted">{formatEntryDate(entry.createdAt)}</p>
+          <p className="mt-2 text-sm text-muted">
+            {formatEntryDate(entry.createdAt)}
+            {/* Quién firmó el asiento es parte del criterio de ENG-59, y de lo
+                que la Ley 26.529 exige que el registro identifique. */}
+            {entry.professional && (
+              <>
+                {' · '}
+                <span className="text-ink">
+                  {entry.professional.firstName} {entry.professional.lastName}
+                </span>
+              </>
+            )}
+          </p>
         </div>
 
         {/* El hash se muestra a propósito: es la evidencia visible de que la

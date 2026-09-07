@@ -21,8 +21,7 @@ export function useAddClinicalEntry(patientId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: NewClinicalEntryPayload) =>
-      addClinicalEntry(patientId, payload),
+    mutationFn: (payload: NewClinicalEntryPayload) => addClinicalEntry(patientId, payload),
     // Sin reintento automático: cada request agrega una fila que NO se puede
     // borrar. Un reintento silencioso ante un timeout dejaría el asiento
     // duplicado en la historia clínica, para siempre.

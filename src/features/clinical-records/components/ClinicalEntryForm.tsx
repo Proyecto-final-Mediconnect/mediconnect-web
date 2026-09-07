@@ -79,8 +79,8 @@ export function ClinicalEntryForm({ patientId, consultationId }: ClinicalEntryFo
   return (
     <form onSubmit={handleSubmit} noValidate className="space-y-4">
       <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-        Lo que guardes acá <span className="font-semibold">no se puede editar ni borrar</span>.
-        Si después hay que corregirlo, se agrega una entrada nueva que deja constancia de la
+        Lo que guardes acá <span className="font-semibold">no se puede editar ni borrar</span>. Si
+        después hay que corregirlo, se agrega una entrada nueva que deja constancia de la
         corrección.
       </div>
 
