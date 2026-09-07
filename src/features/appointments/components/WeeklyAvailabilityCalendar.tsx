@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { WEEKDAY_NAMES } from '../../schedule/types/schedule';
 import { formatDate } from '../lib/weeks';
 import type { AvailabilityDay, AvailabilitySlot, SlotStatus } from '../types/appointment';
@@ -29,6 +28,12 @@ type WeeklyAvailabilityCalendarProps = {
   onSelect: (date: string, slot: AvailabilitySlot) => void;
   /** Rango visible, ya formateado. En el diseño encabeza el calendario. */
   rangeLabel: string;
+  /** Día cuyo detalle se muestra. Lo decide el padre porque el salto por mes o
+   *  por fecha también lo cambia, y dos dueños del mismo estado se pelean. */
+  activeDate: string | null;
+  onOpenDate: (date: string) => void;
+  /** Controles para saltar de mes o de fecha, que el padre inyecta. */
+  jumper?: React.ReactNode;
   onPreviousWeek: () => void;
   onNextWeek: () => void;
   canGoBack: boolean;
@@ -62,20 +67,15 @@ export function WeeklyAvailabilityCalendar({
   selected,
   onSelect,
   rangeLabel,
+  activeDate,
+  onOpenDate,
+  jumper,
   onPreviousWeek,
   onNextWeek,
   canGoBack,
   canGoForward,
 }: WeeklyAvailabilityCalendarProps) {
   const withSlots = days.filter((day) => day.slots.length > 0);
-
-  // El día abierto por defecto es el primero con horarios: abrir uno vacío
-  // obligaría a un click extra antes de ver nada.
-  const [openDate, setOpenDate] = useState<string | null>(null);
-  const activeDate =
-    openDate !== null && days.some((d) => d.date === openDate)
-      ? openDate
-      : (withSlots[0]?.date ?? null);
   const activeDay = days.find((day) => day.date === activeDate) ?? null;
 
   return (
@@ -86,18 +86,20 @@ export function WeeklyAvailabilityCalendar({
         </h2>
 
         <div className="flex gap-1.5">
-          <ArrowButton label="Semana anterior" disabled={!canGoBack} onClick={onPreviousWeek}>
+          <ArrowButton label="Siete días antes" disabled={!canGoBack} onClick={onPreviousWeek}>
             ←
           </ArrowButton>
-          <ArrowButton label="Semana siguiente" disabled={!canGoForward} onClick={onNextWeek}>
+          <ArrowButton label="Siete días después" disabled={!canGoForward} onClick={onNextWeek}>
             →
           </ArrowButton>
         </div>
       </header>
 
+      {jumper}
+
       {withSlots.length === 0 ? (
         <p className="mt-6 rounded-[10px] border border-line bg-surface px-4 py-6 text-center text-sm text-muted">
-          El profesional no publicó horarios de atención para esta semana. Probá con la siguiente.
+          El profesional no publicó horarios para estos días. Probá con los siguientes.
         </p>
       ) : (
         <>
@@ -107,7 +109,7 @@ export function WeeklyAvailabilityCalendar({
                 <DayCard
                   day={day}
                   isActive={day.date === activeDate}
-                  onOpen={() => setOpenDate(day.date)}
+                  onOpen={() => onOpenDate(day.date)}
                 />
               </li>
             ))}

@@ -2,7 +2,18 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAvailability, useBookAppointment, useMyAppointments } from '../hooks/useAppointments';
 import { statusLabel } from '../lib/myAppointments';
-import { BOOKING_WEEKS, MAX_WEEK_OFFSET, formatDate, formatPrice, weekRange } from '../lib/weeks';
+import {
+  BOOKING_HORIZON_DAYS,
+  MAX_PAGE,
+  daysOfPage,
+  firstAvailableIndex,
+  formatDate,
+  formatPrice,
+  horizonRange,
+  indexOfDate,
+  pageOfIndex,
+} from '../lib/weeks';
+import { DateJumper } from './DateJumper';
 import type { Appointment, AvailabilitySlot } from '../types/appointment';
 import { PASO_HORARIO, PASO_LISTO, PASO_REVISION } from '../lib/bookingSteps';
 import { BookingStepper } from './BookingStepper';
@@ -39,12 +50,63 @@ function pasoActual(hasSelection: boolean, booked: boolean): number {
 }
 
 export function BookAppointment({ professionalId }: BookAppointmentProps) {
-  const [weekOffset, setWeekOffset] = useState(0);
+  /** Página que eligió el paciente con las flechas o el selector. `null` =
+   *  todavía no tocó nada, así que manda el salto al primer día con lugar. */
+  const [pageElegida, setPageElegida] = useState<number | null>(null);
+  /** Día abierto. `null` = el que elija la página por defecto. */
+  const [diaAbierto, setDiaAbierto] = useState<string | null>(null);
   const [selected, setSelected] = useState<SelectedSlot | null>(null);
   const [booked, setBooked] = useState<Appointment | null>(null);
 
-  const { from, to } = useMemo(() => weekRange(weekOffset), [weekOffset]);
+  // Los 28 días de una sola vez. Paginar en el cliente hace que las flechas sean
+  // instantáneas y, sobre todo, permite saber en qué página está el primer día
+  // con lugar antes de que el paciente la abra.
+  const { from, to } = useMemo(() => horizonRange(), []);
   const availability = useAvailability(professionalId, from, to);
+
+  const todosLosDias = useMemo(
+    () => availability.data?.days ?? [],
+    [availability.data],
+  );
+
+  /**
+   * Dónde abrir: la página del primer día con algo que reservar.
+   *
+   * Se DERIVA de los datos en vez de sincronizarse con un efecto. Un efecto que
+   * llama a `setPage` renderiza dos veces —una con la página equivocada— y el
+   * paciente llega a ver la página que no era. Además hay que acordarse de
+   * apagarlo para no pisar la navegación del usuario, que es un estado más que
+   * mantener. Derivar no tiene ninguno de los dos problemas.
+   *
+   * Sin días con lugar cae en 0: mostrar el principio y dejar que el paciente
+   * recorra es mejor que abrir en una página arbitraria.
+   */
+  /**
+   * Horarios libres por día, para que el calendario del mes pueda apagar los que
+   * no tienen lugar. Se calcula una vez sobre los 60 días, no por celda.
+   *
+   * Va acá arriba y no junto al resto de los derivados porque abajo hay returns
+   * tempranos —carga y error—, y un hook después de un `return` cambia el orden
+   * de los hooks entre renders. React lo detecta y rompe la pantalla entera.
+   */
+  const libresPorFecha = useMemo(
+    () =>
+      Object.fromEntries(
+        todosLosDias.map((d) => [
+          d.date,
+          d.slots.filter((s) => s.status === 'AVAILABLE').length,
+        ]),
+      ),
+    [todosLosDias],
+  );
+
+  const paginaInicial = useMemo(() => {
+    const i = firstAvailableIndex(todosLosDias);
+    return i > 0 ? pageOfIndex(i) : 0;
+  }, [todosLosDias]);
+
+  // Lo que eligió el paciente gana; si no eligió nada todavía, el salto.
+  const page = pageElegida ?? paginaInicial;
   const book = useBookAppointment();
   const myAppointments = useMyAppointments();
 
@@ -101,9 +163,47 @@ export function BookAppointment({ professionalId }: BookAppointmentProps) {
     );
   }
 
-  const rangeLabel = `Semana del ${formatDate(from)} al ${formatDate(to)}${
-    availability.isFetching ? ' · actualizando…' : ''
-  }`;
+  const diasVisibles = daysOfPage(todosLosDias, page);
+  const fechas = todosLosDias.map((d) => d.date);
+
+  /**
+   * Día abierto: el que eligió el paciente, o el primero de la página que tenga
+   * un horario RESERVABLE.
+   *
+   * Se mira `AVAILABLE` y no "que tenga horarios": un día completo o ya pasado
+   * tiene horarios y ninguno sirve, y abrirlo mostraba una fila entera en gris
+   * como si el profesional no atendiera. Si en la página no hay ninguno libre se
+   * cae al primero con horarios, que al menos explica por qué no hay lugar.
+   */
+  const conLugar = firstAvailableIndex(diasVisibles);
+  const porDefecto =
+    conLugar >= 0
+      ? diasVisibles[conLugar].date
+      : (diasVisibles.find((d) => d.slots.length > 0)?.date ?? null);
+  const activeDate =
+    diaAbierto !== null && diasVisibles.some((d) => d.date === diaAbierto)
+      ? diaAbierto
+      : porDefecto;
+
+  /** Lleva la vista al día pedido: cambia de página si hace falta y lo abre.
+   *  Una fecha fuera del horizonte se ignora — el input ya la acota, pero eso es
+   *  una comodidad del navegador, no una garantía. */
+  const irADia = (date: string) => {
+    const i = indexOfDate(fechas, date);
+    if (i < 0) return;
+    setPageElegida(pageOfIndex(i));
+    setDiaAbierto(date);
+  };
+
+  // El rótulo sale de los días que se están mostrando, no de recalcular fechas
+  // con el reloj del navegador: los días los arma el backend en hora argentina, y
+  // un paciente conectado desde otro huso vería un encabezado corrido un día
+  // respecto de las tarjetas que tiene debajo.
+  const primero = diasVisibles[0]?.date;
+  const ultimo = diasVisibles[diasVisibles.length - 1]?.date;
+  const rangeLabel = `${
+    primero && ultimo ? `Del ${formatDate(primero)} al ${formatDate(ultimo)}` : 'Sin días para mostrar'
+  }${availability.isFetching ? ' · actualizando…' : ''}`;
 
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_330px]">
@@ -111,19 +211,35 @@ export function BookAppointment({ professionalId }: BookAppointmentProps) {
         <BookingStepper actual={pasoActual(selected !== null, booked !== null)} />
 
         <WeeklyAvailabilityCalendar
-          days={availability.data.days}
+          days={diasVisibles}
           selected={selected}
           onSelect={selectSlot}
           rangeLabel={rangeLabel}
-          onPreviousWeek={() => setWeekOffset((week) => week - 1)}
-          onNextWeek={() => setWeekOffset((week) => week + 1)}
-          canGoBack={weekOffset > 0}
-          canGoForward={weekOffset < MAX_WEEK_OFFSET}
+          activeDate={activeDate}
+          onOpenDate={setDiaAbierto}
+          jumper={
+            <DateJumper
+              dates={fechas}
+              libresPorFecha={libresPorFecha}
+              activeDate={activeDate}
+              onJump={irADia}
+            />
+          }
+          onPreviousWeek={() => {
+            setPageElegida(page - 1);
+            setDiaAbierto(null);
+          }}
+          onNextWeek={() => {
+            setPageElegida(page + 1);
+            setDiaAbierto(null);
+          }}
+          canGoBack={page > 0}
+          canGoForward={page < MAX_PAGE}
         />
 
-        {weekOffset >= MAX_WEEK_OFFSET && (
+        {page >= MAX_PAGE && (
           <p className="text-xs text-muted">
-            La agenda se publica hasta {BOOKING_WEEKS} semanas adelante.
+            La agenda se publica hasta {BOOKING_HORIZON_DAYS} días adelante.
           </p>
         )}
 
