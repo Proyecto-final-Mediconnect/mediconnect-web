@@ -19,9 +19,26 @@ type ClinicalRecordProps = {
   patientId: string;
   /** Consulta en curso, si se entra desde la videoconsulta. */
   consultationId?: string;
+  /**
+   * Qué decir cuando no hay nada que mostrar.
+   *
+   * Lo pone la página y no el componente porque **lo que se lista depende de
+   * quién mira**: RLS le da al paciente su historia completa y al profesional
+   * solo las entradas que él firmó. Decir "no hay entradas" sin más sería
+   * mentira para el segundo caso — puede haber diez escritas por otro
+   * profesional, invisibles para él.
+   */
+  emptyText?: string;
+  /** Aclaración sobre el alcance de lo que se lista, si hace falta. */
+  scopeNote?: string;
 };
 
-export function ClinicalRecord({ patientId, consultationId }: ClinicalRecordProps) {
+export function ClinicalRecord({
+  patientId,
+  consultationId,
+  emptyText = 'No hay entradas para mostrar.',
+  scopeNote,
+}: ClinicalRecordProps) {
   const record = useClinicalRecord(patientId);
 
   return (
@@ -38,12 +55,14 @@ export function ClinicalRecord({ patientId, consultationId }: ClinicalRecordProp
       <section aria-labelledby="entradas">
         <h2 id="entradas" className="text-lg font-semibold text-brand-deep">
           Historia clínica
-          {record.data && (
+          {record.data && record.data.length > 0 && (
             <span className="ml-2 text-sm font-normal text-muted">
-              ({record.data.length})
+              {record.data.length} {record.data.length === 1 ? 'entrada' : 'entradas'} visibles
             </span>
           )}
         </h2>
+
+        {scopeNote && <p className="mt-1 text-sm text-muted">{scopeNote}</p>}
 
         {record.isPending && (
           <p role="status" aria-live="polite" className="mt-3 text-muted">
@@ -58,7 +77,7 @@ export function ClinicalRecord({ patientId, consultationId }: ClinicalRecordProp
         )}
 
         {record.data?.length === 0 && (
-          <p className="mt-3 text-sm text-muted">Todavía no hay entradas registradas.</p>
+          <p className="mt-3 text-sm text-muted">{emptyText}</p>
         )}
 
         {record.data && record.data.length > 0 && (

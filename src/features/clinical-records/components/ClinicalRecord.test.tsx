@@ -178,12 +178,25 @@ describe('ClinicalRecord', () => {
       // Es el cuarto criterio de aceptación.
       renderRecord();
 
-      expect(await screen.findByText(/todavía no hay entradas/i)).toBeInTheDocument();
+      expect(await screen.findByText(/no hay entradas para mostrar/i)).toBeInTheDocument();
 
       await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Dolor lumbar de 3 días');
       await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
 
       expect(await screen.findByText('Dolor lumbar de 3 días')).toBeInTheDocument();
+    });
+
+    it('no reclama el motivo después de un guardado exitoso', async () => {
+      // `attempted` quedaba en true, así que el formulario recién vaciado volvía
+      // a cumplir la condición de error y mostraba "El motivo es obligatorio"
+      // —con role="alert"— al lado del cartel de éxito.
+      renderRecord();
+
+      await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Control');
+      await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
+
+      expect(await screen.findByText(/entrada guardada/i)).toBeInTheDocument();
+      expect(screen.queryByText(/el motivo es obligatorio/i)).not.toBeInTheDocument();
     });
 
     it('limpia el formulario después de guardar', async () => {

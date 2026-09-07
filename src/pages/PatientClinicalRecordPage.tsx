@@ -2,6 +2,10 @@ import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { ClinicalRecord } from '../features/clinical-records/components/ClinicalRecord';
 import { DashboardLayout } from './DashboardLayout';
 
+/** Espeja el `@IsUUID('4')` del DTO del backend. */
+const UUID_V4 =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
 /**
  * Historia clínica de un paciente, desde el profesional (ENG-58).
  *
@@ -20,6 +24,16 @@ export function PatientClinicalRecordPage() {
 
   if (!patientId) return <Navigate to="/mis-turnos" replace />;
 
+  // Se descarta si no tiene forma de UUID en vez de mandarlo igual: el backend
+  // lo valida con `@IsUUID('4')` y rechaza el request entero, con un mensaje que
+  // no corresponde a ningún campo visible del formulario. Quien escribió una
+  // evolución larga la perdería sin entender por qué, y sin poder arreglarlo
+  // desde la pantalla. Asociar la entrada a una consulta es un extra: no vale
+  // perder el asiento por un parámetro mal copiado.
+  const consultationId = UUID_V4.test(searchParams.get('consultation') ?? '')
+    ? (searchParams.get('consultation') ?? undefined)
+    : undefined;
+
   return (
     <DashboardLayout
       title="Historia clínica"
@@ -27,7 +41,12 @@ export function PatientClinicalRecordPage() {
     >
       <ClinicalRecord
         patientId={patientId}
-        consultationId={searchParams.get('consultation') ?? undefined}
+        consultationId={consultationId}
+        // Textos del alcance profesional: hoy RLS le muestra solo las entradas
+        // que él firmó, así que un "no hay entradas" a secas sería falso —
+        // puede haber una historia entera escrita por otros, invisible para él.
+        emptyText="Todavía no escribiste ninguna entrada en esta historia clínica."
+        scopeNote="Ves las entradas que vos firmaste."
       />
     </DashboardLayout>
   );

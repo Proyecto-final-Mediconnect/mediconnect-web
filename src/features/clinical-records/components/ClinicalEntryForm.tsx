@@ -65,7 +65,15 @@ export function ClinicalEntryForm({ patientId, consultationId }: ClinicalEntryFo
       ...(consultationId && { consultationId }),
     };
 
-    add.mutate(payload, { onSuccess: () => setForm(EMPTY) });
+    add.mutate(payload, {
+      onSuccess: () => {
+        setForm(EMPTY);
+        // También se resetea `attempted`: si no, el formulario recién vaciado
+        // vuelve a cumplir la condición de error y muestra "El motivo es
+        // obligatorio" —con `role="alert"`— justo al lado del cartel de éxito.
+        setAttempted(false);
+      },
+    });
   }
 
   return (
