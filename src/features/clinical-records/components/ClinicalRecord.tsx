@@ -1,6 +1,6 @@
 import { isClientError } from '../../../shared/api/apiError';
 import { useClinicalRecord } from '../hooks/useClinicalRecord';
-import { formatEntryDate, readEntry, shortHash } from '../lib/clinicalEntry';
+import { formatEntryDate, readEntryFields, shortHash } from '../lib/clinicalEntry';
 import { ENTRY_TYPE_LABELS, type ClinicalEntry } from '../types/clinicalRecord';
 import { ClinicalEntryForm } from './ClinicalEntryForm';
 
@@ -55,6 +55,15 @@ export function ClinicalRecord({
   const record = useClinicalRecord(patientId);
   const entries = record.data ?? [];
 
+  // Las correcciones se muestran vinculadas en los dos sentidos: la corrección
+  // dice a qué entrada corrige y la corregida avisa que hay una posterior. Sin
+  // el segundo lado, quien lee la original de arriba abajo no se entera de que
+  // fue corregida — que es justamente lo que la cadena tiene que hacer visible.
+  const posicionDe = new Map(entries.map((e) => [e.id, e.sequenceNumber]));
+  const corregidas = new Map(
+    entries.filter((e) => e.correctsEntryId).map((e) => [e.correctsEntryId!, e.sequenceNumber]),
+  );
+
   return (
     <div className="space-y-10">
       {canAddEntries && (
@@ -92,7 +101,12 @@ export function ClinicalRecord({
         {entries.length > 0 && (
           <ul className="mt-4 grid gap-3.5">
             {[...entries].reverse().map((entry) => (
-              <EntryCard key={entry.id} entry={entry} />
+              <EntryCard
+                key={entry.id}
+                entry={entry}
+                corregidas={corregidas}
+                posicionDe={posicionDe}
+              />
             ))}
           </ul>
         )}
@@ -163,11 +177,23 @@ function RecordError({ error }: { error: Error }) {
   );
 }
 
-function EntryCard({ entry }: { entry: ClinicalEntry }) {
-  const readable = readEntry(entry);
+function EntryCard({
+  entry,
+  corregidas,
+  posicionDe,
+}: {
+  entry: ClinicalEntry;
+  /** id de entrada corregida → nº de la corrección que la corrige. */
+  corregidas: Map<string, number>;
+  /** id de entrada → su nº en la cadena. */
+  posicionDe: Map<string, number>;
+}) {
+  const campos = readEntryFields(entry);
+  const corregidaPor = corregidas.get(entry.id);
+  const corrigeA = entry.correctsEntryId ? posicionDe.get(entry.correctsEntryId) : undefined;
 
   return (
-    <li className="rounded-[14px] border border-line bg-white p-6">
+    <li id={anclaDe(entry.sequenceNumber)} className="scroll-mt-6 rounded-[14px] border border-line bg-white p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[17px] font-bold text-brand-deep">
@@ -187,16 +213,40 @@ function EntryCard({ entry }: { entry: ClinicalEntry }) {
         </span>
       </div>
 
-      <dl className="mt-4 grid gap-3">
-        <Section label="Motivo" value={readable.reason} />
-        <Section label="Evolución" value={readable.findings} />
-        <Section label="Diagnóstico" value={readable.diagnosis} />
-        <Section label="Plan" value={readable.plan} />
-      </dl>
+      {campos.length > 0 && (
+        <dl className="mt-4 grid gap-3">
+          {campos.map((campo) => (
+            <Section key={campo.label} label={campo.label} value={campo.value} />
+          ))}
+        </dl>
+      )}
 
       {entry.correctsEntryId && (
         <p className="mt-4 rounded-[10px] border border-amber-300 bg-amber-50 px-4 py-3 text-[13px] leading-[1.7] text-amber-900">
-          Esta entrada corrige a una anterior, que sigue en la historia.
+          Corrige a la{' '}
+          {corrigeA === undefined ? (
+            // La corregida puede no estar en la lista: el paciente ve su cadena
+            // entera, pero un profesional podría recibir un recorte.
+            <span className="font-semibold">entrada anterior</span>
+          ) : (
+            <a href={`#${anclaDe(corrigeA)}`} className="font-semibold underline underline-offset-2">
+              entrada #{corrigeA}
+            </a>
+          )}
+          , que sigue en la historia sin modificar.
+        </p>
+      )}
+
+      {corregidaPor !== undefined && (
+        <p className="mt-4 rounded-[10px] border border-line-strong bg-surface px-4 py-3 text-[13px] leading-[1.7] text-muted">
+          Corregida más tarde por la{' '}
+          <a
+            href={`#${anclaDe(corregidaPor)}`}
+            className="font-semibold text-brand-deep underline underline-offset-2"
+          >
+            entrada #{corregidaPor}
+          </a>
+          . Esta queda como se escribió.
         </p>
       )}
 
@@ -213,10 +263,13 @@ function EntryCard({ entry }: { entry: ClinicalEntry }) {
   );
 }
 
-/** Un campo del asiento. No se dibuja si no tiene contenido. */
-function Section({ label, value }: { label: string; value: string | null }) {
-  if (!value) return null;
+/** Ancla estable para saltar de una corrección a la entrada que corrige. */
+function anclaDe(sequenceNumber: number): string {
+  return `entrada-${sequenceNumber}`;
+}
 
+/** Un campo del asiento. */
+function Section({ label, value }: { label: string; value: string }) {
   return (
     <div>
       <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-soft">

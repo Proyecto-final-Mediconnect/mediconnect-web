@@ -249,13 +249,69 @@ describe('ClinicalRecord', () => {
       expect(items[0]).toHaveTextContent('La nueva');
     });
 
-    it('marca las entradas que corrigen a otra', async () => {
-      entries = [makeEntry({ entryType: 'CORRECCION', correctsEntryId: 'vieja' })];
+    /**
+     * El vínculo va en los dos sentidos. Sin el lado de la corregida, quien lee
+     * la original no se entera de que hay una corrección más abajo — que es
+     * justamente lo que la cadena tiene que hacer visible (ENG-100).
+     */
+    it('enlaza la corrección con la entrada que corrige, en los dos sentidos', async () => {
+      entries = [
+        makeEntry({ id: 'vieja', sequenceNumber: 1, content: { description: 'La original' } }),
+        makeEntry({
+          id: 'correccion',
+          sequenceNumber: 2,
+          entryType: 'CORRECCION',
+          correctsEntryId: 'vieja',
+          content: { description: 'La corrige' },
+        }),
+      ];
       renderRecord();
 
-      expect(
-        await screen.findByText(/corrige a una anterior, que sigue en la historia/i),
-      ).toBeInTheDocument();
+      const correccion = (await screen.findByText('La corrige')).closest('li')!;
+      expect(within(correccion).getByRole('link', { name: /entrada #1/i })).toHaveAttribute(
+        'href',
+        '#entrada-1',
+      );
+
+      const original = screen.getByText('La original').closest('li')!;
+      expect(within(original).getByRole('link', { name: /entrada #2/i })).toHaveAttribute(
+        'href',
+        '#entrada-2',
+      );
+      expect(original).toHaveTextContent(/queda como se escribió/i);
+    });
+
+    /** La corregida puede no estar en la lista que se recibió. */
+    it('si no tiene a qué enlazar, lo dice sin romperse', async () => {
+      entries = [makeEntry({ entryType: 'CORRECCION', correctsEntryId: 'fuera-de-la-lista' })];
+      renderRecord();
+
+      expect(await screen.findByText(/corrige a la/i)).toHaveTextContent(
+        /entrada anterior, que sigue en la historia sin modificar/i,
+      );
+    });
+
+    /**
+     * Las entradas sembradas son `Encounter`, `Condition`, `MedicationRequest` y
+     * `DiagnosticReport` con claves propias, no el `ClinicalImpression` que
+     * escribe la app — y la tabla es append-only, así que no se pueden migrar.
+     * Sin el camino de respaldo la tarjeta sale sin una sola línea de contenido.
+     */
+    it('muestra el contenido aunque el recurso no sea el que escribe la app', async () => {
+      entries = [
+        makeEntry({
+          entryType: 'PRESCRIPCION',
+          fhirResourceType: 'MedicationRequest',
+          content: { medicamento: 'Enalapril', dosis: '10 mg', fecha_real: '2026-08-20' },
+        }),
+      ];
+      renderRecord();
+
+      expect(await screen.findByText('Enalapril')).toBeInTheDocument();
+      expect(screen.getByText('Medicamento')).toBeInTheDocument();
+      expect(screen.getByText('10 mg')).toBeInTheDocument();
+      // Sin rótulo conocido, la clave se humaniza en vez de perderse.
+      expect(screen.getByText('Fecha real')).toBeInTheDocument();
     });
 
     it('no rompe con un content de forma inesperada', async () => {

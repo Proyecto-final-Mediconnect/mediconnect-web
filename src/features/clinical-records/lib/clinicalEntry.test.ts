@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatEntryDate, readEntry, shortHash } from './clinicalEntry';
+import { formatEntryDate, readEntry, readEntryFields, shortHash } from './clinicalEntry';
 import type { ClinicalEntry } from '../types/clinicalRecord';
 
 /**
@@ -11,7 +11,7 @@ import type { ClinicalEntry } from '../types/clinicalRecord';
  * blanca porque a un recurso le falte un campo.
  */
 
-function entry(content: unknown): ClinicalEntry {
+function entry(content: unknown, fhirResourceType = 'ClinicalImpression'): ClinicalEntry {
   return {
     id: 'e1',
     patientId: 'p1',
@@ -19,7 +19,7 @@ function entry(content: unknown): ClinicalEntry {
     professional: null,
     sequenceNumber: 1,
     entryType: 'CONSULTA',
-    fhirResourceType: 'ClinicalImpression',
+    fhirResourceType,
     content,
     consultationId: null,
     correctsEntryId: null,
@@ -85,6 +85,61 @@ describe('readEntry', () => {
     const raro = { finding: [{ item: 'texto en vez de objeto' }] };
 
     expect(readEntry(entry(raro)).diagnosis).toBeNull();
+  });
+});
+
+describe('readEntryFields', () => {
+  it('prefiere el recurso que escribe la app', () => {
+    const campos = readEntryFields(
+      entry({ description: 'Motivo real', summary: 'Evolución', otra_clave: 'ruido' }),
+    );
+
+    // Reconoció el ClinicalImpression, así que no cae al respaldo y `otra_clave`
+    // no se cuela como si fuera un campo clínico.
+    expect(campos).toEqual([
+      { label: 'Motivo', value: 'Motivo real' },
+      { label: 'Evolución', value: 'Evolución' },
+    ]);
+  });
+
+  it('cae a mostrar el contenido cuando el recurso es de otro tipo', () => {
+    // Es lo que hay escrito en la base para las entradas DIAGNOSTICO. Postgres
+    // devuelve las claves por longitud, así que el orden de entrada acá es el
+    // que sale de la base — y la descripción tiene que quedar primera igual.
+    const campos = readEntryFields(
+      entry({ codigo: 'I10', estado: 'activo', sistema: 'ICD-10', descripcion: 'Hipertensión esencial' }, 'Condition'),
+    );
+
+    expect(campos).toEqual([
+      { label: 'Descripción', value: 'Hipertensión esencial' },
+      { label: 'Código', value: 'I10' },
+      { label: 'Sistema', value: 'ICD-10' },
+      { label: 'Estado', value: 'activo' },
+    ]);
+  });
+
+  it('ordena por cómo se lee el recurso, no por cómo lo devuelve la base', () => {
+    // Postgres ordena las claves por longitud: el medicamento salía último.
+    const campos = readEntryFields(
+      entry(
+        { dosis: '10 mg', duracion: '30 días', frecuencia: 'cada 24 horas', medicamento: 'Enalapril' },
+        'MedicationRequest',
+      ),
+    );
+
+    expect(campos.map((c) => c.label)).toEqual(['Medicamento', 'Dosis', 'Frecuencia', 'Duración']);
+  });
+
+  it('no muestra el andamiaje del recurso como si fuera contenido', () => {
+    const campos = readEntryFields(
+      entry({ resourceType: 'Condition', status: 'completed', estudio: 'ECG' }),
+    );
+
+    expect(campos).toEqual([{ label: 'Estudio', value: 'ECG' }]);
+  });
+
+  it('con un content que no es objeto devuelve nada, sin romperse', () => {
+    expect(readEntryFields(entry('texto suelto'))).toEqual([]);
   });
 });
 
