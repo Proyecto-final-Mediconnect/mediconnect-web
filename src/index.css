@@ -38,6 +38,20 @@
   --color-on-night-faint: #6b9dae; /* letra chica */
   --color-footer-label: #42707f; /* encabezados de columna del footer */
 
+  /* Etiquetas de tipo de entrada de la historia clínica. Salen del canvas
+   * ("Diseño web Mediconnect", pantalla Historia clínica), que le da un color
+   * propio a cada tipo de registro para poder barrer la cadena de un vistazo.
+   * `warm` es el par de aviso del canvas, para la entrada que fue corregida. */
+  --color-tag-consulta: #e9f2f6;
+  --color-tag-consulta-ink: #0b4f6c;
+  --color-tag-correccion: #eef3f9;
+  --color-tag-correccion-ink: #3f6b8f;
+  --color-tag-estudio: #f2f0fa;
+  --color-tag-estudio-ink: #5b53a3;
+  --color-tag-warm: #fbf1e6;
+  --color-tag-warm-ink: #a86524;
+  --color-tag-warm-dot: #e0913f;
+
   --font-sans: 'Manrope', system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
 }
@@ -56,4 +70,54 @@ body {
   font-family: var(--font-display);
   font-weight: 400;
   letter-spacing: -0.02em;
+}
+
+/* Hoja impresa.
+ *
+ * La usa "Descargar historia en PDF": no hay endpoint de exportación y no hace
+ * falta uno — el navegador ya imprime a PDF, y lo que se manda a la impresora
+ * es el mismo DOM que se está mirando. Lo que hay que resolver es qué sobra.
+ *
+ * Sobra todo lo que sirve para navegar: la barra lateral del panel, la barra
+ * superior y los controles. Un papel no se navega. Las tarjetas, en cambio,
+ * tienen que conservar el borde y evitar partirse al medio: una entrada clínica
+ * cortada entre dos hojas se lee mal y, peor, se puede leer incompleta. */
+@media print {
+  /* Fondos de color a papel blanco: el gris del panel sale como una mancha y
+     se come el tóner sin aportar nada. */
+  .bg-surface,
+  body {
+    background: #ffffff !important;
+  }
+
+  /* La barra lateral del panel y la barra superior. Se apuntan por rol y no por
+     clase para no depender del maquetado de `AppShell`. */
+  aside.group\/rail,
+  header {
+    display: none !important;
+  }
+
+  /* El marco del panel deja de ser grilla de dos columnas: sin barra lateral,
+     la columna vacía dejaba media hoja en blanco a la izquierda. */
+  .lg\:grid-cols-\[auto_minmax\(0\,1fr\)\] {
+    display: block !important;
+  }
+
+  main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  /* Una entrada no se parte entre dos hojas. */
+  article {
+    break-inside: avoid;
+    border: 1px solid #cfdde3 !important;
+  }
+
+  /* Los enlaces internos de las correcciones ("entrada #4") no se subrayan en
+     papel: no se puede hacer clic y el subrayado los disfraza de algo que sí. */
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
 }

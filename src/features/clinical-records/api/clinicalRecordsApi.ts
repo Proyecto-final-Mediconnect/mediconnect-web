@@ -3,11 +3,15 @@ import { toApiError } from '../../../shared/api/apiError';
 import type { ClinicalEntry, NewClinicalEntryPayload } from '../types/clinicalRecord';
 
 /**
- * Historia clínica de un paciente (ENG-58).
+ * Historia clínica de un paciente (ENG-58, ENG-60).
  *
- * Un solo endpoint para los dos roles: **RLS decide qué devuelve**. El paciente
- * ve su historia completa, el profesional las entradas que firmó. El front no
- * ramifica por rol.
+ * Un solo endpoint para los dos roles: **RLS decide qué devuelve**. Los dos ven
+ * la historia completa —el paciente la suya, el profesional la de un paciente
+ * con el que tiene turno— y el front no ramifica por rol.
+ *
+ * Desde ENG-60 el backend responde **403** a quien no tiene relación con el
+ * paciente, donde antes devolvía `[]`. Es un error accionable y no uno de red:
+ * la pantalla lo trata aparte.
  */
 
 const base = (patientId: string) => `/patients/${encodeURIComponent(patientId)}/clinical-record`;

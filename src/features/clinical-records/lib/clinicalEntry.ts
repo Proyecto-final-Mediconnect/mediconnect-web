@@ -1,13 +1,20 @@
 import type { ClinicalEntry } from '../types/clinicalRecord';
 
 /**
- * Lectura del recurso FHIR guardado en `content` (ENG-58).
+ * Lectura del contenido clínico guardado en `content` (ENG-58).
  *
- * El backend guarda un `ClinicalImpression` de FHIR R5. La UI no puede asumir
- * que ese objeto tiene la forma que espera: es un JSONB que puede haber sido
- * escrito por una versión anterior del mapeo, o —cuando exista la importación
- * desde otro sistema— por otro emisor. Por eso cada campo se lee con guardas y
- * devuelve `null` en vez de romper la pantalla.
+ * El backend escribe un `ClinicalImpression` de FHIR R5 y `readEntry` lo lee.
+ * Pero `content` es un JSONB y la tabla es **append-only**: lo que ya se escribió
+ * con otra forma no se puede reescribir, ni siquiera para arreglarlo. Hoy
+ * conviven en la misma base entradas `Encounter`, `Condition`,
+ * `MedicationRequest` y `DiagnosticReport` con claves propias, y el día que
+ * exista la importación del MediPass van a entrar recursos de otros emisores.
+ *
+ * Por eso hay dos niveles: `readEntry` entiende el recurso que escribe la app, y
+ * `readEntryFields` cae a mostrar el contenido tal como está cuando no reconoce
+ * ninguno de esos campos. Una historia clínica no puede quedar en blanco porque
+ * el recurso no sea el que esperábamos: el dato está, y esconderlo es peor que
+ * mostrarlo con una etiqueta imperfecta.
  *
  * Lógica pura, sin React, para poder testear los casos raros sin montar nada.
  */
@@ -56,17 +63,141 @@ export function readEntry(entry: ClinicalEntry): ReadableEntry {
   };
 }
 
-/** `2026-08-27T12:34:00.000Z` → `27/08/2026 09:34`, en hora local. */
+/** Un campo listo para dibujar: rótulo y contenido. */
+export interface CampoLegible {
+  label: string;
+  value: string;
+}
+
+/**
+ * Rótulos de las claves que hay escritas en la base fuera del
+ * `ClinicalImpression` de la app.
+ *
+ * No es un mapeo FHIR: es traducir a algo legible lo que ya está guardado y no
+ * se puede migrar. Lo que no figure acá se muestra igual, con la clave
+ * humanizada — perder el rótulo es mejor que perder el dato.
+ */
+const ROTULOS: Record<string, string> = {
+  motivo: 'Motivo',
+  evolucion: 'Evolución',
+  diagnostico: 'Diagnóstico',
+  plan: 'Plan',
+  descripcion: 'Descripción',
+  codigo: 'Código',
+  sistema: 'Sistema',
+  estado: 'Estado',
+  medicamento: 'Medicamento',
+  dosis: 'Dosis',
+  frecuencia: 'Frecuencia',
+  duracion: 'Duración',
+  estudio: 'Estudio',
+  hallazgos: 'Hallazgos',
+  conclusion: 'Conclusión',
+  motivo_correccion: 'Motivo de la corrección',
+  fecha_real: 'Fecha real',
+};
+
+/**
+ * Orden de lectura de cada recurso.
+ *
+ * Postgres devuelve las claves del JSONB en su propio orden (por longitud, no
+ * por sentido), así que una prescripción salía "Dosis, Duración, Frecuencia,
+ * Medicamento" — el dato principal último. Esto la devuelve al orden en que un
+ * profesional la lee. Lo que no esté listado va después, como venga.
+ */
+const ORDEN_POR_RECURSO: Record<string, string[]> = {
+  Encounter: ['motivo', 'evolucion', 'diagnostico', 'plan'],
+  Condition: ['descripcion', 'codigo', 'sistema', 'estado'],
+  MedicationRequest: ['medicamento', 'dosis', 'frecuencia', 'duracion'],
+  // El estudio va primero incluso en las correcciones, que se guardan con este
+  // mismo recurso. El primer campo es el titular de la tarjeta, y el motivo de
+  // una corrección es una oración entera: como título ocupa dos renglones y
+  // tapa de qué estudio se trata. Con el estudio adelante, la corrección y la
+  // entrada que corrige comparten titular —que es lo correcto, son el mismo
+  // estudio— y se distinguen por la etiqueta.
+  DiagnosticReport: ['estudio', 'motivo_correccion', 'fecha_real', 'hallazgos', 'conclusion'],
+};
+
+/** Andamiaje del recurso: identifica y referencia, no es contenido clínico. */
+const NO_CLINICO = new Set(['resourceType', 'status', 'subject', 'performer', 'date', 'id', 'meta']);
+
+/** `fecha_real` → `Fecha real`, para lo que no esté en `ROTULOS`. */
+function humanizar(clave: string): string {
+  const texto = clave.replace(/[_-]+/g, ' ').trim();
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+/**
+ * Los campos de la entrada, en orden de lectura.
+ *
+ * Primero intenta el recurso que escribe la app. Si no reconoce ninguno de esos
+ * campos —porque el recurso es de otro tipo— muestra las claves del JSONB tal
+ * como están. Es el camino que hoy necesitan las entradas `Encounter`,
+ * `Condition`, `MedicationRequest` y `DiagnosticReport` que ya están en la base:
+ * sin esto se dibujan como tarjetas sin una sola línea de contenido clínico.
+ */
+export function readEntryFields(entry: ClinicalEntry): CampoLegible[] {
+  const fhir = readEntry(entry);
+  const conocidos = (
+    [
+      { label: 'Motivo', value: fhir.reason },
+      { label: 'Evolución', value: fhir.findings },
+      { label: 'Diagnóstico', value: fhir.diagnosis },
+      { label: 'Plan', value: fhir.plan },
+    ] satisfies { label: string; value: string | null }[]
+  ).filter((campo): campo is CampoLegible => campo.value !== null);
+
+  if (conocidos.length > 0) return conocidos;
+
+  const content = entry.content;
+  if (typeof content !== 'object' || content === null) return [];
+
+  const orden = ORDEN_POR_RECURSO[entry.fhirResourceType] ?? [];
+  const posicion = (clave: string) => {
+    const i = orden.indexOf(clave);
+    return i === -1 ? orden.length : i;
+  };
+
+  return Object.entries(content as Record<string, unknown>)
+    .filter(
+      ([clave, valor]) =>
+        !NO_CLINICO.has(clave) && typeof valor === 'string' && valor.length > 0,
+    )
+    .sort(([a], [b]) => posicion(a) - posicion(b))
+    .map(([clave, valor]) => ({
+      label: ROTULOS[clave] ?? humanizar(clave),
+      value: valor as string,
+    }));
+}
+
+/**
+ * `2026-08-27T12:34:00.000Z` → `27 de agosto de 2026 · 09:34`, en hora local.
+ *
+ * Fecha larga y no `27/08/2026` porque es el titular de la tarjeta, y en el
+ * resto de la app —tarjetas de turno, confirmación— la fecha que encabeza se
+ * escribe así. La HC había quedado con el formato numérico de antes del
+ * rediseño.
+ *
+ * La hora se conserva completa y en 24 hs: en un asiento clínico el momento es
+ * parte del registro, no una decoración. Va con `hour12: false` para que no
+ * salga `12:30 p. m.`, que ocupa más y se lee peor pegado a la fecha.
+ */
+const FECHA_LARGA = new Intl.DateTimeFormat('es-AR', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+});
+
+const HORA = new Intl.DateTimeFormat('es-AR', {
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
+
 export function formatEntryDate(iso: string): string {
   const date = new Date(iso);
 
-  return new Intl.DateTimeFormat('es-AR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date);
+  return `${FECHA_LARGA.format(date)} · ${HORA.format(date)}`;
 }
 
 /**
@@ -78,4 +209,9 @@ export function formatEntryDate(iso: string): string {
  */
 export function shortHash(hash: string): string {
   return hash.slice(0, 8);
+}
+
+/** Ancla estable para saltar de una corrección a la entrada que corrige. */
+export function anclaDe(sequenceNumber: number): string {
+  return `entrada-${sequenceNumber}`;
 }
