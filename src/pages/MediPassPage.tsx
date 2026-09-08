@@ -9,7 +9,6 @@ import {
 } from '../features/medipass/lib/mockMediPass';
 import {
   ROTACION_MS,
-  SESION_MS,
   accesosVigentes,
   cuentaRegresiva,
   estadoDeAcceso,
@@ -201,10 +200,6 @@ function QuienTieneAcceso({
         </ul>
       )}
 
-      <p className="border-t border-dashed border-line-strong bg-surface px-6 py-3 text-[11px] leading-[1.6] text-muted-soft">
-        Accesos de ejemplo. Cada uno dura {SESION_MS / 60_000} minutos y se corta solo
-        (ENG-104); revocar acá todavía no corta nada de verdad.
-      </p>
     </section>
   );
 }

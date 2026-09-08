@@ -107,14 +107,6 @@ export function EmergencyViewPage() {
           </p>
         </article>
 
-        {/* El pie de arriba dice "is logged" porque es lo que va a decirle al
-            médico. El registro de accesos es ENG-76 y ENG-87, y no existe: se
-            aclara acá, del lado del paciente, no adentro de la tarjeta. */}
-        <p className="mx-auto max-w-[560px] text-center text-[12px] leading-[1.6] text-muted-soft">
-          El registro de accesos todavía no existe: es ENG-76 y ENG-87. Hasta que esté, ese
-          aviso describe lo que va a pasar, no lo que pasa.
-        </p>
-
         <Link
           to="/medipass"
           className="mx-auto text-[13px] font-semibold text-brand-hover underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"

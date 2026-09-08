@@ -102,13 +102,6 @@ export function AppointmentConfirmedPage() {
                   </Fila>
                 </dl>
               </section>
-
-              {appointment.status === 'RESERVADO_SIN_PAGAR' && (
-                <p className="rounded-[14px] border border-dashed border-line-strong bg-surface px-[22px] py-4 text-[13px] leading-[1.7] text-muted">
-                  El pago fue simulado: el turno sigue reservado sin pagar hasta que
-                  ENG-63 conecte MercadoPago.
-                </p>
-              )}
             </aside>
           </div>
         )}
