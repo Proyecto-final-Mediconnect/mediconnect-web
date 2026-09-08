@@ -62,13 +62,27 @@ export type ProfessionalsPage = {
 
 /** Filtros que el usuario controla desde la UI. */
 export type CatalogFilters = {
-  specialtyId: string;
+  /**
+   * Especialidades tildadas. Vacío = sin filtro (el catálogo completo), que no
+   * es lo mismo que "ninguna especialidad".
+   *
+   * El orden es el de la lista de especialidades, no el de tildado: así el
+   * mismo conjunto de filtros produce siempre la misma queryKey de React Query
+   * y el mismo query string, y no se pierde la caché por haber tildado en otro
+   * orden.
+   */
+  specialtyIds: string[];
   minPrice: string;
   maxPrice: string;
 };
 
 export const EMPTY_FILTERS: CatalogFilters = {
-  specialtyId: '',
+  specialtyIds: [],
   minPrice: '',
   maxPrice: '',
 };
+
+/** `true` si hay al menos un filtro puesto. */
+export function hasAnyFilter(filters: CatalogFilters): boolean {
+  return filters.specialtyIds.length > 0 || filters.minPrice !== '' || filters.maxPrice !== '';
+}

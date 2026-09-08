@@ -105,6 +105,21 @@ function lastQuery(): Record<string, string> {
   return Object.fromEntries(new URL(url).searchParams);
 }
 
+/**
+ * Especialidades del último request. Va aparte de `lastQuery()` porque
+ * `Object.fromEntries` se queda con la última aparición de una clave repetida, y
+ * `specialtyId` viaja una vez por especialidad tildada.
+ */
+function lastSpecialties(): string[] {
+  const url = professionalRequests[professionalRequests.length - 1];
+  return new URL(url).searchParams.getAll('specialtyId');
+}
+
+/** Tilda o destilda una especialidad por su nombre visible. */
+function chip(name: string) {
+  return screen.getByRole('checkbox', { name });
+}
+
 describe('CatalogPage (ENG-49)', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
@@ -146,12 +161,73 @@ describe('CatalogPage (ENG-49)', () => {
     await screen.findByText('Nombre1 Apellido1');
 
     professionalResponses = [page([card(9)])];
-    await user.selectOptions(await screen.findByLabelText('Especialidad'), SPECIALTIES[1].id);
+    await user.click(await screen.findByRole('checkbox', { name: 'Pediatría' }));
 
-    await waitFor(() => expect(lastQuery().specialtyId).toBe(SPECIALTIES[1].id));
+    await waitFor(() => expect(lastSpecialties()).toEqual([SPECIALTIES[1].id]));
     expect(await screen.findByText('Nombre9 Apellido9')).toBeVisible();
     // Sigue siendo la misma SPA: la lista se reemplazó, no hubo navegación.
     expect(screen.getByRole('heading', { name: 'Profesionales disponibles' })).toBeVisible();
+  });
+
+  it('filtra por varias especialidades a la vez', async () => {
+    const user = userEvent.setup();
+    renderCatalog();
+    await screen.findByText('Nombre1 Apellido1');
+
+    await user.click(await screen.findByRole('checkbox', { name: 'Cardiología' }));
+    await waitFor(() => expect(lastSpecialties()).toEqual([SPECIALTIES[0].id]));
+
+    await user.click(chip('Pediatría'));
+
+    // Las dos viajan: el backend las resuelve como "alguna de estas", así que
+    // sumar una especialidad amplía el resultado en vez de reemplazarlo.
+    await waitFor(() => expect(lastSpecialties()).toEqual([SPECIALTIES[0].id, SPECIALTIES[1].id]));
+    expect(chip('Cardiología')).toBeChecked();
+    expect(chip('Pediatría')).toBeChecked();
+    expect(screen.getByText(/Mostrando profesionales de 2 especialidades/)).toBeVisible();
+  });
+
+  it('destildar una especialidad conserva las demás', async () => {
+    const user = userEvent.setup();
+    renderCatalog();
+    await screen.findByText('Nombre1 Apellido1');
+
+    await user.click(await screen.findByRole('checkbox', { name: 'Cardiología' }));
+    await user.click(chip('Pediatría'));
+    await waitFor(() => expect(lastSpecialties()).toHaveLength(2));
+
+    await user.click(chip('Cardiología'));
+
+    await waitFor(() => expect(lastSpecialties()).toEqual([SPECIALTIES[1].id]));
+    expect(chip('Cardiología')).not.toBeChecked();
+  });
+
+  it('destildar la última especialidad vuelve al catálogo completo', async () => {
+    const user = userEvent.setup();
+    renderCatalog();
+    await screen.findByText('Nombre1 Apellido1');
+
+    await user.click(await screen.findByRole('checkbox', { name: 'Pediatría' }));
+    await waitFor(() => expect(lastSpecialties()).toHaveLength(1));
+
+    await user.click(chip('Pediatría'));
+
+    // Sin ninguna tildada NO se manda el parámetro: "sin filtro" y no "ninguna
+    // especialidad", que dejaría la lista vacía.
+    await waitFor(() => expect(lastSpecialties()).toEqual([]));
+  });
+
+  it('el orden de los chips no depende del orden en que se tildan', async () => {
+    // Mismo conjunto elegido = mismo query string, para no partir la caché de
+    // React Query en una entrada por cada orden de clics.
+    const user = userEvent.setup();
+    renderCatalog();
+    await screen.findByText('Nombre1 Apellido1');
+
+    await user.click(await screen.findByRole('checkbox', { name: 'Pediatría' }));
+    await user.click(chip('Cardiología'));
+
+    await waitFor(() => expect(lastSpecialties()).toEqual([SPECIALTIES[0].id, SPECIALTIES[1].id]));
   });
 
   it('vuelve a la página 1 al cambiar un filtro', async () => {
@@ -165,7 +241,7 @@ describe('CatalogPage (ENG-49)', () => {
     await waitFor(() => expect(lastQuery().page).toBe('2'));
 
     professionalResponses = [page([card(9)])];
-    await user.selectOptions(screen.getByLabelText('Especialidad'), SPECIALTIES[1].id);
+    await user.click(chip('Pediatría'));
 
     await waitFor(() => expect(lastQuery().page).toBe('1'));
   });
@@ -203,8 +279,8 @@ describe('CatalogPage (ENG-49)', () => {
     renderCatalog();
     await screen.findByText('Nombre1 Apellido1');
 
-    await user.selectOptions(screen.getByLabelText('Especialidad'), SPECIALTIES[1].id);
-    await waitFor(() => expect(lastQuery().specialtyId).toBe(SPECIALTIES[1].id));
+    await user.click(chip('Pediatría'));
+    await waitFor(() => expect(lastSpecialties()).toEqual([SPECIALTIES[1].id]));
 
     // Tipear el precio máximo pasa por estados inválidos ("1" < 9000). La lista
     // no puede saltar al catálogo entero: la especialidad elegida sigue puesta.
@@ -214,7 +290,7 @@ describe('CatalogPage (ENG-49)', () => {
     expect(
       await screen.findByText('El precio máximo debe ser mayor o igual que el mínimo.'),
     ).toBeVisible();
-    await waitFor(() => expect(lastQuery().specialtyId).toBe(SPECIALTIES[1].id));
+    await waitFor(() => expect(lastSpecialties()).toEqual([SPECIALTIES[1].id]));
     // El único request sin especialidad es la carga inicial de la página.
     expect(professionalRequests.filter((url) => !url.includes('specialtyId'))).toHaveLength(1);
   });
@@ -225,7 +301,7 @@ describe('CatalogPage (ENG-49)', () => {
     await screen.findByText('Nombre1 Apellido1');
 
     professionalResponses = [page([], { total: 0, totalPages: 0 })];
-    await user.selectOptions(screen.getByLabelText('Especialidad'), SPECIALTIES[1].id);
+    await user.click(chip('Pediatría'));
 
     expect(await screen.findByText('No encontramos profesionales')).toBeVisible();
     expect(screen.getByText(/Ningún profesional coincide con los filtros/)).toBeVisible();
@@ -243,12 +319,12 @@ describe('CatalogPage (ENG-49)', () => {
     renderCatalog();
     await screen.findByText('Nombre1 Apellido1');
 
-    await user.selectOptions(screen.getByLabelText('Especialidad'), SPECIALTIES[1].id);
-    await waitFor(() => expect(lastQuery().specialtyId).toBeDefined());
+    await user.click(chip('Pediatría'));
+    await waitFor(() => expect(lastSpecialties()).toHaveLength(1));
 
     await user.click(screen.getByRole('button', { name: /limpiar filtros/i }));
 
-    await waitFor(() => expect(lastQuery().specialtyId).toBeUndefined());
+    await waitFor(() => expect(lastSpecialties()).toEqual([]));
   });
 
   describe('scroll infinito', () => {

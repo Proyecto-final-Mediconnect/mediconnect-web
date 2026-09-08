@@ -4,7 +4,11 @@ import { CatalogFiltersPanel } from '../features/catalog/components/CatalogFilte
 import { ProfessionalsList } from '../features/catalog/components/ProfessionalsList';
 import { useProfessionalsCatalog } from '../features/catalog/hooks/useProfessionalsCatalog';
 import { validatePriceRange } from '../features/catalog/lib/priceRange';
-import { EMPTY_FILTERS, type CatalogFilters } from '../features/catalog/types/catalog';
+import {
+  EMPTY_FILTERS,
+  hasAnyFilter,
+  type CatalogFilters,
+} from '../features/catalog/types/catalog';
 import { useDebouncedValue } from '../shared/hooks/useDebouncedValue';
 import { Button } from '../shared/ui/Button';
 import { Logo } from '../shared/ui/Logo';
@@ -32,10 +36,7 @@ export function CatalogPage() {
   }
 
   const catalog = useProfessionalsCatalog(appliedFilters);
-  const hasFilters =
-    appliedFilters.specialtyId !== '' ||
-    appliedFilters.minPrice !== '' ||
-    appliedFilters.maxPrice !== '';
+  const hasFilters = hasAnyFilter(appliedFilters);
 
   return (
     <div className="min-h-svh bg-surface">
@@ -58,8 +59,8 @@ export function CatalogPage() {
       <main className="mx-auto max-w-6xl px-6 py-10">
         <h1 className="text-3xl font-bold text-brand-deep">Profesionales disponibles</h1>
         <p className="mt-2 max-w-2xl text-muted">
-          Todos los profesionales del catálogo tienen la matrícula verificada. Filtrá por
-          especialidad y precio para encontrar el que se adapte a lo que necesitás.
+          Todos los profesionales del catálogo tienen la matrícula verificada. Filtrá por una o más
+          especialidades y por precio para encontrar el que se adapte a lo que necesitás.
         </p>
 
         <div className="mt-8">
