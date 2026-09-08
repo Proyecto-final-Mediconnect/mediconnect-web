@@ -1,4 +1,5 @@
 import { Navigate, useParams, useSearchParams } from 'react-router-dom';
+import { useMyAppointments } from '../features/appointments/hooks/useAppointments';
 import { ClinicalRecord } from '../features/clinical-records/components/ClinicalRecord';
 import { DashboardLayout } from './DashboardLayout';
 
@@ -9,14 +10,13 @@ const UUID_V4 =
 /**
  * Historia clínica de un paciente, desde el profesional (ENG-58, ENG-60).
  *
- * Se llega desde "Mis turnos", que es lo que satisface el "durante y después de
- * la consulta" del criterio: durante, el profesional la abre en otra pestaña
+ * Se llega desde "Mis consultas", que es lo que satisface el "durante y después
+ * de la consulta" del criterio: durante, el profesional la abre en otra pestaña
  * mientras está en la videoconsulta; después, entra por el mismo lugar.
  *
  * **ENG-60 amplió lo que se ve acá.** Con ENG-58 el profesional leía solo las
  * entradas que él había firmado; hoy, teniendo un turno con el paciente, lee la
- * historia completa —también lo que escribieron otros profesionales—. Los textos
- * de esta pantalla decían lo primero mucho después de que dejara de ser cierto.
+ * historia completa —también lo que escribieron otros profesionales—.
  *
  * `?consultation=<uuid>` asocia la entrada a la consulta en curso. Es opcional
  * porque una entrada cargada al otro día no tiene una consulta de la que colgar.
@@ -30,6 +30,7 @@ const UUID_V4 =
 export function PatientClinicalRecordPage() {
   const { patientId } = useParams<{ patientId: string }>();
   const [searchParams] = useSearchParams();
+  const nombre = useNombreDelPaciente(patientId);
 
   if (!patientId) return <Navigate to="/mis-turnos" replace />;
 
@@ -46,18 +47,44 @@ export function PatientClinicalRecordPage() {
   return (
     <DashboardLayout
       barTitle="Historia clínica"
-      subtitle="Cada entrada queda sellada en la cadena de hash y no se puede modificar."
+      greeting={nombre ?? undefined}
+      subtitle="Cada entrada queda sellada en la cadena y no se puede modificar."
     >
       <ClinicalRecord
         patientId={patientId}
         consultationId={consultationId}
+        pacienteNombre={nombre ?? undefined}
         // Con ENG-60 el vacío pasó a ser literal: si no hay entradas, este
         // paciente no tiene historia clínica. Antes podía haber una historia
         // entera escrita por otros e invisible para quien miraba, y por eso el
         // texto no podía decir "no hay entradas" a secas.
-        emptyText="Este paciente todavía no tiene entradas en su historia clínica. La primera la podés cargar con el formulario de arriba."
+        emptyText="Este paciente todavía no tiene entradas en su historia clínica. La primera la podés cargar desde “Agregar entrada”."
         scopeNote="Ves la historia completa, incluidas las entradas firmadas por otros profesionales. Los registros cerrados no se editan: si hubo una corrección, aparece como una entrada nueva vinculada al original."
       />
     </DashboardLayout>
   );
+}
+
+/**
+ * De quién es esta historia.
+ *
+ * La URL trae un UUID y las entradas dicen quién las firmó, pero **ninguna dice
+ * el nombre del titular**: el endpoint de la HC no lo devuelve. Sin esto la
+ * pantalla decía "Historia clínica" a secas, y un profesional con dos pestañas
+ * abiertas no tenía cómo saber cuál era cuál — en un asiento clínico eso es
+ * escribirle en la historia equivocada a alguien.
+ *
+ * Sale de `/appointments/me`, que ya devuelve la contraparte de cada turno y es
+ * la misma lista por la que se llegó hasta acá: no hace falta endpoint nuevo. Si
+ * no aparece —un profesional que escribió entradas pero cuyo turno ya no está en
+ * la lista— se devuelve `null` y la pantalla se muestra sin nombre, que es
+ * preferible a no mostrar la historia.
+ */
+function useNombreDelPaciente(patientId: string | undefined): string | null {
+  const { data } = useMyAppointments(!!patientId);
+
+  if (!patientId || !data) return null;
+
+  const turno = data.find((a) => a.patient?.id === patientId);
+  return turno?.patient ? `${turno.patient.firstName} ${turno.patient.lastName}` : null;
 }

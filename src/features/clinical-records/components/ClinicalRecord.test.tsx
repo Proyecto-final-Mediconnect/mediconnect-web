@@ -53,6 +53,11 @@ function postCount(spy: ReturnType<typeof vi.spyOn>): number {
   return calls.filter((call) => call[1]?.method === 'POST').length;
 }
 
+/** El alta vive en un diálogo: hay que abrirlo antes de tocar el formulario. */
+async function abrirAlta() {
+  await userEvent.click(await screen.findByRole('button', { name: /agregar entrada/i }));
+}
+
 function renderRecord(props: { consultationId?: string } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
@@ -92,12 +97,14 @@ describe('ClinicalRecord', () => {
     it('avisa que lo guardado no se puede editar ni borrar', async () => {
       // Es lo primero que tiene que saber quien escribe un asiento clínico.
       renderRecord();
+      await abrirAlta();
 
       expect(await screen.findByText(/no se puede editar ni borrar/i)).toBeInTheDocument();
     });
 
-    it('ofrece los cuatro campos del criterio de aceptación', () => {
+    it('ofrece los cuatro campos del criterio de aceptación', async () => {
       renderRecord();
+      await abrirAlta();
 
       expect(screen.getByLabelText(/tipo de entrada/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/motivo de consulta/i)).toBeInTheDocument();
@@ -106,15 +113,17 @@ describe('ClinicalRecord', () => {
       expect(screen.getByLabelText(/plan e indicaciones/i)).toBeInTheDocument();
     });
 
-    it('no pide la fecha: la pone el servidor al sellar', () => {
+    it('no pide la fecha: la pone el servidor al sellar', async () => {
       // Dejar elegirla permitiría antedatar un asiento con la cadena cerrando.
       renderRecord();
+      await abrirAlta();
 
       expect(screen.queryByLabelText(/fecha/i)).not.toBeInTheDocument();
     });
 
-    it('no ofrece CORRECCION, que es ENG-100', () => {
+    it('no ofrece CORRECCION, que es ENG-100', async () => {
       renderRecord();
+      await abrirAlta();
 
       const select = screen.getByLabelText(/tipo de entrada/i);
       expect(within(select).queryByText(/corrección/i)).not.toBeInTheDocument();
@@ -122,6 +131,7 @@ describe('ClinicalRecord', () => {
 
     it('exige el motivo antes de mandar nada', async () => {
       renderRecord();
+      await abrirAlta();
 
       await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
 
@@ -131,6 +141,7 @@ describe('ClinicalRecord', () => {
 
     it('manda solo los campos completados', async () => {
       renderRecord();
+      await abrirAlta();
 
       await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Control');
       await userEvent.type(screen.getByLabelText(/plan e indicaciones/i), 'Volver en 7 días');
@@ -148,6 +159,7 @@ describe('ClinicalRecord', () => {
     it('nunca manda professionalId ni createdAt', async () => {
       // Los dos entran a la preimagen del hash y los pone el servidor.
       renderRecord();
+      await abrirAlta();
 
       await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Control');
       await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
@@ -162,6 +174,7 @@ describe('ClinicalRecord', () => {
 
     it('asocia la entrada a la consulta en curso cuando la hay', async () => {
       renderRecord({ consultationId: '44444444-4444-4444-8444-444444444444' });
+      await abrirAlta();
 
       await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Durante la consulta');
       await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
@@ -174,6 +187,7 @@ describe('ClinicalRecord', () => {
     it('la entrada aparece en la lista apenas se guarda', async () => {
       // Es el cuarto criterio de aceptación.
       renderRecord();
+      await abrirAlta();
 
       expect(await screen.findByText(/no hay entradas para mostrar/i)).toBeInTheDocument();
 
@@ -183,27 +197,60 @@ describe('ClinicalRecord', () => {
       expect(await screen.findByText('Dolor lumbar de 3 días')).toBeInTheDocument();
     });
 
-    it('no reclama el motivo después de un guardado exitoso', async () => {
-      // `attempted` quedaba en true, así que el formulario recién vaciado volvía
-      // a cumplir la condición de error y mostraba "El motivo es obligatorio"
-      // —con role="alert"— al lado del cartel de éxito.
+    /**
+     * Al guardar, el diálogo se cierra. Lo que hay que probar es qué se
+     * encuentra quien lo vuelve a abrir: un formulario limpio y sin reclamos.
+     * `attempted` quedaba en true, así que el formulario recién vaciado volvía a
+     * cumplir la condición de error y mostraba "El motivo es obligatorio".
+     */
+    it('al reabrirlo no reclama el motivo del asiento anterior', async () => {
       renderRecord();
+      await abrirAlta();
 
       await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Control');
       await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
 
-      expect(await screen.findByText(/entrada guardada/i)).toBeInTheDocument();
+      await abrirAlta();
       expect(screen.queryByText(/el motivo es obligatorio/i)).not.toBeInTheDocument();
     });
 
-    it('limpia el formulario después de guardar', async () => {
+    it('al reabrirlo el formulario está vacío', async () => {
+      // Sin esto, el segundo asiento arranca con el texto del primero a la
+      // vista: en una historia clínica eso es copiar la consulta anterior sin
+      // darse cuenta, y la fila no se puede borrar.
       renderRecord();
+      await abrirAlta();
 
-      const motivo = screen.getByLabelText(/motivo de consulta/i);
-      await userEvent.type(motivo, 'Control');
+      await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Control');
       await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
 
-      await waitFor(() => expect(motivo).toHaveValue(''));
+      await abrirAlta();
+      expect(screen.getByLabelText(/motivo de consulta/i)).toHaveValue('');
+    });
+
+    it('el diálogo se cierra al guardar', async () => {
+      renderRecord();
+      await abrirAlta();
+
+      await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Control');
+      await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
+
+      // La confirmación es la entrada apareciendo en la lista, que es lo que
+      // pide el criterio de aceptación: no hace falta un cartel además.
+      await waitFor(() =>
+        expect(screen.queryByLabelText(/motivo de consulta/i)).not.toBeInTheDocument(),
+      );
+    });
+
+    it('se puede cerrar sin guardar', async () => {
+      renderRecord();
+      await abrirAlta();
+
+      await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Me arrepentí');
+      await userEvent.click(screen.getByRole('button', { name: /cancelar/i }));
+
+      expect(screen.queryByLabelText(/motivo de consulta/i)).not.toBeInTheDocument();
+      expect(postCount(fetchSpy)).toBe(0);
     });
 
     it('muestra el mensaje del backend cuando rechaza', async () => {
@@ -222,6 +269,7 @@ describe('ClinicalRecord', () => {
       );
 
       renderRecord();
+      await abrirAlta();
       await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Control');
       await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
 

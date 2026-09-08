@@ -26,6 +26,10 @@ type ClinicalEntryFormProps = {
   patientId: string;
   /** Consulta en curso, si se escribe durante la videoconsulta. */
   consultationId?: string;
+  /** Se llama cuando el asiento quedó guardado. Lo usa el diálogo para cerrarse. */
+  onSaved?: () => void;
+  /** Se llama al cancelar. Si no viene, no se dibuja el botón. */
+  onCancel?: () => void;
 };
 
 const EMPTY = {
@@ -36,7 +40,12 @@ const EMPTY = {
   plan: '',
 };
 
-export function ClinicalEntryForm({ patientId, consultationId }: ClinicalEntryFormProps) {
+export function ClinicalEntryForm({
+  patientId,
+  consultationId,
+  onSaved,
+  onCancel,
+}: ClinicalEntryFormProps) {
   const [form, setForm] = useState(EMPTY);
   const [attempted, setAttempted] = useState(false);
   const add = useAddClinicalEntry(patientId);
@@ -72,16 +81,16 @@ export function ClinicalEntryForm({ patientId, consultationId }: ClinicalEntryFo
         // vuelve a cumplir la condición de error y muestra "El motivo es
         // obligatorio" —con `role="alert"`— justo al lado del cartel de éxito.
         setAttempted(false);
+        // El aviso de éxito lo da la entrada apareciendo en la lista, que es lo
+        // que el criterio de aceptación pide ver. Un cartel adentro de un
+        // diálogo que se está cerrando no lo lee nadie.
+        onSaved?.();
       },
     });
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      noValidate
-      className="grid gap-4 rounded-[14px] border border-line bg-white p-6"
-    >
+    <form onSubmit={handleSubmit} noValidate className="grid gap-4">
       <div className="rounded-[10px] border border-amber-300 bg-amber-50 px-4 py-3 text-[13px] leading-[1.7] text-amber-900">
         Lo que guardes acá <span className="font-semibold">no se puede editar ni borrar</span>. Si
         después hay que corregirlo, se agrega una entrada nueva que deja constancia de la
@@ -146,18 +155,16 @@ export function ClinicalEntryForm({ patientId, consultationId }: ClinicalEntryFo
         </p>
       )}
 
-      {add.isSuccess && (
-        <p
-          role="status"
-          className="rounded-[10px] border border-brand/30 bg-surface-teal px-4 py-3 text-sm text-brand-hover"
-        >
-          Entrada guardada en la historia clínica.
-        </p>
-      )}
-
-      <Button type="submit" disabled={add.isPending}>
-        {add.isPending ? 'Guardando…' : 'Guardar en la historia clínica'}
-      </Button>
+      <div className="mt-1 flex flex-wrap justify-end gap-3">
+        {onCancel && (
+          <Button type="button" variant="secondary" onClick={onCancel} disabled={add.isPending}>
+            Cancelar
+          </Button>
+        )}
+        <Button type="submit" disabled={add.isPending}>
+          {add.isPending ? 'Guardando…' : 'Guardar en la historia clínica'}
+        </Button>
+      </div>
     </form>
   );
 }

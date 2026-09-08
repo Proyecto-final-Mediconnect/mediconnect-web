@@ -1,4 +1,6 @@
 import { useMemo, useState } from 'react';
+import { Button } from '../../../shared/ui/Button';
+import { Modal } from '../../../shared/ui/Modal';
 import { isClientError } from '../../../shared/api/apiError';
 import { useClinicalRecord } from '../hooks/useClinicalRecord';
 import {
@@ -44,8 +46,10 @@ type ClinicalRecordProps = {
    * encabeza la copia impresa, que sale sin ninguna de las dos cosas.
    */
   scopeNote?: string;
+  /** Nombre del titular de la historia, para encabezar el diálogo de alta. */
+  pacienteNombre?: string;
   /**
-   * Si se muestra el formulario para agregar una entrada.
+   * Si se ofrece agregar una entrada.
    *
    * El paciente lee su historia pero no escribe en ella (ENG-59): quien firma un
    * asiento clínico es el profesional. No es solo una decisión de UI — el
@@ -59,10 +63,12 @@ export function ClinicalRecord({
   consultationId,
   emptyText = 'No hay entradas para mostrar.',
   scopeNote,
+  pacienteNombre,
   canAddEntries = true,
 }: ClinicalRecordProps) {
   const record = useClinicalRecord(patientId);
   const [filtros, setFiltros] = useState<FiltrosHC>(FILTROS_VACIOS);
+  const [altaAbierta, setAltaAbierta] = useState(false);
 
   const entries = useMemo(() => record.data ?? [], [record.data]);
 
@@ -87,13 +93,18 @@ export function ClinicalRecord({
 
   return (
     <div className="grid gap-8">
+      {/* El alta va en un diálogo y no arriba de la lista.
+          El formulario tiene cinco campos y ocupaba la primera pantalla entera:
+          al entrar a la historia de un paciente lo primero que se veía era un
+          formulario vacío, y había que scrollear para llegar a lo que se venía a
+          leer. Escribir un asiento es una acción puntual; leer la historia es a
+          lo que se entra. */}
       {canAddEntries && (
-        <section aria-labelledby="nueva-entrada">
-          <SectionHeading id="nueva-entrada" title="Agregar una entrada" />
-          <div className="mt-4">
-            <ClinicalEntryForm patientId={patientId} consultationId={consultationId} />
-          </div>
-        </section>
+        <div className="flex justify-end print:hidden">
+          <Button type="button" onClick={() => setAltaAbierta(true)}>
+            Agregar entrada
+          </Button>
+        </div>
       )}
 
       <section aria-labelledby="entradas">
@@ -156,6 +167,26 @@ export function ClinicalRecord({
           </>
         )}
       </section>
+
+      {canAddEntries && (
+        <Modal
+          open={altaAbierta}
+          titulo="Agregar una entrada"
+          descripcion={
+            pacienteNombre
+              ? `Se guarda en la historia clínica de ${pacienteNombre}, firmada por vos.`
+              : 'Se guarda firmada por vos.'
+          }
+          onClose={() => setAltaAbierta(false)}
+        >
+          <ClinicalEntryForm
+            patientId={patientId}
+            consultationId={consultationId}
+            onSaved={() => setAltaAbierta(false)}
+            onCancel={() => setAltaAbierta(false)}
+          />
+        </Modal>
+      )}
     </div>
   );
 }
@@ -188,26 +219,6 @@ function EncabezadoImpreso({
           ? `${total} entradas`
           : `${visibles} de ${total} entradas (hay filtros aplicados)`}
       </p>
-    </div>
-  );
-}
-
-/**
- * Encabezado de sección del canvas: el contador a la izquierda de un rótulo
- * chico en versalitas, sobre una línea. Es el mismo de "Mis turnos" — la HC
- * había quedado con `h2` sueltos de antes del rediseño.
- */
-function SectionHeading({ id, title, count }: { id: string; title: string; count?: number }) {
-  return (
-    <div className="flex items-baseline gap-4 border-t border-brand-deep pt-4">
-      {count !== undefined && (
-        <span className="text-xs font-semibold text-brand">
-          {String(count).padStart(2, '0')}
-        </span>
-      )}
-      <h2 id={id} className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-        {title}
-      </h2>
     </div>
   );
 }
