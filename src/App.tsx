@@ -12,6 +12,7 @@ import { ProfessionalPublicProfilePage } from './pages/ProfessionalPublicProfile
 import { ProfessionalRegisterPage } from './pages/ProfessionalRegisterPage';
 import { ProfessionalProfilePage } from './pages/ProfessionalProfilePage';
 import { ProfessionalSchedulePage } from './pages/ProfessionalSchedulePage';
+import { PatientClinicalRecordPage } from './pages/PatientClinicalRecordPage';
 import { PatientProfilePage } from './pages/PatientProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
 import { SpikeDailyPage } from './pages/SpikeDailyPage';
@@ -105,6 +106,18 @@ function App() {
         element={
           <RequireAuth allow={['PACIENTE', 'PROFESIONAL']}>
             <VideoConsultationPage />
+          </RequireAuth>
+        }
+      />
+      {/* Historia clínica de un paciente, desde el profesional (ENG-58). Solo
+          PROFESIONAL: la vista del paciente sobre su propia HC es ENG-59 y va
+          por su propia ruta. Quién puede escribir en qué HC lo valida el
+          backend, que exige un turno entre los dos. */}
+      <Route
+        path="/pacientes/:patientId/historia-clinica"
+        element={
+          <RequireAuth allow={['PROFESIONAL']}>
+            <PatientClinicalRecordPage />
           </RequireAuth>
         }
       />
