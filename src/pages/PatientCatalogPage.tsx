@@ -16,7 +16,7 @@ export function PatientCatalogPage() {
   return (
     <DashboardLayout
       barTitle="Buscar profesionales"
-      subtitle="Todos los profesionales del catálogo tienen la matrícula verificada. Filtrá por especialidad y precio para encontrar el que se adapte a lo que necesitás."
+      subtitle="Todos tienen la matrícula verificada. Filtrá por especialidad y por precio para encontrar al que necesitás."
     >
       <CatalogView basePath="/buscar" />
     </DashboardLayout>

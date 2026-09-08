@@ -133,12 +133,6 @@ function ProfileBody({
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="grid gap-4">
-          <AvisoDeEjemplo titulo="Ojo con algunos datos.">
-            El nombre, la foto, las especialidades, la formación y el precio salen de la
-            base. La experiencia, la calificación, los servicios y las reseñas son de
-            muestra: esos campos todavía no existen en la API.
-          </AvisoDeEjemplo>
-
           <Cabecera profile={profile} fullName={fullName} mock={mock} />
           <Servicios servicios={servicios} elegido={elegido} onElegir={setElegido} />
           {profile.education.length > 0 && <Formacion education={profile.education} />}

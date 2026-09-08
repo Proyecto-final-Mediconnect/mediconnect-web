@@ -23,8 +23,8 @@ export function CatalogPage() {
           Buscar profesionales
         </h1>
         <p className="mb-[26px] mt-3 max-w-[640px] text-[15px] leading-[1.65] text-muted">
-          Todos los profesionales del catálogo tienen la matrícula verificada. Filtrá por una o
-          más especialidades y por precio para encontrar el que se adapte a lo que necesitás.
+          Todos tienen la matrícula verificada. Filtrá por especialidad y por precio para
+          encontrar al que necesitás.
         </p>
 
         <CatalogView basePath="/profesionales" />
