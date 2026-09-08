@@ -6,6 +6,7 @@ import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { ModeratorDashboardPage } from './pages/ModeratorDashboardPage';
 import { MyAppointmentsPage } from './pages/MyAppointmentsPage';
+import { MyClinicalRecordPage } from './pages/MyClinicalRecordPage';
 import { PatientDashboardPage } from './pages/PatientDashboardPage';
 import { ProfessionalDashboardPage } from './pages/ProfessionalDashboardPage';
 import { ProfessionalPublicProfilePage } from './pages/ProfessionalPublicProfilePage';
@@ -95,6 +96,18 @@ function App() {
         element={
           <RequireAuth allow={['PACIENTE', 'PROFESIONAL']}>
             <MyAppointmentsPage />
+          </RequireAuth>
+        }
+      />
+      {/* Mi historia clínica (ENG-59). Solo PACIENTE: el profesional llega a la
+          HC de un paciente por `/pacientes/:patientId/historia-clinica`, que es
+          otra pantalla y otro alcance. Acá no hay parámetro — la única historia
+          que un paciente puede ver es la suya, y el id sale de la sesión. */}
+      <Route
+        path="/mi-historia-clinica"
+        element={
+          <RequireAuth allow={['PACIENTE']}>
+            <MyClinicalRecordPage />
           </RequireAuth>
         }
       />

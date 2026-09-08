@@ -10,8 +10,7 @@ import type { ClinicalEntry, NewClinicalEntryPayload } from '../types/clinicalRe
  * ramifica por rol.
  */
 
-const base = (patientId: string) =>
-  `/patients/${encodeURIComponent(patientId)}/clinical-record`;
+const base = (patientId: string) => `/patients/${encodeURIComponent(patientId)}/clinical-record`;
 
 /** Entradas de la HC, de la más vieja a la más nueva. */
 export async function getClinicalRecord(patientId: string): Promise<ClinicalEntry[]> {

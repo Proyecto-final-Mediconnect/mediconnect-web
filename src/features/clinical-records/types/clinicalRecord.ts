@@ -28,10 +28,22 @@ export const ENTRY_TYPE_LABELS: Record<string, string> = {
   CORRECCION: 'Corrección',
 };
 
+/** Autor del asiento, tal como lo resuelve el backend (ENG-59). */
+export interface EntryAuthor {
+  firstName: string;
+  lastName: string;
+}
+
 export interface ClinicalEntry {
   id: string;
   patientId: string;
   professionalId: string;
+  /**
+   * Quién firmó el asiento. `null` si el profesional no tiene perfil cargado —
+   * la entrada se muestra igual: es una historia clínica, y perder el nombre es
+   * mejor que perder el registro.
+   */
+  professional: EntryAuthor | null;
   /** Posición en la cadena de hash del paciente. Arranca en 1. */
   sequenceNumber: number;
   entryType: string;

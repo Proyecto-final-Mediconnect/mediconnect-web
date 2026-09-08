@@ -13,6 +13,7 @@ function makeEntry(overrides: Record<string, unknown> = {}) {
     id: 'e1',
     patientId: PATIENT,
     professionalId: 'q1',
+    professional: { firstName: 'Ana', lastName: 'García' },
     sequenceNumber: 1,
     entryType: 'CONSULTA',
     fhirResourceType: 'ClinicalImpression',
@@ -38,9 +39,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 /** Ultimo POST que hizo el componente, ya parseado. */
-function lastPostBody(
-  spy: ReturnType<typeof vi.spyOn>,
-): Record<string, unknown> | undefined {
+function lastPostBody(spy: ReturnType<typeof vi.spyOn>): Record<string, unknown> | undefined {
   const calls = spy.mock.calls as unknown as [RequestInfo, RequestInit?][];
   const post = calls.filter((call) => call[1]?.method === 'POST').pop();
   return post?.[1]?.body
@@ -168,9 +167,7 @@ describe('ClinicalRecord', () => {
       await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
 
       await waitFor(() =>
-        expect(lastPostBody(fetchSpy)?.consultationId).toBe(
-          '44444444-4444-4444-8444-444444444444',
-        ),
+        expect(lastPostBody(fetchSpy)?.consultationId).toBe('44444444-4444-4444-8444-444444444444'),
       );
     });
 
@@ -228,9 +225,7 @@ describe('ClinicalRecord', () => {
       await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Control');
       await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
 
-      expect(
-        await screen.findByText(/paciente al que atendiste/i),
-      ).toBeInTheDocument();
+      expect(await screen.findByText(/paciente al que atendiste/i)).toBeInTheDocument();
     });
   });
 

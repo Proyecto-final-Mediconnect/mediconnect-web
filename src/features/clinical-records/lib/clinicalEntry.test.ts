@@ -16,6 +16,7 @@ function entry(content: unknown): ClinicalEntry {
     id: 'e1',
     patientId: 'p1',
     professionalId: 'q1',
+    professional: null,
     sequenceNumber: 1,
     entryType: 'CONSULTA',
     fhirResourceType: 'ClinicalImpression',
