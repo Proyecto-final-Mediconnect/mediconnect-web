@@ -55,11 +55,14 @@ export interface DateRange {
  * Se pide todo junto y se pagina del lado del cliente. Antes cada click en la
  * flecha disparaba una consulta nueva, y eso traía dos cosas: una espera por
  * página, y —lo importante— era imposible saber en qué página está el primer día
- * con lugar sin haberla pedido antes. Con los 28 días en memoria, saltar al
+ * con lugar sin haberla pedido antes. Con los 60 días en memoria, saltar al
  * primer día disponible es mirar un array.
  *
- * Entra en una sola consulta: el backend acepta hasta `MAX_RANGE_DAYS` = 31 y su
- * horizonte son 28, así que `to` cae justo en el último día publicado.
+ * Entra en una sola consulta: el backend publica 60 días (`BOOKING_HORIZON_DAYS`)
+ * y acepta hasta 62 por consulta (`MAX_RANGE_DAYS`, definido como el horizonte
+ * más dos justamente para que esto entre), así que `to` cae en el último día
+ * publicado. El test `'el horizonte son dos meses…'` fija los números de este
+ * lado para que la desincronización se note acá y no con un 400 en producción.
  */
 export function horizonRange(today = todayLocal()): DateRange {
   return { from: today, to: addDays(today, BOOKING_HORIZON_DAYS - 1) };

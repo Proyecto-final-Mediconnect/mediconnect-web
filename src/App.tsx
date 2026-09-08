@@ -43,10 +43,28 @@ function App() {
       <Route path="/ingresar" element={<LoginPage />} />
       <Route path="/registro" element={<RegisterPage />} />
       <Route path="/registro/profesional" element={<ProfessionalRegisterPage />} />
-      <Route path="/perfil" element={<ProfessionalProfilePage />} />
-      <Route path="/perfil/paciente" element={<PatientProfilePage />} />
 
       {/* Privadas — un dashboard por rol (ENG-44) */}
+      {/* Los dos perfiles quedaron sin guard desde antes de que existiera
+          `RequireAuth`, y se defendían solos redirigiendo ante el 401. Andaba,
+          pero dejaba cinco pantallas privadas con dos criterios distintos y nada
+          que explicara por qué estas dos eran la excepción. */}
+      <Route
+        path="/perfil"
+        element={
+          <RequireAuth allow={['PROFESIONAL']}>
+            <ProfessionalProfilePage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/perfil/paciente"
+        element={
+          <RequireAuth allow={['PACIENTE']}>
+            <PatientProfilePage />
+          </RequireAuth>
+        }
+      />
       <Route
         path="/paciente"
         element={

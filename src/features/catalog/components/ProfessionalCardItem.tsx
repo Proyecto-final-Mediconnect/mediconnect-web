@@ -66,16 +66,12 @@ export function ProfessionalCardItem({
             <span> · {mock.yearsOfExperience} años de experiencia</span>
           </p>
 
-          <p className="mt-[3px] text-xs font-semibold tracking-[0.04em] text-muted-soft">
-            MN {mock.licenseNumber}
-          </p>
-
           <p className="mt-2.5 max-w-[520px] text-sm leading-[1.6] text-muted">{mock.bio}</p>
 
           <div className="mt-3 flex flex-wrap items-center gap-x-[18px] gap-y-2">
             <span className="text-[13px] font-medium text-ink">
               <span className="font-bold text-brand-deep">{mock.rating.toFixed(1)}</span>{' '}
-              ({mock.reviewCount} consultas reales)
+              ({mock.reviewCount} consultas)
             </span>
             <span className="text-[13px] font-medium text-muted">{mock.modality}</span>
           </div>

@@ -16,9 +16,12 @@
  *
  * - `bio` ya existe en `GET /professionals/:id`; falta sumarla al `select` del
  *   listado, o decidir que no va en la tarjeta.
- * - `licenseNumber` está **deliberadamente fuera** del `select` del catálogo.
- *   Exponerla es una decisión de producto y de privacidad, no un olvido: hay que
- *   discutirla antes de mostrarla.
+ * - `licenseNumber` NO se inventa acá, y es el único campo del diseño que se
+ *   decidió no rellenar. Está **deliberadamente fuera** del `select` del catálogo
+ *   porque exponerla es una decisión de producto y de privacidad, no un olvido.
+ *   Un número de relleno con forma de matrícula, al lado del badge "MATRÍCULA
+ *   VERIFICADA" —que sí es cierto, el backend solo lista VALIDADO—, tomaba esa
+ *   decisión por adelantado y encima le prestaba credibilidad al invento.
  * - Calificación y reseñas son ENG-80 / ENG-82, en Backlog.
  * - "Próximo turno" necesitaría resolver disponibilidad por profesional en el
  *   listado, que hoy es una consulta por cada uno.
@@ -30,7 +33,6 @@
  */
 
 export type MockProfessionalDetails = {
-  licenseNumber: string;
   yearsOfExperience: number;
   bio: string;
   rating: number;
@@ -70,7 +72,6 @@ export function mockDetailsFor(professional: ConId): MockProfessionalDetails {
   const h = hash(professional.id);
 
   return {
-    licenseNumber: String(30000 + (h % 70000)),
     yearsOfExperience: 4 + (h % 22),
     bio: BIOS[h % BIOS.length],
     // 3.6 – 5.0, con un decimal.
@@ -150,28 +151,33 @@ export type MockReview = {
 /**
  * Reseñas del perfil. Inventadas: las reseñas son ENG-80 / ENG-82, en Backlog.
  *
- * Los autores van con inicial y apellido abreviado como en el diseño, que es lo
+ * Los autores NO dicen "paciente verificado", aunque el diseño lo ponga: eso es
+ * una afirmación sobre una reseña que no existe, y el bloque entero ya avisa que
+ * son de ejemplo. Cuando las reseñas sean reales (ENG-80/ENG-82) el sello lo va
+ * a poner el backend, que sabe si hubo consulta.
+ *
+ * Van con inicial y apellido abreviado como en el diseño, que es lo
  * que debería mostrarse cuando existan de verdad: la reseña es pública, el
  * paciente no.
  */
 export function mockReviewsFor(professional: ConId): MockReview[] {
   const todas: MockReview[] = [
     {
-      autor: 'Paciente verificada · M. L.',
+      autor: 'M. L.',
       puntaje: '5,0',
       fecha: 'Agosto 2026',
       texto:
         'Muy clara para explicar. Me dejó todo escrito en la historia y pude releerlo tranquila después.',
     },
     {
-      autor: 'Paciente verificado · J. R.',
+      autor: 'J. R.',
       puntaje: '5,0',
       fecha: 'Julio 2026',
       texto:
         'Entró puntual a la videoconsulta y me contestó dudas por mensaje a la semana siguiente.',
     },
     {
-      autor: 'Paciente verificada · C. B.',
+      autor: 'C. B.',
       puntaje: '4,0',
       fecha: 'Junio 2026',
       texto: 'Buena atención. La consulta fue algo corta, pero resolvió lo que necesitaba.',

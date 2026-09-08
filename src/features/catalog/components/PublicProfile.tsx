@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../../shared/ui/Button';
+import { AvisoDeEjemplo } from '../../../shared/ui/AvisoDeEjemplo';
 import { formatPrice } from '../lib/formatPrice';
 import {
   mockDetailsFor,
@@ -132,6 +133,12 @@ function ProfileBody({
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="grid gap-4">
+          <AvisoDeEjemplo titulo="Ojo con algunos datos.">
+            El nombre, la foto, las especialidades, la formación y el precio salen de la
+            base. La experiencia, la calificación, los servicios y las reseñas son de
+            muestra: esos campos todavía no existen en la API.
+          </AvisoDeEjemplo>
+
           <Cabecera profile={profile} fullName={fullName} mock={mock} />
           <Servicios servicios={servicios} elegido={elegido} onElegir={setElegido} />
           {profile.education.length > 0 && <Formacion education={profile.education} />}
@@ -192,10 +199,6 @@ function Cabecera({
               : 'Especialidad a confirmar'}
           </span>
           <span> · {mock.yearsOfExperience} años de experiencia</span>
-        </p>
-
-        <p className="mt-[3px] text-xs font-semibold tracking-[0.04em] text-muted-soft">
-          MN {mock.licenseNumber}
         </p>
 
         {profile.bio && (
@@ -319,10 +322,23 @@ function Formacion({ education }: { education: PublicProfessionalProfile['educat
 function Resenas({ resenas, mock }: { resenas: ReturnType<typeof mockReviewsFor>; mock: Mock }) {
   return (
     <Tarjeta
-      titulo="Reseñas verificadas"
-      descripcion="Solo pueden dejar reseña las personas que tuvieron una consulta."
+      titulo="Reseñas"
+      descripcion="Cuando existan, solo va a poder dejar reseña quien haya tenido una consulta."
     >
-      <ul className="grid gap-px bg-line-soft">
+      {/* El aviso va DENTRO del bloque y no solo al tope de la página: esta
+          pantalla es larga y hay que scrollear para llegar hasta acá, así que
+          un cartel allá arriba no acompaña a lo que se está leyendo. Y de todo
+          lo inventado, esto es lo más delicado: son testimonios atribuidos a una
+          persona real, con nombre y apellido. */}
+      <AvisoDeEjemplo
+        titulo="Reseñas de ejemplo."
+        className="mx-6 mt-5 !rounded-[10px] !px-4 !py-3 !text-[12px]"
+      >
+        Ninguna la escribió un paciente. Las reseñas son ENG-80/ENG-82 y todavía no
+        existen.
+      </AvisoDeEjemplo>
+
+      <ul className="mt-5 grid gap-px bg-line-soft">
         {resenas.map((resena) => (
           <li key={resena.autor} className="bg-white px-6 py-5">
             <div className="flex flex-wrap items-center justify-between gap-3">

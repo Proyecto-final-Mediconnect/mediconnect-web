@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AvisoDeEjemplo } from '../../../shared/ui/AvisoDeEjemplo';
 import { CatalogFiltersPanel } from './CatalogFiltersPanel';
 import { CatalogSearchBox } from './CatalogSearchBox';
 import { ProfessionalsList } from './ProfessionalsList';
@@ -76,6 +77,16 @@ export function CatalogView({ basePath }: CatalogViewProps) {
         />
 
         <div className="grid gap-4">
+          {/* Va arriba de la lista y no al tope de la página: acá quedan a la
+              vista los datos que cubre. Cada tarjeta mezcla lo que devuelve el
+              backend —nombre, foto, especialidades, precio— con relleno del
+              front, y sin este aviso la mezcla no se distingue. */}
+          <AvisoDeEjemplo titulo="Ojo con algunos datos.">
+            El nombre, la foto, las especialidades y el precio salen de la base. La
+            experiencia, la calificación y el próximo turno son de muestra: esos campos
+            todavía no existen en la API.
+          </AvisoDeEjemplo>
+
           <CatalogSearchBox
             value={localFilters.query}
             onChange={(query) => setLocalFilters({ ...localFilters, query })}

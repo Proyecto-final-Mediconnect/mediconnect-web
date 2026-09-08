@@ -80,9 +80,11 @@ export function ProfessionalProfileForm() {
     }
   }, [profile]);
 
-  // Sesión vencida o ausente: la página no tiene nada que mostrar, va al login.
-  // TODO(ENG-44): cuando esté el <RequireAuth> compartido (mediconnect-web#11),
-  // la ruta /perfil se envuelve con él y esto se puede borrar.
+  // Sesión vencida CON LA PÁGINA ABIERTA. Ya no cubre la ausencia de sesión —de
+  // eso se encarga el `<RequireAuth>` de la ruta /perfil—, pero sigue haciendo
+  // falta: ese guard lee la sesión cacheada, que vive 5 minutos, así que si el
+  // refresh token muere mientras alguien edita su perfil, el guard todavía cree
+  // que hay sesión y el único que se entera del 401 es este request.
   if (isError && isUnauthorized(error)) {
     return <Navigate to="/ingresar" replace />;
   }

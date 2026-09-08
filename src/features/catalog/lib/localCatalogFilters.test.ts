@@ -131,7 +131,9 @@ describe('mockDetailsFor', () => {
       expect(mock.reviewCount).toBeGreaterThan(0);
       expect(mock.yearsOfExperience).toBeGreaterThan(0);
       expect(mock.nextSlotInDays).toBeGreaterThanOrEqual(0);
-      expect(mock.licenseNumber).toMatch(/^\d{5,6}$/);
+      // La matrícula NO se inventa: es una credencial regulada y el backend la
+      // deja fuera del catálogo a propósito. Se fija acá para que no vuelva.
+      expect(mock).not.toHaveProperty('licenseNumber');
     }
   });
 });
