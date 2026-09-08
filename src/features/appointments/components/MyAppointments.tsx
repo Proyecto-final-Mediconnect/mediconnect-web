@@ -242,7 +242,10 @@ function AppointmentRow({
       {/* Las acciones van en una sola fila: antes cada una abría su propio
           bloque y en un turno por pagar y cancelable quedaban tres botones
           apilados uno abajo del otro. */}
-      {(joinState.kind === 'OPEN' || pagable || (cancellable && !isConfirming)) && (
+      {(joinState.kind === 'OPEN' ||
+        pagable ||
+        (!isPatient && counterpart) ||
+        (cancellable && !isConfirming)) && (
         <div className="mt-4 flex flex-wrap gap-3">
           {joinState.kind === 'OPEN' && (
             <Link
@@ -266,6 +269,23 @@ function AppointmentRow({
               }`}
             >
               Pagar la consulta
+            </Link>
+          )}
+
+          {/* Historia clínica (ENG-58). Solo del lado del profesional: es quien
+              escribe el asiento. Sin ventana horaria — se escribe durante la
+              consulta y también días después. El backend igual exige un turno
+              entre los dos, así que este link es la puerta, no la autorización. */}
+          {!isPatient && counterpart && (
+            <Link
+              to={`/pacientes/${counterpart.id}/historia-clinica`}
+              className={`inline-flex items-center justify-center rounded-[9px] border px-5 py-3 text-sm font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${
+                isNext
+                  ? 'border-white/25 text-white hover:border-brand-bright focus-visible:ring-offset-night'
+                  : 'border-line-strong bg-white text-brand-deep hover:border-brand'
+              }`}
+            >
+              Historia clínica
             </Link>
           )}
 

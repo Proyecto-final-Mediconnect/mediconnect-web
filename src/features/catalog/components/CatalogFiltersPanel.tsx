@@ -4,7 +4,7 @@ import {
   hasLocalFilters,
   type LocalCatalogFilters,
 } from '../lib/localCatalogFilters';
-import { EMPTY_FILTERS, type CatalogFilters } from '../types/catalog';
+import { EMPTY_FILTERS, hasAnyFilter, type CatalogFilters } from '../types/catalog';
 
 type Props = {
   filters: CatalogFilters;
@@ -22,12 +22,14 @@ type Props = {
  * `position: sticky` no es decoración: con scroll infinito la lista se vuelve
  * larga enseguida, y sin esto refiltrar obliga a volver al tope de la página.
  *
- * La especialidad se elige de una lista y no de un `<select>`, como en el
- * canvas. Se implementa con radios reales en vez de `<button>`: el navegador ya
- * da el recorrido con flechas, el anuncio de "opción 3 de 12" y el
- * agrupamiento por `<fieldset>`, y nada de eso se consigue gratis con botones.
- * "Todas" es una opción más de la lista, así que deseleccionar no necesita un
- * gesto aparte.
+ * Las especialidades se eligen de una lista y no de un `<select>`, como en el
+ * canvas. Se implementan con casillas reales en vez de `<button>`: el navegador
+ * ya da el recorrido con Tab, el anuncio de "casilla marcada" y el agrupamiento
+ * por `<fieldset>`, y nada de eso se consigue gratis con botones.
+ *
+ * Se puede marcar más de una (ENG-49): entran los profesionales que tengan
+ * ALGUNA de las elegidas. Por eso ya no hay opción "Todas" — con casillas,
+ * ninguna marcada ES "todas", y una opción aparte para eso sobraría.
  */
 
 const SECTION = 'border-b border-line-soft px-[22px] py-5 last:border-b-0';
@@ -44,15 +46,28 @@ export function CatalogFiltersPanel({
   onLocalChange,
 }: Props) {
   const { data: specialties, isError: specialtiesFailed } = useSpecialties();
-  const hasFilters =
-    filters.specialtyId !== '' ||
-    filters.minPrice !== '' ||
-    filters.maxPrice !== '' ||
-    hasLocalFilters(localFilters);
+  const hasFilters = hasAnyFilter(filters) || hasLocalFilters(localFilters);
 
   const update = (patch: Partial<CatalogFilters>) => onChange({ ...filters, ...patch });
 
-  const options = [{ id: '', name: 'Todas las especialidades' }, ...(specialties ?? [])];
+  /**
+   * Marca o desmarca una especialidad.
+   *
+   * La lista resultante se reordena según el catálogo y no según el orden en que
+   * se fue tildando: el mismo conjunto de especialidades tiene que producir
+   * siempre el mismo query string y la misma queryKey, o React Query guardaría
+   * una entrada de caché distinta por cada orden de clics.
+   */
+  const toggleSpecialty = (specialtyId: string) => {
+    const selected = new Set(filters.specialtyIds);
+    if (!selected.delete(specialtyId)) selected.add(specialtyId);
+
+    update({
+      specialtyIds: (specialties ?? [])
+        .map((specialty) => specialty.id)
+        .filter((id) => selected.has(id)),
+    });
+  };
 
   return (
     <section
@@ -76,24 +91,23 @@ export function CatalogFiltersPanel({
       </div>
 
       <fieldset className={SECTION}>
-        <legend className={SECTION_TITLE}>Especialidad</legend>
+        <legend className={SECTION_TITLE}>Especialidades</legend>
 
         <div className="mt-3.5 grid gap-2.5">
-          {options.map((option) => {
-            const checked = filters.specialtyId === option.id;
+          {(specialties ?? []).map((option) => {
+            const checked = filters.specialtyIds.includes(option.id);
 
             return (
               <label
-                key={option.id || 'todas'}
+                key={option.id}
                 className="flex cursor-pointer items-center gap-2.5 text-sm font-medium text-ink has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand"
               >
                 <input
-                  type="radio"
-                  name="especialidad"
+                  type="checkbox"
                   className="sr-only"
                   value={option.id}
                   checked={checked}
-                  onChange={() => update({ specialtyId: option.id })}
+                  onChange={() => toggleSpecialty(option.id)}
                 />
                 <span
                   aria-hidden="true"
@@ -108,6 +122,15 @@ export function CatalogFiltersPanel({
             );
           })}
         </div>
+
+        {/* La ayuda aparece solo con algo tildado. Sin nada marcado el estado ya
+            es evidente, y una línea fija sería ruido en cada carga. */}
+        {filters.specialtyIds.length > 1 && (
+          <p className="mt-3 text-[13px] leading-snug text-muted">
+            Entran los profesionales que trabajen en alguna de las{' '}
+            {filters.specialtyIds.length} elegidas.
+          </p>
+        )}
 
         {specialtiesFailed && (
           <p className="mt-3 text-sm text-danger">No pudimos cargar las especialidades.</p>

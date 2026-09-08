@@ -10,7 +10,7 @@ import {
   type LocalCatalogFilters,
 } from '../lib/localCatalogFilters';
 import { validatePriceRange } from '../lib/priceRange';
-import { EMPTY_FILTERS, type CatalogFilters } from '../types/catalog';
+import { EMPTY_FILTERS, hasAnyFilter, type CatalogFilters } from '../types/catalog';
 import { useDebouncedValue } from '../../../shared/hooks/useDebouncedValue';
 
 /**
@@ -59,11 +59,7 @@ export function CatalogView({ basePath }: CatalogViewProps) {
   const visible = applyLocalFilters(catalog.professionals, localFilters);
   const localActive = hasLocalFilters(localFilters);
 
-  const hasFilters =
-    appliedFilters.specialtyId !== '' ||
-    appliedFilters.minPrice !== '' ||
-    appliedFilters.maxPrice !== '' ||
-    localActive;
+  const hasFilters = hasAnyFilter(appliedFilters) || localActive;
 
   return (
     <>

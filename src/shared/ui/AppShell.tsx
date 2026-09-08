@@ -91,7 +91,7 @@ const NAV_PACIENTE: NavItem[][] = [
     { to: '/mis-turnos', label: 'Mis turnos', Icon: IconTurnos },
   ],
   [
-    { to: '/historia', label: 'Mi historia clínica', Icon: IconHistoria },
+    { to: '/mi-historia-clinica', label: 'Mi historia clínica', Icon: IconHistoria },
     { to: '/medipass', label: 'MediPass', Icon: IconMediPass },
     { to: '/perfil/paciente', label: 'Mi perfil', Icon: IconPerfil },
   ],

@@ -115,7 +115,7 @@ export function PatientDashboardPage() {
             <QuickLink
               title="Mi historia clínica"
               description="Todo lo que registraron tus profesionales, en orden."
-              to="/historia"
+              to="/mi-historia-clinica"
             />
           </div>
         </PanelSection>

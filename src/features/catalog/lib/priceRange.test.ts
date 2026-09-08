@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { PRICE_RANGE_ERROR, validatePriceRange } from './priceRange';
 
 function filters(minPrice: string, maxPrice: string) {
-  return { specialtyId: '', minPrice, maxPrice };
+  return { specialtyIds: [], minPrice, maxPrice };
 }
 
 describe('validatePriceRange', () => {

@@ -27,7 +27,7 @@ describe('buildCatalogQuery', () => {
   it('incluye los filtros cargados', () => {
     const query = buildCatalogQuery(
       {
-        specialtyId: '33333333-3333-4333-8333-333333333333',
+        specialtyIds: ['33333333-3333-4333-8333-333333333333'],
         minPrice: '5000',
         maxPrice: '15000',
       },
@@ -41,6 +41,35 @@ describe('buildCatalogQuery', () => {
       minPrice: '5000',
       maxPrice: '15000',
     });
+  });
+
+  it('repite specialtyId una vez por especialidad tildada', () => {
+    // El backend acumula el parámetro repetido en un OR. Con `set` en vez de
+    // `append`, cada especialidad pisaría a la anterior y viajaría solo la
+    // última: el filtro múltiple se vería en pantalla y no en los resultados.
+    const query = buildCatalogQuery(
+      {
+        specialtyIds: [
+          '33333333-3333-4333-8333-333333333333',
+          '55555555-5555-4555-8555-555555555555',
+        ],
+        minPrice: '',
+        maxPrice: '',
+      },
+      1,
+    );
+
+    expect(new URLSearchParams(query).getAll('specialtyId')).toEqual([
+      '33333333-3333-4333-8333-333333333333',
+      '55555555-5555-4555-8555-555555555555',
+    ]);
+  });
+
+  it('sin especialidades tildadas no manda el parámetro', () => {
+    // Lista vacía es "sin filtro", no "ninguna especialidad".
+    const query = buildCatalogQuery({ ...EMPTY_FILTERS, specialtyIds: [] }, 1);
+
+    expect(query).not.toContain('specialtyId');
   });
 
   it('recorta los espacios de los precios', () => {

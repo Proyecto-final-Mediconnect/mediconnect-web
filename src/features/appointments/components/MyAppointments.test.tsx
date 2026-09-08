@@ -98,6 +98,8 @@ function renderMyAppointments() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
+  // `MemoryRouter`: desde ENG-58 la fila del profesional linkea a la historia
+  // clínica del paciente, y un `<Link>` fuera de un router tira.
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>

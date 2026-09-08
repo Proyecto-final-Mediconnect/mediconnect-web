@@ -6,11 +6,11 @@ import { BookAppointmentPage } from './pages/BookAppointmentPage';
 import { CatalogPage } from './pages/CatalogPage';
 import { EmergencyViewPage } from './pages/EmergencyViewPage';
 import { MediPassPage } from './pages/MediPassPage';
-import { ClinicalRecordPage } from './pages/ClinicalRecordPage';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { ModeratorDashboardPage } from './pages/ModeratorDashboardPage';
 import { MyAppointmentsPage } from './pages/MyAppointmentsPage';
+import { MyClinicalRecordPage } from './pages/MyClinicalRecordPage';
 import { PatientDashboardPage } from './pages/PatientDashboardPage';
 import { PaymentPage } from './pages/PaymentPage';
 import { ProfessionalDashboardPage } from './pages/ProfessionalDashboardPage';
@@ -19,7 +19,7 @@ import { ProfessionalRegisterPage } from './pages/ProfessionalRegisterPage';
 import { ProfessionalProfilePage } from './pages/ProfessionalProfilePage';
 import { ProfessionalSchedulePage } from './pages/ProfessionalSchedulePage';
 import { PatientCatalogPage } from './pages/PatientCatalogPage';
-import { PatientFilePage } from './pages/PatientFilePage';
+import { PatientClinicalRecordPage } from './pages/PatientClinicalRecordPage';
 import { PatientProfessionalProfilePage } from './pages/PatientProfessionalProfilePage';
 import { PatientProfilePage } from './pages/PatientProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
@@ -127,13 +127,15 @@ function App() {
           </RequireAuth>
         }
       />
-      {/* Mi historia clínica (ENG-59). Solo PACIENTE: la vista del profesional
-          sobre la HC de un paciente es la "ficha", que es otra pantalla. */}
+      {/* Mi historia clínica (ENG-59). Solo PACIENTE: el profesional llega a la
+          HC de un paciente por `/pacientes/:patientId/historia-clinica`, que es
+          otra pantalla y otro alcance. Acá no hay parámetro — la única historia
+          que un paciente puede ver es la suya, y el id sale de la sesión. */}
       <Route
-        path="/historia"
+        path="/mi-historia-clinica"
         element={
           <RequireAuth allow={['PACIENTE']}>
-            <ClinicalRecordPage />
+            <MyClinicalRecordPage />
           </RequireAuth>
         }
       />
@@ -152,17 +154,6 @@ function App() {
         element={
           <RequireAuth allow={['PACIENTE']}>
             <EmergencyViewPage />
-          </RequireAuth>
-        }
-      />
-      {/* Ficha de un paciente (EP-06). Es la historia clínica vista por SU
-          profesional, así que va solo para PROFESIONAL. Se entra desde el panel,
-          y la pantalla exige tener un turno con ese paciente. */}
-      <Route
-        path="/pacientes/:patientId/ficha"
-        element={
-          <RequireAuth allow={['PROFESIONAL']}>
-            <PatientFilePage />
           </RequireAuth>
         }
       />
@@ -193,6 +184,18 @@ function App() {
         element={
           <RequireAuth allow={['PACIENTE', 'PROFESIONAL']}>
             <VideoConsultationPage />
+          </RequireAuth>
+        }
+      />
+      {/* Historia clínica de un paciente, desde el profesional (ENG-58). Solo
+          PROFESIONAL: la vista del paciente sobre su propia HC es ENG-59 y va
+          por su propia ruta. Quién puede escribir en qué HC lo valida el
+          backend, que exige un turno entre los dos. */}
+      <Route
+        path="/pacientes/:patientId/historia-clinica"
+        element={
+          <RequireAuth allow={['PROFESIONAL']}>
+            <PatientClinicalRecordPage />
           </RequireAuth>
         }
       />
