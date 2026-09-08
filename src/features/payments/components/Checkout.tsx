@@ -147,33 +147,17 @@ export function Checkout({ appointment }: { appointment: Appointment }) {
           </dl>
         </section>
 
-        {/* El aviso va acá, en el cuerpo y no escondido al pie: quien llega a
-            esta pantalla tiene que saber antes de apretar nada que no se cobra
-            de verdad. */}
-        <section className="rounded-[14px] border border-dashed border-line-strong bg-surface p-[22px]">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className="text-[15px] font-bold text-brand-deep">
-              El pago todavía está simulado
-            </h2>
-            <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold tracking-[0.08em] text-muted-soft">
-              ENG-63
-            </span>
-          </div>
-          <p className="mt-2 max-w-[560px] text-[13px] leading-[1.7] text-muted">
-            La integración con MercadoPago no está conectada: apretar el botón no
-            cobra nada y tu turno sigue{' '}
-            <strong className="font-bold">reservado sin pagar</strong>. La pantalla
-            existe para tener el recorrido completo armado.
-          </p>
-          <button
-            type="button"
-            onClick={() => simularPago(false)}
-            disabled={estado === 'PROCESANDO'}
-            className="mt-4 text-[13px] font-semibold text-muted underline underline-offset-2 hover:text-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
-          >
-            Simular un pago rechazado
-          </button>
-        </section>
+        {/* El disparador del camino de rechazo. Vivía dentro del cartel que
+            explicaba que el cobro es simulado; sacado el cartel, queda suelto
+            acá para poder recorrer ese camino. */}
+        <button
+          type="button"
+          onClick={() => simularPago(false)}
+          disabled={estado === 'PROCESANDO'}
+          className="justify-self-start text-[13px] font-semibold text-muted underline underline-offset-2 hover:text-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
+        >
+          Simular un pago rechazado
+        </button>
       </div>
 
       <aside className="overflow-hidden rounded-[14px] border border-line bg-white lg:sticky lg:top-24">

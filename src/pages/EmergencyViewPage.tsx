@@ -27,17 +27,14 @@ export function EmergencyViewPage() {
   const v = MOCK_VITAL_BLOCK;
 
   return (
-    <DashboardLayout barTitle="Vista de emergencia">
+    <DashboardLayout
+      barTitle="Vista de emergencia"
+      // La orientación pasa al subtítulo del marco. Sin ella queda un bloque en
+      // inglés sin explicación de por qué está en inglés, que es lo único que
+      // esta pantalla necesita aclarar.
+      subtitle="Así se ve tu MediPass para quien escanee tu código sin tu autorización. Está en inglés porque el caso es una guardia en el exterior."
+    >
       <div className="grid gap-5">
-        <p className="rounded-[14px] border border-dashed border-line-strong bg-surface px-5 py-4 text-[13px] leading-[1.7] text-muted">
-          <strong className="font-bold text-brand-deep">
-            Así se ve tu MediPass en una emergencia.
-          </strong>{' '}
-          Es una previsualización con datos de ejemplo: quien escanee tu código sin tu
-          autorización solo va a ver este bloque. Está en inglés porque el caso es una
-          guardia en el exterior.
-        </p>
-
         <article className="mx-auto w-full max-w-[560px] overflow-hidden rounded-[14px] border border-night bg-night text-white">
           <header className="border-b border-white/10 px-7 py-6">
             <div className="flex items-center justify-between gap-3">

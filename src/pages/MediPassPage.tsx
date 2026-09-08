@@ -56,12 +56,6 @@ export function MediPassPage() {
       subtitle="Tu pasaporte médico. Vos decidís quién ve tu historia, qué parte y por cuánto tiempo — y podés cortar cualquier acceso en el momento."
     >
       <div className="grid gap-5">
-        <p className="rounded-[14px] border border-dashed border-line-strong bg-surface px-5 py-4 text-[13px] leading-[1.7] text-muted">
-          <strong className="font-bold text-brand-deep">Pantalla de ejemplo.</strong> El
-          MediPass es Release 3 y todavía no existe del lado del servidor: el código no es
-          real, los accesos son de muestra y revocarlos no corta nada.
-        </p>
-
         <div className="grid items-start gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
           <section
             aria-labelledby="codigo"

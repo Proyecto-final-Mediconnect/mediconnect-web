@@ -77,11 +77,32 @@ describe('Checkout (ENG-63, pago simulado)', () => {
     ).toBeVisible();
   });
 
-  it('avisa que el pago está simulado antes de que el paciente apriete nada', () => {
-    // Es la razón de ser del aviso: nadie tiene que enterarse después de pagar.
+  /**
+   * El cartel que decía "el pago todavía está simulado" se sacó de la pantalla.
+   * Lo que el cartel describía sigue siendo cierto y ahora se fija como
+   * comportamiento: apretar "Pagar" no manda NADA al backend, así que el turno
+   * queda igual que antes — sigue en RESERVADO_SIN_PAGAR.
+   *
+   * Este test es lo que va a fallar el día que ENG-63 conecte MercadoPago, que
+   * es exactamente cuando alguien tiene que venir a mirar esta pantalla.
+   */
+  it('pagar no manda ningún request: el cobro no existe todavía', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderCheckout(turno());
+    const fetchSpy = vi.mocked(globalThis.fetch);
+    const antes = fetchSpy.mock.calls.length;
 
-    expect(screen.getByText(/el pago todavía está simulado/i)).toBeVisible();
+    await user.click(screen.getByRole('button', { name: /pagar/i }));
+    await vi.advanceTimersByTimeAsync(2000);
+
+    const nuevos = fetchSpy.mock.calls
+      .slice(antes)
+      .map(([input]) => String(input))
+      // La sesión se puede refrescar en cualquier momento; lo que importa es que
+      // no haya ningún request de pago ni de turnos.
+      .filter((url) => !url.endsWith('/me'));
+
+    expect(nuevos).toEqual([]);
   });
 
   it('no pide datos de tarjeta: el PCI queda del lado de MercadoPago (ADR-013)', () => {

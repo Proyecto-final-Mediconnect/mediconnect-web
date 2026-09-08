@@ -221,10 +221,6 @@ function InfoDeLaPaciente({ nombre }: { nombre: string }) {
         <Dato titulo="Seguimiento">{ficha.seguimiento}</Dato>
       </dl>
 
-      <DatosSimulados>
-        Estos datos son de ejemplo. Salen de la historia clínica, que todavía no
-        tiene endpoint.
-      </DatosSimulados>
     </section>
   );
 }
@@ -302,19 +298,7 @@ function TranscripcionEnVivo() {
         </ul>
       </div>
 
-      <DatosSimulados>
-        Transcripción de ejemplo: no se está transcribiendo nada.
-      </DatosSimulados>
     </section>
   );
 }
 
-/** Zócalo que marca un bloque como no conectado. Mismo tratamiento en los dos
- *  paneles para que se lea como una categoría y no como un aviso suelto. */
-function DatosSimulados({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="border-t border-dashed border-line-strong bg-surface px-5 py-3 text-[11px] leading-[1.6] text-muted-soft">
-      {children}
-    </p>
-  );
-}

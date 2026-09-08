@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../../shared/ui/Button';
-import { AvisoDeEjemplo } from '../../../shared/ui/AvisoDeEjemplo';
 import { formatPrice } from '../lib/formatPrice';
 import {
   mockDetailsFor,
@@ -319,20 +318,7 @@ function Resenas({ resenas, mock }: { resenas: ReturnType<typeof mockReviewsFor>
       titulo="Reseñas"
       descripcion="Cuando existan, solo va a poder dejar reseña quien haya tenido una consulta."
     >
-      {/* El aviso va DENTRO del bloque y no solo al tope de la página: esta
-          pantalla es larga y hay que scrollear para llegar hasta acá, así que
-          un cartel allá arriba no acompaña a lo que se está leyendo. Y de todo
-          lo inventado, esto es lo más delicado: son testimonios atribuidos a una
-          persona real, con nombre y apellido. */}
-      <AvisoDeEjemplo
-        titulo="Reseñas de ejemplo."
-        className="mx-6 mt-5 !rounded-[10px] !px-4 !py-3 !text-[12px]"
-      >
-        Ninguna la escribió un paciente. Las reseñas son ENG-80/ENG-82 y todavía no
-        existen.
-      </AvisoDeEjemplo>
-
-      <ul className="mt-5 grid gap-px bg-line-soft">
+      <ul className="grid gap-px bg-line-soft">
         {resenas.map((resena) => (
           <li key={resena.autor} className="bg-white px-6 py-5">
             <div className="flex flex-wrap items-center justify-between gap-3">

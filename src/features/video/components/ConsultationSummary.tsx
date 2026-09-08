@@ -194,9 +194,6 @@ export function ConsultationSummary({
               )}
             </div>
 
-            <p className="border-t border-dashed border-line-strong bg-surface px-5 py-3 text-[11px] leading-[1.6] text-muted-soft">
-              Firmar todavía no escribe nada: la historia clínica no tiene endpoint.
-            </p>
           </section>
 
           <section className="overflow-hidden rounded-[14px] border border-line bg-white">
@@ -244,9 +241,6 @@ export function ConsultationSummary({
               </p>
             </div>
 
-            <p className="border-t border-dashed border-line-strong bg-surface px-5 py-3 text-[11px] leading-[1.6] text-muted-soft">
-              Transcripción de ejemplo: no se transcribió nada.
-            </p>
           </section>
         </aside>
       </div>
