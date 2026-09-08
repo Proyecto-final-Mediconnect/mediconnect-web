@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ClinicalRecord } from './ClinicalRecord';
@@ -245,7 +245,8 @@ describe('ClinicalRecord', () => {
       ];
       renderRecord();
 
-      const items = await screen.findAllByRole('listitem');
+      await screen.findByText('La nueva');
+      const items = screen.getAllByRole('article');
       expect(items[0]).toHaveTextContent('La nueva');
     });
 
@@ -267,13 +268,13 @@ describe('ClinicalRecord', () => {
       ];
       renderRecord();
 
-      const correccion = (await screen.findByText('La corrige')).closest('li')!;
+      const correccion = (await screen.findByText('La corrige')).closest('article')!;
       expect(within(correccion).getByRole('link', { name: /entrada #1/i })).toHaveAttribute(
         'href',
         '#entrada-1',
       );
 
-      const original = screen.getByText('La original').closest('li')!;
+      const original = screen.getByText('La original').closest('article')!;
       expect(within(original).getByRole('link', { name: /entrada #2/i })).toHaveAttribute(
         'href',
         '#entrada-2',
@@ -286,9 +287,9 @@ describe('ClinicalRecord', () => {
       entries = [makeEntry({ entryType: 'CORRECCION', correctsEntryId: 'fuera-de-la-lista' })];
       renderRecord();
 
-      expect(await screen.findByText(/corrige a la/i)).toHaveTextContent(
-        /entrada anterior, que sigue en la historia sin modificar/i,
-      );
+      expect(
+        await screen.findByText(/corrige a una entrada anterior, que sigue en la historia/i),
+      ).toBeInTheDocument();
     });
 
     /**
@@ -307,8 +308,11 @@ describe('ClinicalRecord', () => {
       ];
       renderRecord();
 
-      expect(await screen.findByText('Enalapril')).toBeInTheDocument();
-      expect(screen.getByText('Medicamento')).toBeInTheDocument();
+      // El primer campo del recurso es el titular de la tarjeta: el medicamento
+      // es lo que resume una prescripción, igual que el motivo resume una
+      // consulta. El resto va a la grilla, con su rótulo.
+      expect(await screen.findByRole('heading', { name: 'Enalapril' })).toBeInTheDocument();
+      expect(screen.getByText('Dosis')).toBeInTheDocument();
       expect(screen.getByText('10 mg')).toBeInTheDocument();
       // Sin rótulo conocido, la clave se humaniza en vez de perderse.
       expect(screen.getByText('Fecha real')).toBeInTheDocument();
@@ -366,6 +370,73 @@ describe('ClinicalRecord', () => {
 
       await screen.findByRole('alert');
       expect(screen.queryByText(/no hay entradas para mostrar/i)).not.toBeInTheDocument();
+    });
+  });
+
+  /**
+   * Los filtros del canvas. Una historia real tiene decenas de entradas de
+   * varios profesionales; sin filtros la única herramienta es scrollear.
+   */
+  describe('filtros', () => {
+    beforeEach(() => {
+      entries = [
+        makeEntry({ id: 'e1', sequenceNumber: 1, content: { description: 'La consulta' } }),
+        makeEntry({
+          id: 'e2',
+          sequenceNumber: 2,
+          entryType: 'PRESCRIPCION',
+          professional: { firstName: 'Martín', lastName: 'Olivares' },
+          content: { description: 'La prescripción' },
+        }),
+      ];
+    });
+
+    it('filtra por tipo sin volver a pedir la historia', async () => {
+      renderRecord();
+      await screen.findByText('La consulta');
+      const antes = fetchSpy.mock.calls.length;
+
+      await userEvent.selectOptions(screen.getByLabelText(/tipo de registro/i), 'PRESCRIPCION');
+
+      expect(screen.queryByText('La consulta')).not.toBeInTheDocument();
+      expect(screen.getByText('La prescripción')).toBeInTheDocument();
+      // Cada lectura de la HC deja una fila en `audit_logs` (Ley 26.529):
+      // filtrar no puede generar accesos que no ocurrieron.
+      expect(fetchSpy.mock.calls.length).toBe(antes);
+    });
+
+    it('filtra por profesional', async () => {
+      renderRecord();
+      await screen.findByText('La consulta');
+
+      await userEvent.selectOptions(screen.getByLabelText(/profesional/i), 'Martín Olivares');
+
+      expect(screen.queryByText('La consulta')).not.toBeInTheDocument();
+      expect(screen.getByText('La prescripción')).toBeInTheDocument();
+    });
+
+    it('cuando ningún filtro coincide lo explica y ofrece la salida', async () => {
+      renderRecord();
+      await screen.findByText('La consulta');
+
+      // `fireEvent` y no `userEvent`: el input de fecha es controlado y `type`
+      // dispara un cambio por carácter, con fechas intermedias inválidas.
+      fireEvent.change(screen.getByLabelText(/desde/i), { target: { value: '2030-01-01' } });
+
+      expect(screen.getByText(/ninguna entrada coincide con esos filtros/i)).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole('button', { name: /limpiar filtros/i }));
+      expect(screen.getByText('La consulta')).toBeInTheDocument();
+    });
+
+    it('no ofrece un desplegable con una sola opción', async () => {
+      entries = [makeEntry()];
+      renderRecord();
+      await screen.findByText(/#1/);
+
+      // Un filtro con un único valor no filtra nada y ocupa lo mismo.
+      expect(screen.queryByLabelText(/tipo de registro/i)).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/profesional/i)).not.toBeInTheDocument();
     });
   });
 });

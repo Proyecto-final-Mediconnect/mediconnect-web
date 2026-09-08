@@ -1,21 +1,25 @@
+import { useMemo, useState } from 'react';
 import { isClientError } from '../../../shared/api/apiError';
 import { useClinicalRecord } from '../hooks/useClinicalRecord';
-import { formatEntryDate, readEntryFields, shortHash } from '../lib/clinicalEntry';
-import { ENTRY_TYPE_LABELS, type ClinicalEntry } from '../types/clinicalRecord';
+import {
+  FILTROS_VACIOS,
+  filtrarEntradas,
+  opcionesDe,
+  type FiltrosHC,
+} from '../lib/filtrarEntradas';
+import type { ClinicalEntry } from '../types/clinicalRecord';
 import { ClinicalEntryForm } from './ClinicalEntryForm';
+import { EntryCard } from './EntryCard';
+import { RecordFilters } from './RecordFilters';
 
 /**
- * Historia clínica de un paciente (ENG-58, ENG-59, ENG-60).
+ * Historia clínica de un paciente (ENG-58, ENG-59, ENG-60), con la pantalla del
+ * canvas: filtros al costado y la cadena como línea de tiempo.
  *
- * Muestra el formulario y, debajo, las entradas que el backend deja ver. Qué
- * entradas son eso lo decide **RLS**, no esta pantalla, así que el componente no
- * ramifica por rol en ningún lado.
- *
- * Desde ENG-60 los dos roles ven la historia **completa**: el paciente la suya
- * (`..._select_own_patient`) y el profesional con un turno la de su paciente,
- * incluidas las entradas firmadas por otros profesionales. Antes de ENG-60 el
- * profesional veía solo lo que él había firmado, y varios textos de estas
- * pantallas seguían describiendo eso.
+ * Qué entradas se ven lo decide **RLS**, no esta pantalla, así que el componente
+ * no ramifica por rol. Desde ENG-60 los dos roles ven la historia **completa**:
+ * el paciente la suya y el profesional con turno la de su paciente, incluidas
+ * las entradas firmadas por otros profesionales.
  *
  * El orden es del más reciente al más viejo, al revés de como viene del backend:
  * la cadena se construye hacia adelante, pero quien abre una HC busca lo último.
@@ -53,19 +57,31 @@ export function ClinicalRecord({
   canAddEntries = true,
 }: ClinicalRecordProps) {
   const record = useClinicalRecord(patientId);
-  const entries = record.data ?? [];
+  const [filtros, setFiltros] = useState<FiltrosHC>(FILTROS_VACIOS);
 
-  // Las correcciones se muestran vinculadas en los dos sentidos: la corrección
-  // dice a qué entrada corrige y la corregida avisa que hay una posterior. Sin
-  // el segundo lado, quien lee la original de arriba abajo no se entera de que
-  // fue corregida — que es justamente lo que la cadena tiene que hacer visible.
-  const posicionDe = new Map(entries.map((e) => [e.id, e.sequenceNumber]));
-  const corregidas = new Map(
-    entries.filter((e) => e.correctsEntryId).map((e) => [e.correctsEntryId!, e.sequenceNumber]),
-  );
+  const entries = useMemo(() => record.data ?? [], [record.data]);
+
+  const { visibles, opciones, corregidaPor, posicionDe } = useMemo(() => {
+    // Los vínculos de corrección se calculan sobre la cadena completa y no
+    // sobre lo filtrado: si no, filtrar por tipo escondería el otro lado del
+    // vínculo y una entrada corregida aparecería como si estuviera firme.
+    const corregidaPor = new Map<string, number>();
+    const posicionDe = new Map<string, number>();
+    for (const e of entries) {
+      posicionDe.set(e.id, e.sequenceNumber);
+      if (e.correctsEntryId) corregidaPor.set(e.correctsEntryId, e.sequenceNumber);
+    }
+
+    return {
+      visibles: filtrarEntradas(entries, filtros),
+      opciones: opcionesDe(entries),
+      corregidaPor,
+      posicionDe,
+    };
+  }, [entries, filtros]);
 
   return (
-    <div className="space-y-10">
+    <div className="grid gap-8">
       {canAddEntries && (
         <section aria-labelledby="nueva-entrada">
           <SectionHeading id="nueva-entrada" title="Agregar una entrada" />
@@ -82,7 +98,9 @@ export function ClinicalRecord({
           count={record.data ? entries.length : undefined}
         />
 
-        {scopeNote && <p className="mt-3 text-sm text-muted">{scopeNote}</p>}
+        {scopeNote && (
+          <p className="mt-3 max-w-[720px] text-[15px] leading-[1.7] text-muted">{scopeNote}</p>
+        )}
 
         {record.isPending && (
           <p role="status" aria-live="polite" className="mt-4 text-sm text-muted">
@@ -99,16 +117,36 @@ export function ClinicalRecord({
         )}
 
         {entries.length > 0 && (
-          <ul className="mt-4 grid gap-3.5">
-            {[...entries].reverse().map((entry) => (
-              <EntryCard
-                key={entry.id}
-                entry={entry}
-                corregidas={corregidas}
-                posicionDe={posicionDe}
-              />
-            ))}
-          </ul>
+          <div className="mt-6 grid items-start gap-[22px] lg:grid-cols-[262px_minmax(0,1fr)]">
+            <RecordFilters
+              filtros={filtros}
+              onChange={setFiltros}
+              tipos={opciones.tipos}
+              profesionales={opciones.profesionales}
+              total={entries.length}
+              visibles={visibles.length}
+            />
+
+            {visibles.length === 0 ? (
+              <p className="rounded-[14px] border border-dashed border-line-strong bg-white p-6 text-[13px] leading-[1.6] text-muted">
+                Ninguna entrada coincide con esos filtros. Probá ampliando el rango de fechas o
+                sacando alguno.
+              </p>
+            ) : (
+              <div className="grid gap-3.5">
+                {[...visibles].reverse().map((entry) => (
+                  <EntryCard
+                    key={entry.id}
+                    entry={entry}
+                    corregidaPor={corregidaPor.get(entry.id)}
+                    corrigeA={
+                      entry.correctsEntryId ? posicionDe.get(entry.correctsEntryId) : undefined
+                    }
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </section>
     </div>
@@ -120,15 +158,7 @@ export function ClinicalRecord({
  * chico en versalitas, sobre una línea. Es el mismo de "Mis turnos" — la HC
  * había quedado con `h2` sueltos de antes del rediseño.
  */
-function SectionHeading({
-  id,
-  title,
-  count,
-}: {
-  id: string;
-  title: string;
-  count?: number;
-}) {
+function SectionHeading({ id, title, count }: { id: string; title: string; count?: number }) {
   return (
     <div className="flex items-baseline gap-4 border-t border-brand-deep pt-4">
       {count !== undefined && (
@@ -136,10 +166,7 @@ function SectionHeading({
           {String(count).padStart(2, '0')}
         </span>
       )}
-      <h2
-        id={id}
-        className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted"
-      >
+      <h2 id={id} className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
         {title}
       </h2>
     </div>
@@ -177,107 +204,4 @@ function RecordError({ error }: { error: Error }) {
   );
 }
 
-function EntryCard({
-  entry,
-  corregidas,
-  posicionDe,
-}: {
-  entry: ClinicalEntry;
-  /** id de entrada corregida → nº de la corrección que la corrige. */
-  corregidas: Map<string, number>;
-  /** id de entrada → su nº en la cadena. */
-  posicionDe: Map<string, number>;
-}) {
-  const campos = readEntryFields(entry);
-  const corregidaPor = corregidas.get(entry.id);
-  const corrigeA = entry.correctsEntryId ? posicionDe.get(entry.correctsEntryId) : undefined;
-
-  return (
-    <li id={anclaDe(entry.sequenceNumber)} className="scroll-mt-6 rounded-[14px] border border-line bg-white p-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-[17px] font-bold text-brand-deep">
-            {formatEntryDate(entry.createdAt)}
-          </p>
-          {/* Quién firmó el asiento es parte del criterio de ENG-59, y de lo
-              que la Ley 26.529 exige que el registro identifique. */}
-          <p className="mt-1.5 text-sm text-muted">
-            {entry.professional
-              ? `Firmada por ${entry.professional.firstName} ${entry.professional.lastName}`
-              : 'Profesional no disponible'}
-          </p>
-        </div>
-
-        <span className="rounded-full bg-surface-teal px-3 py-1 text-xs font-semibold text-brand-hover">
-          {ENTRY_TYPE_LABELS[entry.entryType] ?? entry.entryType}
-        </span>
-      </div>
-
-      {campos.length > 0 && (
-        <dl className="mt-4 grid gap-3">
-          {campos.map((campo) => (
-            <Section key={campo.label} label={campo.label} value={campo.value} />
-          ))}
-        </dl>
-      )}
-
-      {entry.correctsEntryId && (
-        <p className="mt-4 rounded-[10px] border border-amber-300 bg-amber-50 px-4 py-3 text-[13px] leading-[1.7] text-amber-900">
-          Corrige a la{' '}
-          {corrigeA === undefined ? (
-            // La corregida puede no estar en la lista: el paciente ve su cadena
-            // entera, pero un profesional podría recibir un recorte.
-            <span className="font-semibold">entrada anterior</span>
-          ) : (
-            <a href={`#${anclaDe(corrigeA)}`} className="font-semibold underline underline-offset-2">
-              entrada #{corrigeA}
-            </a>
-          )}
-          , que sigue en la historia sin modificar.
-        </p>
-      )}
-
-      {corregidaPor !== undefined && (
-        <p className="mt-4 rounded-[10px] border border-line-strong bg-surface px-4 py-3 text-[13px] leading-[1.7] text-muted">
-          Corregida más tarde por la{' '}
-          <a
-            href={`#${anclaDe(corregidaPor)}`}
-            className="font-semibold text-brand-deep underline underline-offset-2"
-          >
-            entrada #{corregidaPor}
-          </a>
-          . Esta queda como se escribió.
-        </p>
-      )}
-
-      {/* El hash va al pie y no arriba: es procedencia, no encabezado. Se muestra
-          a propósito —es la evidencia visible de que la entrada está sellada—
-          pero no compite con la fecha ni con el motivo, que es lo que se lee. */}
-      <p
-        className="mt-5 border-t border-line-soft pt-3.5 font-mono text-[11px] text-muted-soft"
-        title={entry.contentHash}
-      >
-        #{entry.sequenceNumber} · {shortHash(entry.contentHash)}
-      </p>
-    </li>
-  );
-}
-
-/** Ancla estable para saltar de una corrección a la entrada que corrige. */
-function anclaDe(sequenceNumber: number): string {
-  return `entrada-${sequenceNumber}`;
-}
-
-/** Un campo del asiento. */
-function Section({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-soft">
-        {label}
-      </dt>
-      {/* `whitespace-pre-line`: el profesional escribe en varias líneas y la
-          historia clínica tiene que conservar cómo lo escribió. */}
-      <dd className="mt-1 whitespace-pre-line text-sm leading-[1.7] text-ink">{value}</dd>
-    </div>
-  );
-}
+export type { ClinicalEntry };

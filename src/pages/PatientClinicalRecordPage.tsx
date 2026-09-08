@@ -56,7 +56,7 @@ export function PatientClinicalRecordPage() {
         // entera escrita por otros e invisible para quien miraba, y por eso el
         // texto no podía decir "no hay entradas" a secas.
         emptyText="Este paciente todavía no tiene entradas en su historia clínica. La primera la podés cargar con el formulario de arriba."
-        scopeNote="Ves la historia completa, incluidas las entradas firmadas por otros profesionales."
+        scopeNote="Ves la historia completa, incluidas las entradas firmadas por otros profesionales. Los registros cerrados no se editan: si hubo una corrección, aparece como una entrada nueva vinculada al original."
       />
     </DashboardLayout>
   );

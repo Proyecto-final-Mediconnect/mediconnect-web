@@ -86,7 +86,7 @@ describe('MyClinicalRecordPage (ENG-59)', () => {
     // Es el segundo criterio de aceptación, entero.
     renderPage([entry()]);
 
-    const item = (await screen.findByText(/dolor lumbar/i)).closest('li');
+    const item = (await screen.findByText(/dolor lumbar/i)).closest('article');
     expect(item).not.toBeNull();
 
     const card = within(item as HTMLElement);
@@ -94,8 +94,9 @@ describe('MyClinicalRecordPage (ENG-59)', () => {
     // Con nombre y todo: la tarjeta dice quién firmó el asiento, no solo que
     // alguien lo hizo. Ley 26.529 art. 15.
     expect(card.getByText(/firmada por Ana García/i)).toBeInTheDocument();
-    expect(card.getByText(/consulta/i)).toBeInTheDocument();
-    expect(card.getByText('Dolor lumbar de 3 días')).toBeInTheDocument();
+    expect(card.getByText('CONSULTA')).toBeInTheDocument();
+    // El motivo es el titular de la tarjeta: es lo que resume la consulta.
+    expect(card.getByRole('heading', { name: 'Dolor lumbar de 3 días' })).toBeInTheDocument();
   });
 
   it('lista de la más reciente a la más vieja', async () => {

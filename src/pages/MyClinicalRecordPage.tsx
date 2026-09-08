@@ -40,6 +40,7 @@ export function MyClinicalRecordPage() {
         <ClinicalRecord
           patientId={user.id}
           canAddEntries={false}
+          scopeNote="En orden cronológico, de lo más reciente a lo más viejo. Los registros cerrados no se editan: si hubo una corrección, aparece como una entrada nueva vinculada al original."
           emptyText="Todavía no hay entradas en tu historia clínica. Aparecen acá cuando un profesional registra algo de una consulta."
         />
       )}

@@ -38,6 +38,20 @@
   --color-on-night-faint: #6b9dae; /* letra chica */
   --color-footer-label: #42707f; /* encabezados de columna del footer */
 
+  /* Etiquetas de tipo de entrada de la historia clínica. Salen del canvas
+   * ("Diseño web Mediconnect", pantalla Historia clínica), que le da un color
+   * propio a cada tipo de registro para poder barrer la cadena de un vistazo.
+   * `warm` es el par de aviso del canvas, para la entrada que fue corregida. */
+  --color-tag-consulta: #e9f2f6;
+  --color-tag-consulta-ink: #0b4f6c;
+  --color-tag-correccion: #eef3f9;
+  --color-tag-correccion-ink: #3f6b8f;
+  --color-tag-estudio: #f2f0fa;
+  --color-tag-estudio-ink: #5b53a3;
+  --color-tag-warm: #fbf1e6;
+  --color-tag-warm-ink: #a86524;
+  --color-tag-warm-dot: #e0913f;
+
   --font-sans: 'Manrope', system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
 }

@@ -109,9 +109,13 @@ const ORDEN_POR_RECURSO: Record<string, string[]> = {
   Encounter: ['motivo', 'evolucion', 'diagnostico', 'plan'],
   Condition: ['descripcion', 'codigo', 'sistema', 'estado'],
   MedicationRequest: ['medicamento', 'dosis', 'frecuencia', 'duracion'],
-  // Las correcciones se guardan como DiagnosticReport y abren con el motivo:
-  // es lo que explica por qué existe la entrada.
-  DiagnosticReport: ['motivo_correccion', 'fecha_real', 'estudio', 'hallazgos', 'conclusion'],
+  // El estudio va primero incluso en las correcciones, que se guardan con este
+  // mismo recurso. El primer campo es el titular de la tarjeta, y el motivo de
+  // una corrección es una oración entera: como título ocupa dos renglones y
+  // tapa de qué estudio se trata. Con el estudio adelante, la corrección y la
+  // entrada que corrige comparten titular —que es lo correcto, son el mismo
+  // estudio— y se distinguen por la etiqueta.
+  DiagnosticReport: ['estudio', 'motivo_correccion', 'fecha_real', 'hallazgos', 'conclusion'],
 };
 
 /** Andamiaje del recurso: identifica y referencia, no es contenido clínico. */
@@ -205,4 +209,9 @@ export function formatEntryDate(iso: string): string {
  */
 export function shortHash(hash: string): string {
   return hash.slice(0, 8);
+}
+
+/** Ancla estable para saltar de una corrección a la entrada que corrige. */
+export function anclaDe(sequenceNumber: number): string {
+  return `entrada-${sequenceNumber}`;
 }
