@@ -220,25 +220,40 @@ export function PatientProfileForm() {
       )}
 
       {/* Pegada al pie: el formulario se abre para corregir un dato suelto, y con
-          el botón al final hay que bajar a buscarlo. */}
-      <div className="sticky bottom-0 rounded-[14px] border border-line bg-white/95 px-5 py-4 backdrop-blur">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <p className="text-[13px] text-muted">
-            {saved && !sucio ? (
-              <span role="status" className="font-semibold text-brand-hover">
-                Perfil guardado ✓
-              </span>
-            ) : sucio ? (
-              'Tenés cambios sin guardar.'
-            ) : (
-              'Todo al día.'
-            )}
-          </p>
+          el botón al final hay que bajar a buscarlo.
 
+          El borde más marcado y la sombra hacia arriba no son adorno: con el
+          mismo borde suave de las secciones, la barra se leía como una tercera
+          tarjeta del formulario en vez de como la acción que cierra la página. */}
+      <div className="sticky bottom-0 z-10 rounded-[12px] border border-line-strong bg-white/95 px-5 py-3.5 shadow-[0_-8px_24px_-14px_rgba(4,37,47,0.45)] backdrop-blur">
+        <div className="flex flex-wrap items-center justify-end gap-x-5 gap-y-3">
+          {/* Sin cambios no se dice nada: "Todo al día" era una frase que ocupaba
+              la barra para informar que no pasaba nada, y el botón apagado ya lo
+              dice. El estado aparece cuando hay algo que contar. */}
+          {(sucio || saved) && (
+            <p className="mr-auto flex items-center gap-2 text-[13px] font-medium text-muted">
+              <span
+                aria-hidden="true"
+                className={`h-1.5 w-1.5 flex-none rounded-full ${
+                  sucio ? 'bg-brand-bright' : 'bg-brand-hover'
+                }`}
+              />
+              {sucio ? (
+                'Tenés cambios sin guardar.'
+              ) : (
+                <span role="status" className="font-semibold text-brand-hover">
+                  Perfil guardado ✓
+                </span>
+              )}
+            </p>
+          )}
+
+          {/* Deshabilitado sin cambios: un "Guardar cambios" activo cuando no hay
+              nada que guardar promete un efecto que no va a pasar. */}
           <button
             type="submit"
-            disabled={updateProfile.isPending}
-            className="rounded-[9px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            disabled={updateProfile.isPending || !sucio}
+            className="rounded-[9px] bg-brand-deep px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-brand-deep"
           >
             {updateProfile.isPending ? 'Guardando…' : 'Guardar cambios'}
           </button>

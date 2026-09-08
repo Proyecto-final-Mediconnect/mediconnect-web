@@ -28,6 +28,22 @@ export function PatientProfilePage() {
       ((perfil.data?.lastName ?? user?.lastName)?.charAt(0) ?? '') || '·';
   const completo = perfil.data?.completed ?? false;
 
+  /** Campos vacíos, nombrados igual que sus etiquetas en el formulario para que
+   *  la lista se pueda seguir sin traducir nada. */
+  const faltantes = perfil.data
+    ? (
+        [
+          ['Nombre', perfil.data.firstName],
+          ['Apellido', perfil.data.lastName],
+          ['Fecha de nacimiento', perfil.data.birthDate],
+          ['DNI', perfil.data.dni],
+          ['Teléfono', perfil.data.phone],
+        ] as const
+      )
+        .filter(([, valor]) => !valor)
+        .map(([etiqueta]) => etiqueta)
+    : [];
+
   return (
     <DashboardLayout barTitle="Mi perfil">
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -35,92 +51,97 @@ export function PatientProfilePage() {
 
         <aside className="grid gap-4 xl:sticky xl:top-24">
           <section className="overflow-hidden rounded-[14px] border border-line bg-white">
-            <div className="grid justify-items-center gap-3 px-6 py-7 text-center">
+            {/* Identidad en una fila y no centrada en una columna: el bloque
+                mostraba dos datos y ocupaba media pantalla de alto. */}
+            <div className="flex items-center gap-3.5 px-5 py-5">
               <span
                 aria-hidden="true"
-                className="flex h-[64px] w-[64px] items-center justify-center rounded-full bg-brand-hover text-[21px] font-bold text-white"
+                className="flex h-[52px] w-[52px] flex-none items-center justify-center rounded-full bg-brand-hover text-[18px] font-bold text-white"
               >
                 {iniciales.toUpperCase()}
               </span>
-              <p className="font-display text-[24px] leading-[1.15] text-brand-deep">
-                {nombre}
-              </p>
 
-              {!perfil.isPending && (
-                <p
-                  className={`rounded-full px-3.5 py-1.5 text-[12px] font-bold ${
-                    completo ? 'bg-surface-teal text-brand-hover' : 'bg-danger/10 text-danger'
-                  }`}
-                >
-                  {completo ? 'Perfil completo' : 'Falta completar'}
+              <div className="min-w-0">
+                <p className="truncate font-display text-[21px] leading-[1.2] text-brand-deep">
+                  {nombre}
                 </p>
-              )}
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <span className="text-[12px] text-muted">Paciente</span>
+                  {!perfil.isPending && (
+                    <span
+                      className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                        completo ? 'bg-surface-teal text-brand-hover' : 'bg-danger/10 text-danger'
+                      }`}
+                    >
+                      {completo ? 'Perfil completo' : 'Falta completar'}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
 
-            <dl className="divide-y divide-line-soft border-t border-line-soft">
-              <Dato titulo="Email">{user?.email ?? '—'}</Dato>
-              <Dato titulo="Rol">Paciente</Dato>
-            </dl>
-
-            {/* El email es la identidad de la cuenta y lo administra Supabase
-                Auth: cambiarlo pide verificar el nuevo, que es otra historia. Se
-                dice para que no parezca un dato que falta cargar. */}
-            <p className="border-t border-line-soft bg-surface px-6 py-3 text-[11px] leading-[1.6] text-muted-soft">
-              El email es con el que entrás; por ahora no se puede cambiar.
-            </p>
+            {/* El email va apilado y no en una fila `etiqueta | valor`: en una
+                columna de 340 px un mail largo quedaba pegado a su propia
+                etiqueta y recortado con puntos suspensivos, que es justo el dato
+                que uno viene a leer entero. */}
+            <div className="border-t border-line-soft px-5 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+                Email
+              </p>
+              <p className="mt-1.5 break-all text-[13px] font-semibold text-ink">
+                {user?.email ?? '—'}
+              </p>
+            </div>
           </section>
 
-          <section className="overflow-hidden rounded-[14px] border border-line bg-white">
-            <header className="border-b border-line-soft px-6 py-[18px]">
-              <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
-                Para qué sirve
-              </h2>
-            </header>
+          {/* Qué falta, no para qué sirve.
 
-            {/* Las dos son reglas reales del backend, no promesas: sin la fila en
-                `patients` la reserva responde 409, y el DNI es lo que ata cada
-                asiento de la historia clínica a una persona. */}
-            <ul className="grid gap-4 px-6 py-5">
-              <Uso titulo="Reservar turnos">
-                Sin tus datos cargados, el sistema no te deja confirmar una consulta.
-              </Uso>
-              <Uso titulo="Que te identifiquen bien">
-                Tu DNI es lo que ata cada registro de tu historia clínica a vos y no a otra
-                persona.
-              </Uso>
-            </ul>
+              Antes acá había una tarjeta explicando que el perfil sirve para
+              reservar turnos y para que te identifiquen bien. Es cierto y es
+              obvio: nadie entra a "Mi perfil" a enterarse de qué es un perfil.
+              Esto, en cambio, contesta lo único que uno no sabe mirando el
+              formulario largo —qué le falta— y desaparece cuando no falta nada. */}
+          {faltantes.length > 0 && (
+            <section className="overflow-hidden rounded-[14px] border border-danger/25 bg-white">
+              <header className="border-b border-line-soft px-5 py-[15px]">
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-danger">
+                  Falta cargar
+                </h2>
+              </header>
 
-            {completo && (
-              <div className="border-t border-line-soft px-6 py-4">
-                <Link
-                  to="/buscar"
-                  className="text-[13px] font-bold text-brand-hover underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                >
-                  Buscar un profesional →
-                </Link>
-              </div>
-            )}
-          </section>
+              <ul className="grid gap-2 px-5 py-4">
+                {faltantes.map((campo) => (
+                  <li key={campo} className="flex items-center gap-2.5 text-[13px] text-ink">
+                    <span
+                      aria-hidden="true"
+                      className="h-1.5 w-1.5 flex-none rounded-full bg-danger"
+                    />
+                    {campo}
+                  </li>
+                ))}
+              </ul>
+
+              {/* La única consecuencia real de tener el perfil incompleto, y no
+                  es una advertencia inventada: sin la fila en `patients`, el
+                  backend responde 409 al reservar. */}
+              <p className="border-t border-line-soft px-5 py-3.5 text-[12px] leading-[1.6] text-muted">
+                Hasta completarlo no vas a poder confirmar un turno.
+              </p>
+            </section>
+          )}
+
+          {completo && (
+            <section className="rounded-[14px] border border-line bg-white px-5 py-4">
+              <Link
+                to="/buscar"
+                className="text-[13px] font-bold text-brand-hover underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                Buscar un profesional →
+              </Link>
+            </section>
+          )}
         </aside>
       </div>
     </DashboardLayout>
-  );
-}
-
-function Dato({ titulo, children }: { titulo: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 px-6 py-3.5">
-      <dt className="text-[13px] text-muted">{titulo}</dt>
-      <dd className="min-w-0 truncate text-[13px] font-semibold text-ink">{children}</dd>
-    </div>
-  );
-}
-
-function Uso({ titulo, children }: { titulo: string; children: React.ReactNode }) {
-  return (
-    <li>
-      <p className="text-[13px] font-bold text-brand-deep">{titulo}</p>
-      <p className="mt-1 text-[13px] leading-[1.6] text-muted">{children}</p>
-    </li>
   );
 }
