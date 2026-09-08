@@ -49,7 +49,7 @@ export function ProfilePreview({
     `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || '👤';
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="rounded-[14px] border border-line bg-white p-6 shadow-sm">
       <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
         Vista previa
       </p>

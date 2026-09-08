@@ -18,10 +18,9 @@ export function VideoConsultationPage() {
   if (!appointmentId) return <Navigate to="/mis-turnos" replace />;
 
   return (
-    <DashboardLayout
-      title="Videoconsulta"
-      subtitle="La sala se cierra sola al terminar la consulta."
-    >
+    // Sin subtítulo: la pantalla tiene dos fases y lo único que valía para las
+    // dos era el título. El aviso de la sala vive en la fase en curso.
+    <DashboardLayout barTitle="Videoconsulta">
       <VideoConsultation appointmentId={appointmentId} />
     </DashboardLayout>
   );

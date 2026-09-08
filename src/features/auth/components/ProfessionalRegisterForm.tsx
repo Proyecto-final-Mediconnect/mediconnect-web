@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../../shared/ui/Button';
 import { TextField } from '../../../shared/ui/TextField';
+import { PasswordRules } from './PasswordRules';
 import { useRegisterProfessional } from '../hooks/useRegisterProfessional';
 import { registerProfessionalSchema } from '../types/registerProfessional';
 
@@ -63,21 +64,41 @@ export function ProfessionalRegisterForm() {
     return (
       <div
         role="status"
-        className="rounded-xl border border-brand/30 bg-surface-teal p-6 text-center"
+        className="rounded-[14px] border border-brand/30 bg-surface-teal p-7"
       >
         <div
           aria-hidden
-          className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand text-2xl text-white"
+          className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-deep text-xl text-white"
         >
           ✓
         </div>
-        <h2 className="mb-2 text-xl font-semibold text-brand-deep">Revisá tu correo</h2>
-        <p className="text-muted">
-          Te enviamos un enlace para confirmar tu cuenta. Una vez verificada, nuestro equipo
-          validará tu matrícula antes de habilitar tu perfil profesional. Si ya tenías una cuenta,
-          podés{' '}
-          <Link to="/ingresar" className="font-semibold text-brand hover:underline">
-            iniciar sesión
+        <h2 className="font-display mt-5 text-[26px] leading-[1.2] text-brand-deep">
+          Revisá tu correo
+        </h2>
+        <p className="mt-2.5 text-sm leading-[1.7] text-ink">
+          Te enviamos un enlace para confirmar tu cuenta.
+        </p>
+
+        {/* Los dos pasos van numerados y separados: son dos esperas distintas y
+            la segunda es la que sorprende. Antes iban en un párrafo corrido y
+            "validaremos tu matrícula" se leía como un trámite ya hecho. */}
+        <ol className="mt-5 grid gap-3 border-t border-brand/20 pt-5">
+          <Paso n={1} titulo="Confirmá tu email">
+            Con el enlace que te mandamos.
+          </Paso>
+          <Paso n={2} titulo="Validamos tu matrícula a mano">
+            Lo revisa un moderador. Hasta que lo apruebe, tu cuenta funciona pero tu perfil
+            todavía no aparece en el catálogo y nadie puede reservarte.
+          </Paso>
+        </ol>
+
+        <p className="mt-5 text-[13px] leading-[1.7] text-muted">
+          ¿Ya tenías cuenta?{' '}
+          <Link
+            to="/ingresar"
+            className="font-semibold text-brand-hover underline-offset-2 hover:underline"
+          >
+            Iniciá sesión
           </Link>
           .
         </p>
@@ -144,12 +165,15 @@ export function ProfessionalRegisterForm() {
         label="Contraseña"
         type="password"
         autoComplete="new-password"
-        placeholder="Mínimo 8 caracteres"
+        placeholder="Tu contraseña"
         value={values.password}
         onChange={set('password')}
         error={errors.password}
         {...passwordToggle}
       />
+
+      <PasswordRules value={values.password} />
+
       <TextField
         id="passwordConfirmation"
         name="passwordConfirmation"
@@ -173,5 +197,31 @@ export function ProfessionalRegisterForm() {
         {isPending ? 'Creando cuenta…' : 'Crear cuenta profesional'}
       </Button>
     </form>
+  );
+}
+
+/** Un paso de la espera posterior al alta. */
+function Paso({
+  n,
+  titulo,
+  children,
+}: {
+  n: number;
+  titulo: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <li className="flex gap-3">
+      <span
+        aria-hidden="true"
+        className="flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full bg-white text-[11px] font-bold text-brand-deep"
+      >
+        {n}
+      </span>
+      <span className="min-w-0">
+        <span className="block text-[14px] font-bold text-brand-deep">{titulo}</span>
+        <span className="mt-1 block text-[13px] leading-[1.6] text-muted">{children}</span>
+      </span>
+    </li>
   );
 }

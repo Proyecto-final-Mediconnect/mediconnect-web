@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { Button } from '../../../shared/ui/Button';
 import {
   addDays,
   buildWeekPreview,
@@ -42,6 +41,11 @@ function formatDate(date: string): string {
  *
  * Se calcula entera en el cliente, sobre el estado del formulario: el criterio
  * dice "antes de guardar", así que el backend todavía no conoce estas reglas.
+ *
+ * Va en columna, un día por fila, porque ahora vive al costado del formulario:
+ * en una grilla de cuatro columnas los horarios se apretaban hasta ser
+ * ilegibles, y leer siete días de arriba abajo es además el orden en que están
+ * cargados en el formulario de al lado.
  */
 export function SchedulePreview({ rules, blocks }: SchedulePreviewProps) {
   const [weekOffset, setWeekOffset] = useState(0);
@@ -61,81 +65,83 @@ export function SchedulePreview({ rules, blocks }: SchedulePreviewProps) {
   return (
     <section
       aria-labelledby="preview-title"
-      className="rounded-xl border border-slate-200 bg-surface p-5"
+      className="overflow-hidden rounded-[14px] border border-line bg-white"
     >
-      <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 id="preview-title" className="text-lg font-semibold text-ink">
+      <header className="border-b border-line-soft px-5 py-[18px]">
+        <div className="flex items-center justify-between gap-3">
+          <h2
+            id="preview-title"
+            className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted"
+          >
             Vista previa
           </h2>
-          <p className="text-sm text-muted">
-            {total === 0
-              ? 'Con esta configuración no se genera ningún turno.'
-              : `${total} turno${total === 1 ? '' : 's'} en la semana del ${formatDate(weekStart)}.`}
-          </p>
+
+          <div className="flex gap-1.5">
+            <ArrowButton
+              label="Semana anterior"
+              disabled={weekOffset === 0}
+              onClick={() => setWeekOffset((w) => w - 1)}
+            >
+              ←
+            </ArrowButton>
+            <ArrowButton
+              label="Semana siguiente"
+              // 4 semanas es lo que ENG-54 deja navegar al paciente al reservar;
+              // mostrar más acá prometería turnos que no se van a poder tomar.
+              disabled={weekOffset >= 3}
+              onClick={() => setWeekOffset((w) => w + 1)}
+            >
+              →
+            </ArrowButton>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => setWeekOffset((w) => w - 1)}
-            disabled={weekOffset === 0}
-            aria-label="Semana anterior"
-          >
-            ←
-          </Button>
-          <span className="text-sm text-muted">
-            {weekOffset === 0 ? 'Esta semana' : `+${weekOffset}`}
-          </span>
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={() => setWeekOffset((w) => w + 1)}
-            // 4 semanas es lo que ENG-54 va a dejar navegar al paciente al
-            // reservar; mostrar más acá prometería turnos que no se van a poder
-            // tomar.
-            disabled={weekOffset >= 3}
-            aria-label="Semana siguiente"
-          >
-            →
-          </Button>
-        </div>
+        <p className="font-display mt-2.5 text-[22px] leading-[1.15] text-brand-deep">
+          {weekOffset === 0 ? 'Esta semana' : `Semana del ${formatDate(weekStart)}`}
+        </p>
+        <p className="mt-1 text-[13px] leading-[1.6] text-muted">
+          {total === 0
+            ? 'Con esta configuración no se genera ningún turno.'
+            : `${total} turno${total === 1 ? '' : 's'} en la semana del ${formatDate(weekStart)}.`}
+        </p>
       </header>
 
-      <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <ul className="divide-y divide-line-soft">
         {days.map((day) => (
-          <li
-            key={day.date}
-            className="rounded-lg border border-slate-200 bg-white p-3"
-          >
-            <p className="text-sm font-semibold text-ink">
-              {WEEKDAY_NAMES[day.weekday]}{' '}
-              <span className="font-normal text-muted">
-                {formatDate(day.date)}
-              </span>
-            </p>
+          <li key={day.date} className="px-5 py-3.5">
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-[13px] font-bold text-brand-deep">
+                {WEEKDAY_NAMES[day.weekday]}{' '}
+                <span className="font-medium text-muted-soft">{formatDate(day.date)}</span>
+              </p>
 
-            {day.fullyBlocked ? (
-              <p className="mt-2 text-sm text-danger">Bloqueado</p>
-            ) : day.slots.length === 0 ? (
-              <p className="mt-2 text-sm text-muted">Sin atención</p>
-            ) : (
+              {day.fullyBlocked ? (
+                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-danger">
+                  Bloqueado
+                </span>
+              ) : day.slots.length === 0 ? (
+                <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-soft">
+                  Sin atención
+                </span>
+              ) : null}
+            </div>
+
+            {!day.fullyBlocked && day.slots.length > 0 && (
               <>
                 <div className="mt-2 flex flex-wrap gap-1">
                   {day.slots.map((slot) => (
                     <span
                       key={slot}
-                      className="rounded bg-surface-teal px-1.5 py-0.5 text-xs text-brand-deep"
+                      className="rounded-[6px] bg-surface-teal px-1.5 py-0.5 text-[11px] font-semibold text-brand-deep tabular-nums"
                     >
                       {slot}
                     </span>
                   ))}
                 </div>
                 {day.blockedSlots > 0 && (
-                  <p className="mt-2 text-xs text-muted">
-                    {day.blockedSlots} turno{day.blockedSlots === 1 ? '' : 's'}{' '}
-                    bloqueado{day.blockedSlots === 1 ? '' : 's'}
+                  <p className="mt-2 text-[11px] text-muted">
+                    {day.blockedSlots} turno{day.blockedSlots === 1 ? '' : 's'} sin ofrecer
+                    por un bloqueo
                   </p>
                 )}
               </>
@@ -144,5 +150,30 @@ export function SchedulePreview({ rules, blocks }: SchedulePreviewProps) {
         ))}
       </ul>
     </section>
+  );
+}
+
+function ArrowButton({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="rounded-[7px] border border-line-strong px-2.5 py-1 text-[13px] font-semibold text-muted transition-colors hover:border-brand hover:text-brand-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-40"
+    >
+      {children}
+    </button>
   );
 }

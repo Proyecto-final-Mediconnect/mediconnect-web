@@ -3,7 +3,7 @@ import { DashboardLayout, PendingCard } from './DashboardLayout';
 export function ModeratorDashboardPage() {
   return (
     <DashboardLayout
-      title="Panel de moderación"
+      barTitle="Moderación"
       subtitle="Revisión de las reseñas que publican los pacientes."
     >
       <div className="grid gap-4 md:grid-cols-2">

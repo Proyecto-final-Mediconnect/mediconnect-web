@@ -35,11 +35,19 @@ export function useAvailability(professionalId: string, from: string, to: string
   });
 }
 
-export function useMyAppointments() {
+/**
+ * Los turnos del usuario.
+ *
+ * @param enabled En `false` no pide nada. Existe por el MODERADOR: no tiene
+ *   turnos propios ni la ruta le corresponde, así que el menú lateral pediría una
+ *   lista que nunca va a poder usar.
+ */
+export function useMyAppointments(enabled = true) {
   return useQuery({
     queryKey: MY_APPOINTMENTS_KEY,
     queryFn: getMyAppointments,
     retry: retryServerErrorsOnly,
+    enabled,
   });
 }
 

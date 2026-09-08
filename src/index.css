@@ -1,18 +1,45 @@
 @import 'tailwindcss';
 
-/* Paleta de marca MediConnect (logo + presentaciones del proyecto). */
+/* Paleta de marca MediConnect (logo + presentaciones del proyecto).
+ *
+ * Los valores salen del canvas de diseño "Diseño web Mediconnect": no son una
+ * interpretación, son los hex que usa el diseño. Los ocho que ya estaban acá
+ * coincidían; el resto faltaba y por eso las pantallas se veían parecidas pero
+ * nunca iguales. */
 @theme {
   --color-brand: #14b8a6; /* teal del logo — color primario / CTAs */
   --color-brand-hover: #0e7c7b; /* teal más oscuro — hover */
-  --color-brand-deep: #0b4f6c; /* azul-teal profundo — hero, títulos */
-  --color-brand-bright: #2ec4b6; /* teal claro — acentos */
+  --color-brand-deep: #0b4f6c; /* azul-teal profundo — títulos y superficies */
+  --color-brand-bright: #2ec4b6; /* teal claro — acentos sobre fondo oscuro */
   --color-ink: #1e293b; /* texto principal */
   --color-muted: #64748b; /* texto secundario */
   --color-surface: #f4f8fa; /* fondo suave */
-  --color-surface-teal: #e8f4f4; /* fondo teal claro */
+  --color-surface-teal: #eef6f5; /* fondo teal claro */
   --color-danger: #d64562; /* errores */
 
-  --font-sans: system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  /* Fondos oscuros. `night` es el de las secciones invertidas de la landing;
+   * `abyss` es el pie de página, un escalón más abajo. `ink-deep` es el color
+   * del texto sobre los botones teal — negro puro sobre #14b8a6 vibra. */
+  --color-night: #072d3d;
+  --color-abyss: #041d28;
+  --color-ink-deep: #04252f;
+
+  /* Líneas. Tres pesos, y la distinción importa: `line` separa secciones,
+   * `line-soft` divide adentro de una card y `line-strong` marca inputs. */
+  --color-line: #e3ebee;
+  --color-line-soft: #eef3f5;
+  --color-line-strong: #cfdde3;
+
+  /* Texto sobre fondo oscuro: la escala gris normal no funciona ahí. */
+  --color-muted-soft: #94a3b8; /* labels sobre fondo claro */
+  --color-on-night: #a9c6d2; /* párrafos sobre #072d3d */
+  --color-on-night-strong: #c9e2ea; /* listas, algo más presente */
+  --color-on-night-soft: #7fa8b8; /* eyebrows y pie */
+  --color-on-night-faint: #6b9dae; /* letra chica */
+  --color-footer-label: #42707f; /* encabezados de columna del footer */
+
+  --font-sans: 'Manrope', system-ui, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-display: 'Newsreader', Georgia, 'Times New Roman', serif;
 }
 
 body {
@@ -20,4 +47,13 @@ body {
   font-family: var(--font-sans);
   color: var(--color-ink);
   background: #ffffff;
+}
+
+/* Newsreader se usa siempre en peso 400 y con interlineado apretado: es una
+ * serif de texto, no de display, y en negrita a 66px se ensucia. El tracking
+ * negativo es lo que la sostiene en tamaños grandes. */
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.02em;
 }

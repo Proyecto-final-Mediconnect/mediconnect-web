@@ -4,7 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+// Los turnos llevan enlaces (videoconsulta, pago): sin Router, `Link` explota.
+import { MemoryRouter } from 'react-router-dom';
 import { BookAppointment } from './BookAppointment';
+import { MAX_PAGE } from '../lib/weeks';
 
 const PRO_ID = '22222222-2222-4222-8222-222222222222';
 
@@ -106,7 +109,9 @@ function renderBooking() {
   });
   return render(
     <QueryClientProvider client={queryClient}>
-      <BookAppointment professionalId={PRO_ID} />
+      <MemoryRouter>
+        <BookAppointment professionalId={PRO_ID} />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
 }
@@ -224,37 +229,45 @@ describe('BookAppointment', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/acaba de reservar otra persona/i);
   });
 
-  it('no deja retroceder antes de la semana actual ni pasar las 4 semanas', async () => {
+  it('no deja retroceder antes de hoy ni pasar el horizonte publicado', async () => {
     mockApi();
     renderBooking();
 
-    const back = await screen.findByRole('button', {
-      name: /semana anterior/i,
-    });
-    const forward = screen.getByRole('button', { name: /semana siguiente/i });
+    const back = await screen.findByRole('button', { name: /siete días antes/i });
+    const forward = screen.getByRole('button', { name: /siete días después/i });
 
     expect(back).toBeDisabled();
 
-    // Tres clicks llegan a la semana 3, la última navegable.
-    await userEvent.click(forward);
-    await userEvent.click(forward);
-    await userEvent.click(forward);
+    // Con dos meses de horizonte son nueve páginas: ocho clicks hasta el final.
+    // Que sean ocho es justamente lo que justifica el selector de mes.
+    for (let i = 0; i < MAX_PAGE; i++) await userEvent.click(forward);
 
     expect(forward).toBeDisabled();
     expect(back).toBeEnabled();
   });
 
-  it('pide la semana correcta al backend al navegar', async () => {
+  /**
+   * Antes cada flecha disparaba una consulta nueva. Ahora se piden los 28 días de
+   * una sola vez y la paginación es local: además de evitar una espera por
+   * página, es lo que permite saber dónde está el primer día con lugar sin
+   * haberlo pedido antes.
+   */
+  it('pide el horizonte completo una sola vez y pagina sin volver al backend', async () => {
     const fetchMock = mockApi();
     renderBooking();
 
     await screen.findByText('Ana Médica');
-    await userEvent.click(screen.getByRole('button', { name: /semana siguiente/i }));
+    const antes = fetchMock.mock.calls.filter(([input]) =>
+      String(input).includes('/availability'),
+    ).length;
 
-    await waitFor(() => {
-      const urls = fetchMock.mock.calls.map(([input]) => String(input));
-      expect(urls.some((url) => url.includes('from=2026-08-24&to=2026-08-30'))).toBe(true);
-    });
+    await userEvent.click(screen.getByRole('button', { name: /siete días después/i }));
+    await userEvent.click(screen.getByRole('button', { name: /siete días después/i }));
+
+    const despues = fetchMock.mock.calls.filter(([input]) =>
+      String(input).includes('/availability'),
+    ).length;
+    expect(despues).toBe(antes);
   });
 
   it('no deja reservar si el profesional no publicó precio', async () => {
@@ -274,7 +287,7 @@ describe('BookAppointment', () => {
     expect(screen.getByText(/no publicó su precio/i)).toBeInTheDocument();
   });
 
-  it('avisa cuando la semana no tiene horarios publicados', async () => {
+  it('avisa cuando esos días no tienen horarios publicados', async () => {
     mockApi({
       availability: () =>
         jsonResponse({
@@ -284,7 +297,208 @@ describe('BookAppointment', () => {
     });
     renderBooking();
 
-    expect(await screen.findByText(/no publicó horarios de atención/i)).toBeInTheDocument();
+    expect(await screen.findByText(/no publicó horarios para estos días/i)).toBeInTheDocument();
+  });
+
+  /**
+   * Lo que se reportó: "cuando elijo reservar me muestra días con turnos no
+   * disponibles o viejos". Pasaban las dos cosas — el calendario abría siempre el
+   * primer día de la ventana, sin mirar si había algo que reservar ahí.
+   */
+  describe('primer día disponible', () => {
+    /** Día con horarios pero ninguno libre: el caso que el criterio viejo abría
+     *  igual, porque solo miraba que hubiera horarios. */
+    const lleno = (date: string, weekday: number) => ({
+      date,
+      weekday,
+      fullyBlocked: false,
+      slots: [
+        { startTime: '09:00', durationMinutes: 30, status: 'PAST' },
+        { startTime: '09:30', durationMinutes: 30, status: 'BOOKED' },
+      ],
+    });
+
+    const conLugar = (date: string, weekday: number) => ({
+      date,
+      weekday,
+      fullyBlocked: false,
+      slots: [{ startTime: '11:00', durationMinutes: 30, status: 'AVAILABLE' }],
+    });
+
+    it('abre el primer día con lugar, no el primero de la ventana', async () => {
+      mockApi({
+        availability: () =>
+          jsonResponse({
+            ...AVAILABILITY,
+            days: [
+              lleno('2026-08-17', 1),
+              lleno('2026-08-18', 2),
+              conLugar('2026-08-19', 3),
+            ],
+          }),
+      });
+      renderBooking();
+
+      // `level: 3` porque el encabezado del rango (h2) también nombra ese día:
+      // el rótulo ahora sale de los días visibles, así que dice "al 19 de agosto".
+      expect(
+        await screen.findByRole('heading', { level: 3, name: /19 de agosto/i }),
+      ).toBeVisible();
+    });
+
+    /** El salto también cambia de página: si el primer día con lugar cae en la
+     *  tercera semana, el paciente no tiene que ir tocando la flecha hasta
+     *  encontrarlo. */
+    it('salta a la página donde está ese día', async () => {
+      const dias = Array.from({ length: 21 }, (_, i) => {
+        const date = `2026-08-${String(17 + i).padStart(2, '0')}`;
+        return i === 16 ? conLugar(date, 1) : lleno(date, 1);
+      });
+
+      mockApi({ availability: () => jsonResponse({ ...AVAILABILITY, days: dias }) });
+      renderBooking();
+
+      // El día 16 cae en la página 2 (índices 14 a 20).
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /siete días antes/i })).toBeEnabled(),
+      );
+    });
+
+    it('si no hay lugar en ningún lado se queda en el principio', async () => {
+      mockApi({
+        availability: () =>
+          jsonResponse({
+            ...AVAILABILITY,
+            days: [lleno('2026-08-17', 1), lleno('2026-08-18', 2)],
+          }),
+      });
+      renderBooking();
+
+      await screen.findByText('Ana Médica');
+      expect(screen.getByRole('button', { name: /siete días antes/i })).toBeDisabled();
+    });
+  });
+
+  /**
+   * Con dos meses de horizonte son nueve páginas de siete días. Recorrerlas de a
+   * una es incómodo, y en el camino nunca se ve más de una semana: el calendario
+   * del mes muestra treinta días juntos, con el lugar de cada uno a la vista.
+   */
+  describe('calendario del mes', () => {
+    const libre = (date: string, weekday: number) => ({
+      date,
+      weekday,
+      fullyBlocked: false,
+      slots: [{ startTime: '11:00', durationMinutes: 30, status: 'AVAILABLE' }],
+    });
+
+    const lleno = (date: string, weekday: number) => ({
+      date,
+      weekday,
+      fullyBlocked: false,
+      slots: [{ startTime: '11:00', durationMinutes: 30, status: 'BOOKED' }],
+    });
+
+    /** 40 días desde el 20/08: cruzan a septiembre y llegan al 28. El 25/08 va
+     *  completo, para poder comprobar que un día sin lugar no se puede elegir. */
+    const DIAS_LARGOS = Array.from({ length: 40 }, (_, i) => {
+      const d = new Date(Date.UTC(2026, 7, 20 + i));
+      const date = d.toISOString().slice(0, 10);
+      return date === '2026-08-25'
+        ? lleno(date, d.getUTCDay())
+        : libre(date, d.getUTCDay());
+    });
+
+    const conAgendaLarga = () =>
+      mockApi({
+        availability: () => jsonResponse({ ...AVAILABILITY, days: DIAS_LARGOS }),
+      });
+
+    async function abrirCalendario() {
+      await userEvent.click(await screen.findByRole('button', { name: /ver calendario/i }));
+    }
+
+    /** La mayoría de las reservas son para los próximos días: el calendario
+     *  arranca plegado para no competir con la grilla de horarios. */
+    it('arranca plegado', async () => {
+      conAgendaLarga();
+      renderBooking();
+
+      const boton = await screen.findByRole('button', { name: /ver calendario/i });
+      expect(boton).toHaveAttribute('aria-expanded', 'false');
+      expect(screen.queryByRole('button', { name: /mes siguiente/i })).not.toBeInTheDocument();
+    });
+
+    it('al desplegarlo muestra el mes entero, no una semana', async () => {
+      conAgendaLarga();
+      renderBooking();
+      await abrirCalendario();
+
+      // Agosto tiene 31 días; el 20 y el 31 son los extremos de lo publicado.
+      expect(screen.getByRole('button', { name: /^20 —/ })).toBeVisible();
+      expect(screen.getByRole('button', { name: /^31 —/ })).toBeVisible();
+    });
+
+    it('elegir un día lo abre y cierra el calendario', async () => {
+      conAgendaLarga();
+      renderBooking();
+      await abrirCalendario();
+
+      await userEvent.click(screen.getByRole('button', { name: /^28 —/ }));
+
+      expect(
+        screen.getByRole('heading', { level: 3, name: /28 de agosto/i }),
+      ).toBeVisible();
+      expect(screen.getByRole('button', { name: /ver calendario/i })).toHaveAttribute(
+        'aria-expanded',
+        'false',
+      );
+    });
+
+    /** El salto cruza de página sola: el 15/09 está a cuatro páginas de distancia
+     *  del 20/08, y con las flechas serían cuatro clicks. */
+    it('salta a un día de otro mes sin pasar por las flechas', async () => {
+      conAgendaLarga();
+      renderBooking();
+      await abrirCalendario();
+
+      await userEvent.click(screen.getByRole('button', { name: /mes siguiente/i }));
+      await userEvent.click(screen.getByRole('button', { name: /^15 —/ }));
+
+      expect(
+        screen.getByRole('heading', { level: 3, name: /15 de septiembre/i }),
+      ).toBeVisible();
+    });
+
+    it('un día sin horarios libres no se puede elegir', async () => {
+      conAgendaLarga();
+      renderBooking();
+      await abrirCalendario();
+
+      expect(screen.getByRole('button', { name: /^25 — sin horarios libres/ })).toBeDisabled();
+    });
+
+    /** El mes asoma días que el backend todavía no publicó: agosto empieza el 1
+     *  y la ventana arranca el 20. */
+    it('los días fuera del horizonte quedan apagados', async () => {
+      conAgendaLarga();
+      renderBooking();
+      await abrirCalendario();
+
+      expect(
+        screen.getByRole('button', { name: /^19 — fuera del período/ }),
+      ).toBeDisabled();
+    });
+
+    it('no deja retroceder antes del primer mes ni pasar el último', async () => {
+      conAgendaLarga();
+      renderBooking();
+      await abrirCalendario();
+
+      expect(screen.getByRole('button', { name: /mes anterior/i })).toBeDisabled();
+      await userEvent.click(screen.getByRole('button', { name: /mes siguiente/i }));
+      expect(screen.getByRole('button', { name: /mes siguiente/i })).toBeDisabled();
+    });
   });
 
   it('muestra el error si la disponibilidad no se puede cargar', async () => {

@@ -36,7 +36,7 @@ export function PatientClinicalRecordPage() {
 
   return (
     <DashboardLayout
-      title="Historia clínica"
+      barTitle="Historia clínica"
       subtitle="Cada entrada queda sellada en la cadena de hash y no se puede modificar."
     >
       <ClinicalRecord

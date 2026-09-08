@@ -2,9 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- El corazón solo, sin el lockup: a 16 px la palabra "MediConnect" no se
+         lee y solo ensucia la marca. Es el mismo archivo que usa la sidebar
+         contraída, así que el ícono de la pestaña y el de la app son el mismo. -->
+    <link rel="icon" type="image/png" href="/logo-mark.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>mediconnect-web</title>
+    <!-- Manrope para toda la UI y Newsreader (solo peso 400) para los títulos
+         display. El contraste entre la serif liviana y grande y la sans compacta
+         es la firma del diseño: sin las dos, la paleta sola no alcanza. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Newsreader:opsz,wght@6..72,400&display=swap"
+      rel="stylesheet"
+    />
+    <title>MediConnect</title>
   </head>
   <body>
     <div id="root"></div>

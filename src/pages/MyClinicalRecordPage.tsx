@@ -24,7 +24,7 @@ export function MyClinicalRecordPage() {
 
   return (
     <DashboardLayout
-      title="Mi historia clínica"
+      barTitle="Mi historia clínica"
       subtitle="Todo lo que registraron los profesionales que te atendieron."
     >
       {isLoading && (

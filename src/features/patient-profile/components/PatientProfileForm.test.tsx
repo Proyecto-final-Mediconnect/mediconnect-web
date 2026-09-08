@@ -97,6 +97,45 @@ describe('PatientProfileForm', () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
+  /**
+   * Un "Guardar cambios" activo sin nada que guardar promete un efecto que no va
+   * a pasar. Se habilita al primer cambio real.
+   */
+  it('el botón de guardar arranca deshabilitado y se habilita al editar', async () => {
+    mockFetch(COMPLETED_PROFILE);
+    const user = userEvent.setup();
+    renderForm();
+
+    await waitFor(() => expect(screen.getByLabelText('Nombre')).toHaveValue('Ana'));
+    expect(screen.getByRole('button', { name: /guardar/i })).toBeDisabled();
+
+    await user.type(screen.getByLabelText('Teléfono'), '9');
+
+    expect(screen.getByRole('button', { name: /guardar/i })).toBeEnabled();
+    expect(screen.getByText(/cambios sin guardar/i)).toBeVisible();
+  });
+
+  /** Si el guardado falla, el formulario sigue sucio y se puede reintentar sin
+   *  tener que tocar un campo de nuevo. */
+  it('después de un error el botón queda habilitado para reintentar', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((_input, init) =>
+      Promise.resolve(
+        init?.method === 'PUT'
+          ? jsonResponse({ message: 'Se cayó el servidor.' }, 500)
+          : jsonResponse(COMPLETED_PROFILE),
+      ),
+    );
+    const user = userEvent.setup();
+    renderForm();
+
+    await waitFor(() => expect(screen.getByLabelText('Nombre')).toHaveValue('Ana'));
+    await user.type(screen.getByLabelText('Teléfono'), '9');
+    await user.click(screen.getByRole('button', { name: /guardar/i }));
+
+    await screen.findByRole('alert');
+    expect(screen.getByRole('button', { name: /guardar/i })).toBeEnabled();
+  });
+
   it('envía el perfil normalizado y muestra el confirmado', async () => {
     const onSave = vi.fn();
     mockFetch(EMPTY_PROFILE, onSave);

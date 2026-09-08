@@ -5,20 +5,30 @@ import { RegisterForm } from '../features/auth/components/RegisterForm';
 export function RegisterPage() {
   return (
     <AuthLayout
-      title="Crear cuenta de paciente"
-      subtitle="Empezá a cuidar tu salud con MediConnect."
+      eyebrow="Crear cuenta"
+      title="Empezá a cuidar tu salud."
+      subtitle="Crear la cuenta es gratis. Pagás solamente la consulta que reservás."
       footer={
-        <p>
-          ¿Ya tenés cuenta?{' '}
-          <Link to="/ingresar" className="font-semibold text-brand hover:underline">
-            Iniciá sesión
-          </Link>
-          {' · '}
-          ¿Sos profesional?{' '}
-          <Link to="/registro/profesional" className="font-semibold text-brand hover:underline">
-            Registrate como profesional
-          </Link>
-        </p>
+        <div className="grid gap-2">
+          <p>
+            ¿Ya tenés cuenta?{' '}
+            <Link
+              to="/ingresar"
+              className="font-semibold text-brand-hover underline-offset-2 hover:underline"
+            >
+              Ingresá
+            </Link>
+          </p>
+          <p>
+            ¿Sos profesional de la salud?{' '}
+            <Link
+              to="/registro/profesional"
+              className="font-semibold text-brand-hover underline-offset-2 hover:underline"
+            >
+              Publicá tu perfil
+            </Link>
+          </p>
+        </div>
       }
     >
       <RegisterForm />

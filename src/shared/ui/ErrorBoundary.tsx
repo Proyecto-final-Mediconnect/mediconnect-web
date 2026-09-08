@@ -15,8 +15,8 @@ function Fallback() {
       role="alert"
       className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center"
     >
-      <h1 className="text-2xl font-semibold text-slate-900">Algo salió mal</h1>
-      <p className="max-w-md text-sm text-slate-600">
+      <h1 className="text-2xl font-semibold text-brand-deep">Algo salió mal</h1>
+      <p className="max-w-md text-sm text-muted">
         Ocurrió un error inesperado y no pudimos mostrar esta página. Ya fuimos notificados. Probá
         recargar; si sigue pasando, intentá más tarde.
       </p>
