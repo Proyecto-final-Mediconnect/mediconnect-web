@@ -77,22 +77,26 @@ export function ClinicalEntryForm({ patientId, consultationId }: ClinicalEntryFo
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="space-y-4">
-      <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+    <form
+      onSubmit={handleSubmit}
+      noValidate
+      className="grid gap-4 rounded-[14px] border border-line bg-white p-6"
+    >
+      <div className="rounded-[10px] border border-amber-300 bg-amber-50 px-4 py-3 text-[13px] leading-[1.7] text-amber-900">
         Lo que guardes acá <span className="font-semibold">no se puede editar ni borrar</span>. Si
         después hay que corregirlo, se agrega una entrada nueva que deja constancia de la
         corrección.
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="entryType" className="text-sm font-medium text-ink">
+        <label htmlFor="entryType" className="text-[13px] font-semibold text-ink">
           Tipo de entrada
         </label>
         <select
           id="entryType"
           value={form.entryType}
           onChange={(event) => set('entryType', event.target.value as SelectableEntryType)}
-          className="w-full rounded-lg border border-slate-300 px-3.5 py-2.5 text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/30"
+          className="w-full rounded-[9px] border border-line-strong bg-white px-3.5 py-2.5 text-sm text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/30"
         >
           {SELECTABLE_ENTRY_TYPES.map((type) => (
             <option key={type} value={type}>
@@ -136,7 +140,7 @@ export function ClinicalEntryForm({ patientId, consultationId }: ClinicalEntryFo
       {add.isError && (
         <p
           role="alert"
-          className="rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger"
+          className="rounded-[10px] border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger"
         >
           {add.error.message}
         </p>
@@ -145,7 +149,7 @@ export function ClinicalEntryForm({ patientId, consultationId }: ClinicalEntryFo
       {add.isSuccess && (
         <p
           role="status"
-          className="rounded-lg border border-brand/30 bg-surface-teal px-4 py-3 text-sm text-brand-hover"
+          className="rounded-[10px] border border-brand/30 bg-surface-teal px-4 py-3 text-sm text-brand-hover"
         >
           Entrada guardada en la historia clínica.
         </p>
@@ -180,7 +184,7 @@ function Field({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-sm font-medium text-ink">
+      <label htmlFor={id} className="text-[13px] font-semibold text-ink">
         {label}
         {!required && <span className="ml-1 font-normal text-muted">(opcional)</span>}
       </label>
@@ -191,8 +195,8 @@ function Field({
         aria-invalid={!!error}
         aria-describedby={errorId}
         onChange={(event) => onChange(event.target.value)}
-        className={`w-full rounded-lg border px-3.5 py-2.5 text-ink outline-none transition-colors placeholder:text-muted/60 focus:border-brand focus:ring-2 focus:ring-brand/30 ${
-          error ? 'border-danger' : 'border-slate-300'
+        className={`w-full resize-y rounded-[9px] border bg-white px-3.5 py-2.5 text-sm leading-[1.7] text-ink outline-none transition-colors placeholder:text-muted/60 focus:border-brand focus:ring-2 focus:ring-brand/30 ${
+          error ? 'border-danger' : 'border-line-strong'
         }`}
       />
       {error && (

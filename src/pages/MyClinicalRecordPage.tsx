@@ -12,9 +12,10 @@ import { DashboardLayout } from './DashboardLayout';
  *   una decisión de UI: el backend rechaza el POST de cualquiera que no tenga un
  *   turno con el paciente, así que esconder el formulario solo evita ofrecer una
  *   acción que iba a fallar.
- * - **La historia es completa.** RLS le da al paciente todas sus entradas
- *   (`..._select_own_patient`), mientras que al profesional le muestra solo las
- *   que él firmó. Por eso los textos del vacío son distintos.
+ * - **El vacío significa otra cosa.** Para el paciente es "todavía no te
+ *   registraron nada"; para el profesional, que desde ENG-60 también ve la
+ *   historia completa, es "este paciente no tiene historia". Por eso el texto lo
+ *   pone cada página y no el componente.
  *
  * El id sale de la sesión y no de la URL: la HC que un paciente puede ver es la
  * suya, y no hay nada que elegir.

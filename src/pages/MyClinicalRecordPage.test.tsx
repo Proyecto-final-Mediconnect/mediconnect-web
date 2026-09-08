@@ -90,8 +90,10 @@ describe('MyClinicalRecordPage (ENG-59)', () => {
     expect(item).not.toBeNull();
 
     const card = within(item as HTMLElement);
-    expect(card.getByText(/20\/08\/2026/)).toBeInTheDocument();
-    expect(card.getByText('Ana García')).toBeInTheDocument();
+    expect(card.getByText(/20 de agosto de 2026/)).toBeInTheDocument();
+    // Con nombre y todo: la tarjeta dice quién firmó el asiento, no solo que
+    // alguien lo hizo. Ley 26.529 art. 15.
+    expect(card.getByText(/firmada por Ana García/i)).toBeInTheDocument();
     expect(card.getByText(/consulta/i)).toBeInTheDocument();
     expect(card.getByText('Dolor lumbar de 3 días')).toBeInTheDocument();
   });

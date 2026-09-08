@@ -265,4 +265,51 @@ describe('ClinicalRecord', () => {
       expect(await screen.findByText(/#1 ·/)).toBeInTheDocument();
     });
   });
+
+  /**
+   * ENG-60 cambió el `[]` de ENG-58 por un 403 explícito para quien no tiene
+   * relación con el paciente. Es un error accionable —conseguí un turno— y no
+   * uno a reintentar, así que la pantalla lo separa de una caída del backend.
+   */
+  describe('errores', () => {
+    function failWith(status: number, message: string) {
+      fetchSpy.mockImplementation(
+        (_input: RequestInfo | URL, init?: RequestInit): Promise<Response> =>
+          (init?.method ?? 'GET') === 'POST'
+            ? Promise.resolve(jsonResponse(makeEntry(), 201))
+            : Promise.resolve(jsonResponse({ message }, status)),
+      );
+    }
+
+    it('explica el 403 en vez de invitar a reintentar', async () => {
+      failWith(403, 'Solo podés ver la historia clínica de un paciente con el que tenés un turno.');
+      renderRecord();
+
+      const alerta = await screen.findByRole('alert');
+      expect(alerta).toHaveTextContent(/con el que tenés un turno/i);
+      expect(alerta).toHaveTextContent(/reservado, confirmado o ya completado/i);
+      expect(alerta).not.toHaveTextContent(/probá de nuevo/i);
+    });
+
+    it('ante una caída del backend sí ofrece reintentar', async () => {
+      failWith(500, 'Se cayó el servidor.');
+      renderRecord();
+
+      // `useClinicalRecord` reintenta una vez ante un 5xx (no ante un 4xx) y el
+      // backoff de react-query se come el segundo por defecto de `findBy`.
+      const alerta = await screen.findByRole('alert', {}, { timeout: 3000 });
+      expect(alerta).toHaveTextContent(/se cayó el servidor/i);
+      expect(alerta).toHaveTextContent(/probá de nuevo/i);
+    });
+
+    /** Un 403 no puede parecer un paciente sin historia: son cosas distintas y
+     *  llevan a acciones distintas. */
+    it('un 403 no muestra el vacío', async () => {
+      failWith(403, 'Sin acceso.');
+      renderRecord();
+
+      await screen.findByRole('alert');
+      expect(screen.queryByText(/no hay entradas para mostrar/i)).not.toBeInTheDocument();
+    });
+  });
 });

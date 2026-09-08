@@ -92,7 +92,7 @@ describe('formatEntryDate', () => {
   it('muestra fecha y hora', () => {
     const formatted = formatEntryDate('2026-08-27T12:34:00.000Z');
 
-    expect(formatted).toMatch(/27\/08\/2026/);
+    expect(formatted).toMatch(/27 de agosto de 2026/);
     expect(formatted).toMatch(/\d{2}:\d{2}/);
   });
 });
