@@ -22,6 +22,7 @@ export function RecordFilters({
   profesionales,
   total,
   visibles,
+  onDescargar,
 }: {
   filtros: FiltrosHC;
   onChange: (filtros: FiltrosHC) => void;
@@ -29,6 +30,7 @@ export function RecordFilters({
   profesionales: string[];
   total: number;
   visibles: number;
+  onDescargar: () => void;
 }) {
   const set = <K extends keyof FiltrosHC>(key: K, value: FiltrosHC[K]) =>
     onChange({ ...filtros, [key]: value });
@@ -41,7 +43,7 @@ export function RecordFilters({
     filtros.soloCorrecciones;
 
   return (
-    <aside className="overflow-hidden rounded-[14px] border border-line bg-white lg:sticky lg:top-6">
+    <aside className="overflow-hidden rounded-[14px] border border-line bg-white print:hidden lg:sticky lg:top-6">
       <div className="border-b border-line-soft px-[22px] py-[18px]">
         <h2 className="text-base font-bold text-brand-deep">Filtros</h2>
         <p className="mt-1 text-xs text-muted">
@@ -131,6 +133,21 @@ export function RecordFilters({
           />
           Solo entradas con correcciones
         </label>
+
+        {/* Descarga el PDF con la impresión del navegador: no hay endpoint de
+            exportación, y no hace falta uno. La hoja impresa se define en
+            `index.css`, sale sin la barra del panel ni este mismo panel, y el
+            navegador ofrece "Guardar como PDF" en el mismo diálogo.
+
+            Baja lo que estás viendo, filtros incluidos, y el encabezado impreso
+            lo aclara cuando hay alguno puesto. */}
+        <button
+          type="button"
+          onClick={onDescargar}
+          className="rounded-[9px] border border-line-strong bg-white py-3 text-[13px] font-bold text-brand-deep transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+        >
+          Descargar historia en PDF
+        </button>
 
         {activo && (
           <button

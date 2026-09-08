@@ -71,3 +71,53 @@ body {
   font-weight: 400;
   letter-spacing: -0.02em;
 }
+
+/* Hoja impresa.
+ *
+ * La usa "Descargar historia en PDF": no hay endpoint de exportación y no hace
+ * falta uno — el navegador ya imprime a PDF, y lo que se manda a la impresora
+ * es el mismo DOM que se está mirando. Lo que hay que resolver es qué sobra.
+ *
+ * Sobra todo lo que sirve para navegar: la barra lateral del panel, la barra
+ * superior y los controles. Un papel no se navega. Las tarjetas, en cambio,
+ * tienen que conservar el borde y evitar partirse al medio: una entrada clínica
+ * cortada entre dos hojas se lee mal y, peor, se puede leer incompleta. */
+@media print {
+  /* Fondos de color a papel blanco: el gris del panel sale como una mancha y
+     se come el tóner sin aportar nada. */
+  .bg-surface,
+  body {
+    background: #ffffff !important;
+  }
+
+  /* La barra lateral del panel y la barra superior. Se apuntan por rol y no por
+     clase para no depender del maquetado de `AppShell`. */
+  aside.group\/rail,
+  header {
+    display: none !important;
+  }
+
+  /* El marco del panel deja de ser grilla de dos columnas: sin barra lateral,
+     la columna vacía dejaba media hoja en blanco a la izquierda. */
+  .lg\:grid-cols-\[auto_minmax\(0\,1fr\)\] {
+    display: block !important;
+  }
+
+  main {
+    padding: 0 !important;
+    max-width: none !important;
+  }
+
+  /* Una entrada no se parte entre dos hojas. */
+  article {
+    break-inside: avoid;
+    border: 1px solid #cfdde3 !important;
+  }
+
+  /* Los enlaces internos de las correcciones ("entrada #4") no se subrayan en
+     papel: no se puede hacer clic y el subrayado los disfraza de algo que sí. */
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+}

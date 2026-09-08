@@ -230,12 +230,18 @@ describe('ClinicalRecord', () => {
   });
 
   describe('listado', () => {
-    it('muestra el hash y la posición en la cadena', async () => {
-      // Es la evidencia visible de que la entrada está sellada.
+    /**
+     * El hash y la posición en la cadena no se muestran: son datos internos del
+     * modelo de integridad, no información clínica. En cada tarjeta se leían
+     * como un id de debug, y nadie compara un hash a ojo.
+     */
+    it('no muestra el hash ni la posición en la cadena', async () => {
       entries = [makeEntry()];
       renderRecord();
 
-      expect(await screen.findByText(/#1 · abcd1234/)).toBeInTheDocument();
+      await screen.findByText('Dolor lumbar de 3 días');
+      expect(screen.queryByText(/abcd1234/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/sellada en la cadena/i)).not.toBeInTheDocument();
     });
 
     it('muestra lo más reciente primero', async () => {
@@ -268,18 +274,19 @@ describe('ClinicalRecord', () => {
       ];
       renderRecord();
 
+      // El enlace dice a dónde lleva. Antes decía "entrada #1", que es la
+      // posición en la cadena: un dato interno que obliga a buscar a mano.
       const correccion = (await screen.findByText('La corrige')).closest('article')!;
-      expect(within(correccion).getByRole('link', { name: /entrada #1/i })).toHaveAttribute(
-        'href',
-        '#entrada-1',
-      );
+      expect(
+        within(correccion).getByRole('link', { name: /ver el registro original/i }),
+      ).toHaveAttribute('href', '#entrada-1');
 
       const original = screen.getByText('La original').closest('article')!;
-      expect(within(original).getByRole('link', { name: /entrada #2/i })).toHaveAttribute(
+      expect(within(original).getByRole('link', { name: /ver la corrección/i })).toHaveAttribute(
         'href',
         '#entrada-2',
       );
-      expect(original).toHaveTextContent(/queda como se escribió/i);
+      expect(original).toHaveTextContent(/se conserva como se escribió/i);
     });
 
     /** La corregida puede no estar en la lista que se recibió. */
@@ -287,9 +294,13 @@ describe('ClinicalRecord', () => {
       entries = [makeEntry({ entryType: 'CORRECCION', correctsEntryId: 'fuera-de-la-lista' })];
       renderRecord();
 
+      // Sin destino no se ofrece el enlace, pero el hecho se sigue diciendo.
       expect(
-        await screen.findByText(/corrige a una entrada anterior, que sigue en la historia/i),
+        await screen.findByText(/corrige un registro anterior, que se conserva sin cambios/i),
       ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('link', { name: /ver el registro original/i }),
+      ).not.toBeInTheDocument();
     });
 
     /**
@@ -322,7 +333,11 @@ describe('ClinicalRecord', () => {
       entries = [makeEntry({ content: 'texto suelto' })];
       renderRecord();
 
-      expect(await screen.findByText(/#1 ·/)).toBeInTheDocument();
+      // La entrada se sigue mostrando —fecha y firma— aunque no haya nada
+      // legible adentro: es una historia clínica, y perder el registro es peor
+      // que mostrarlo sin contenido.
+      expect(await screen.findByText(/no tiene contenido legible/i)).toBeInTheDocument();
+      expect(screen.getByText(/firmada por Ana García/i)).toBeInTheDocument();
     });
   });
 
@@ -432,11 +447,23 @@ describe('ClinicalRecord', () => {
     it('no ofrece un desplegable con una sola opción', async () => {
       entries = [makeEntry()];
       renderRecord();
-      await screen.findByText(/#1/);
+      await screen.findByText('Dolor lumbar de 3 días');
 
       // Un filtro con un único valor no filtra nada y ocupa lo mismo.
       expect(screen.queryByLabelText(/tipo de registro/i)).not.toBeInTheDocument();
       expect(screen.queryByLabelText(/profesional/i)).not.toBeInTheDocument();
+    });
+
+    /** No hay endpoint de exportación: la descarga es la impresión del
+     *  navegador, que ya ofrece "Guardar como PDF". */
+    it('el botón de PDF manda a imprimir', async () => {
+      const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+      renderRecord();
+      await screen.findByText('La consulta');
+
+      await userEvent.click(screen.getByRole('button', { name: /descargar historia en pdf/i }));
+
+      expect(print).toHaveBeenCalledTimes(1);
     });
   });
 });

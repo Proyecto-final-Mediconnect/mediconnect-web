@@ -37,7 +37,12 @@ type ClinicalRecordProps = {
    * profesional es "este paciente no tiene historia".
    */
   emptyText?: string;
-  /** Aclaración sobre el alcance de lo que se lista, si hace falta. */
+  /**
+   * Aclaración sobre el alcance de lo que se lista.
+   *
+   * No se dibuja en pantalla —la barra del panel ya da el contexto— pero
+   * encabeza la copia impresa, que sale sin ninguna de las dos cosas.
+   */
   scopeNote?: string;
   /**
    * Si se muestra el formulario para agregar una entrada.
@@ -92,18 +97,16 @@ export function ClinicalRecord({
       )}
 
       <section aria-labelledby="entradas">
-        <SectionHeading
-          id="entradas"
-          title="Historia clínica"
-          count={record.data ? entries.length : undefined}
-        />
-
-        {scopeNote && (
-          <p className="mt-3 max-w-[720px] text-[15px] leading-[1.7] text-muted">{scopeNote}</p>
-        )}
+        {/* El título de la sección no se dibuja: la barra del panel ya dice en
+            qué pantalla estás y repetirlo empujaba la cadena media pantalla
+            abajo. Sigue existiendo para el lector de pantalla, que no tiene esa
+            barra a mano cuando entra a la región. */}
+        <h2 id="entradas" className="sr-only">
+          Historia clínica
+        </h2>
 
         {record.isPending && (
-          <p role="status" aria-live="polite" className="mt-4 text-sm text-muted">
+          <p role="status" aria-live="polite" className="text-sm text-muted">
             Cargando la historia clínica…
           </p>
         )}
@@ -111,13 +114,15 @@ export function ClinicalRecord({
         {record.isError && <RecordError error={record.error} />}
 
         {record.data && entries.length === 0 && (
-          <p className="mt-4 rounded-[14px] border border-dashed border-line-strong bg-white p-6 text-[13px] leading-[1.6] text-muted">
+          <p className="rounded-[14px] border border-dashed border-line-strong bg-white p-6 text-[13px] leading-[1.6] text-muted">
             {emptyText}
           </p>
         )}
 
         {entries.length > 0 && (
-          <div className="mt-6 grid items-start gap-[22px] lg:grid-cols-[262px_minmax(0,1fr)]">
+          <>
+            <EncabezadoImpreso scopeNote={scopeNote} total={entries.length} visibles={visibles.length} />
+          <div className="grid items-start gap-[22px] lg:grid-cols-[262px_minmax(0,1fr)] print:block">
             <RecordFilters
               filtros={filtros}
               onChange={setFiltros}
@@ -125,6 +130,7 @@ export function ClinicalRecord({
               profesionales={opciones.profesionales}
               total={entries.length}
               visibles={visibles.length}
+              onDescargar={() => window.print()}
             />
 
             {visibles.length === 0 ? (
@@ -147,8 +153,41 @@ export function ClinicalRecord({
               </div>
             )}
           </div>
+          </>
         )}
       </section>
+    </div>
+  );
+}
+
+/**
+ * Lo que encabeza la copia impresa y no se ve en pantalla.
+ *
+ * Una historia clínica impresa circula sola: puede terminar en la carpeta de
+ * otro profesional, y ahí no hay barra de panel ni pantalla que la explique.
+ * Necesita decir qué es, cuándo se sacó y —si había filtros puestos— que no es
+ * la historia completa. Sin esa última línea, una impresión filtrada se lee
+ * como si fuera todo lo que hay.
+ */
+function EncabezadoImpreso({
+  scopeNote,
+  total,
+  visibles,
+}: {
+  scopeNote?: string;
+  total: number;
+  visibles: number;
+}) {
+  return (
+    <div className="hidden print:mb-6 print:block">
+      <h1 className="text-[22px] font-bold text-brand-deep">Historia clínica</h1>
+      {scopeNote && <p className="mt-1.5 text-[12px] leading-[1.6] text-muted">{scopeNote}</p>}
+      <p className="mt-1.5 text-[12px] text-muted">
+        Impresa el {new Date().toLocaleDateString('es-AR')} ·{' '}
+        {visibles === total
+          ? `${total} entradas`
+          : `${visibles} de ${total} entradas (hay filtros aplicados)`}
+      </p>
     </div>
   );
 }

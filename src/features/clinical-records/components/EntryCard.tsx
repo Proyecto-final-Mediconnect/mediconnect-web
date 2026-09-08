@@ -1,4 +1,4 @@
-import { anclaDe, formatEntryDate, readEntryFields, shortHash } from '../lib/clinicalEntry';
+import { anclaDe, formatEntryDate, readEntryFields } from '../lib/clinicalEntry';
 import { nombreDe } from '../lib/filtrarEntradas';
 import { ENTRY_TYPE_LABELS, type ClinicalEntry } from '../types/clinicalRecord';
 
@@ -73,19 +73,9 @@ export function EntryCard({
               )}
             </div>
 
-            {/* Fecha y procedencia. El hash es el `REG-…` del canvas con el dato
-                que existe de verdad: la posición en la cadena y su sello. */}
-            <div className="grid gap-[3px] text-right">
-              <span className="text-xs font-medium text-muted-soft">
-                {formatEntryDate(entry.createdAt)}
-              </span>
-              <span
-                className="font-mono text-[11px] text-muted-soft"
-                title={entry.contentHash}
-              >
-                #{entry.sequenceNumber} · {shortHash(entry.contentHash)}
-              </span>
-            </div>
+            <span className="text-xs font-medium text-muted-soft">
+              {formatEntryDate(entry.createdAt)}
+            </span>
           </div>
 
           {titular ? (
@@ -125,39 +115,40 @@ export function EntryCard({
             </dl>
           )}
 
-          {(corrigeA !== undefined || entry.correctsEntryId || corregida) && (
-            <p className="mt-4 border-t border-dashed border-line pt-3.5 text-[13px] leading-[1.6] text-muted">
-              {entry.correctsEntryId &&
-                (corrigeA === undefined ? (
-                  // La corregida puede no estar en la lista: el paciente ve su
-                  // cadena entera, pero un filtro activo puede dejarla afuera.
-                  <>Corrige a una entrada anterior, que sigue en la historia sin modificar.</>
-                ) : (
-                  <>
-                    Corrige a la{' '}
-                    <a
-                      href={`#${anclaDe(corrigeA)}`}
-                      className="font-semibold text-brand-deep underline underline-offset-2"
-                    >
-                      entrada #{corrigeA}
-                    </a>
-                    , que sigue en la historia sin modificar.
-                  </>
-                ))}
-              {corregida && (
-                <>
-                  Corregida más tarde por la{' '}
-                  <a
-                    href={`#${anclaDe(corregidaPor)}`}
-                    className="font-semibold text-brand-deep underline underline-offset-2"
-                  >
-                    entrada #{corregidaPor}
-                  </a>
-                  . Esta queda como se escribió.
-                </>
+          {/* Las dos caras del vínculo de corrección.
+              Antes decían "Corrige a la entrada #4" y "Corregida más tarde por
+              la entrada #5": el número es un dato interno —la posición en la
+              cadena— que no significa nada para quien lee su historia, y
+              obligaba a buscar a mano cuál era esa entrada. Ahora el enlace dice
+              a dónde lleva. */}
+          {entry.correctsEntryId && (
+            <p className="mt-4 rounded-[10px] bg-surface px-4 py-3 text-[13px] leading-[1.6] text-muted">
+              Corrige un registro anterior, que se conserva sin cambios.{' '}
+              {/* La corregida puede no estar en pantalla: el paciente ve su
+                  cadena entera, pero un filtro puesto puede dejarla afuera. */}
+              {corrigeA !== undefined && (
+                <a
+                  href={`#${anclaDe(corrigeA)}`}
+                  className="font-semibold text-brand-deep underline underline-offset-2"
+                >
+                  Ver el registro original
+                </a>
               )}
             </p>
           )}
+
+          {corregida && (
+            <p className="mt-4 rounded-[10px] bg-surface px-4 py-3 text-[13px] leading-[1.6] text-muted">
+              Este registro tiene una corrección posterior. Se conserva como se escribió.{' '}
+              <a
+                href={`#${anclaDe(corregidaPor)}`}
+                className="font-semibold text-brand-deep underline underline-offset-2"
+              >
+                Ver la corrección
+              </a>
+            </p>
+          )}
+
         </div>
       </div>
     </article>
