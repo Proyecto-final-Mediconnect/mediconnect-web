@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ClinicalRecord } from './ClinicalRecord';
@@ -38,34 +38,12 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-/** Ultimo POST que hizo el componente, ya parseado. */
-function lastPostBody(spy: ReturnType<typeof vi.spyOn>): Record<string, unknown> | undefined {
-  const calls = spy.mock.calls as unknown as [RequestInfo, RequestInit?][];
-  const post = calls.filter((call) => call[1]?.method === 'POST').pop();
-  return post?.[1]?.body
-    ? (JSON.parse(post[1].body as string) as Record<string, unknown>)
-    : undefined;
-}
-
-/** Cuantos POST se dispararon. */
-function postCount(spy: ReturnType<typeof vi.spyOn>): number {
-  const calls = spy.mock.calls as unknown as [RequestInfo, RequestInit?][];
-  return calls.filter((call) => call[1]?.method === 'POST').length;
-}
-
-/** El alta vive en un diálogo: hay que abrirlo antes de tocar el formulario. */
-async function abrirAlta() {
-  await userEvent.click(await screen.findByRole('button', { name: /agregar entrada/i }));
-}
-
-function renderRecord(props: { consultationId?: string } = {}) {
-  const queryClient = new QueryClient({
-    defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
-  });
+function renderRecord() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <ClinicalRecord patientId={PATIENT} {...props} />
+      <ClinicalRecord patientId={PATIENT} />
     </QueryClientProvider>,
   );
 }
@@ -78,203 +56,12 @@ describe('ClinicalRecord', () => {
     entries = [];
     fetchSpy = vi
       .spyOn(globalThis, 'fetch')
-      .mockImplementation((_input, init): Promise<Response> => {
-        if ((init?.method ?? 'GET') === 'POST') {
-          const created = makeEntry({ id: 'nueva', sequenceNumber: entries.length + 1 });
-          entries = [...entries, created];
-          return Promise.resolve(jsonResponse(created, 201));
-        }
-        return Promise.resolve(jsonResponse(entries));
-      });
+      .mockImplementation((): Promise<Response> => Promise.resolve(jsonResponse(entries)));
   });
 
   afterEach(() => {
     vi.restoreAllMocks();
     cleanup();
-  });
-
-  describe('formulario', () => {
-    it('avisa que lo guardado no se puede editar ni borrar', async () => {
-      // Es lo primero que tiene que saber quien escribe un asiento clínico.
-      renderRecord();
-      await abrirAlta();
-
-      expect(await screen.findByText(/no se puede editar ni borrar/i)).toBeInTheDocument();
-    });
-
-    it('ofrece los cuatro campos del criterio de aceptación', async () => {
-      renderRecord();
-      await abrirAlta();
-
-      expect(screen.getByLabelText(/tipo de entrada/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/motivo de consulta/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/evolución y hallazgos/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/diagnóstico/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/plan e indicaciones/i)).toBeInTheDocument();
-    });
-
-    it('no pide la fecha: la pone el servidor al sellar', async () => {
-      // Dejar elegirla permitiría antedatar un asiento con la cadena cerrando.
-      renderRecord();
-      await abrirAlta();
-
-      expect(screen.queryByLabelText(/fecha/i)).not.toBeInTheDocument();
-    });
-
-    it('no ofrece CORRECCION, que es ENG-100', async () => {
-      renderRecord();
-      await abrirAlta();
-
-      const select = screen.getByLabelText(/tipo de entrada/i);
-      expect(within(select).queryByText(/corrección/i)).not.toBeInTheDocument();
-    });
-
-    it('exige el motivo antes de mandar nada', async () => {
-      renderRecord();
-      await abrirAlta();
-
-      await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
-
-      expect(await screen.findByText(/el motivo es obligatorio/i)).toBeInTheDocument();
-      expect(postCount(fetchSpy)).toBe(0);
-    });
-
-    it('manda solo los campos completados', async () => {
-      renderRecord();
-      await abrirAlta();
-
-      await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Control');
-      await userEvent.type(screen.getByLabelText(/plan e indicaciones/i), 'Volver en 7 días');
-      await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
-
-      await waitFor(() =>
-        expect(lastPostBody(fetchSpy)).toEqual({
-          entryType: 'CONSULTA',
-          reason: 'Control',
-          plan: 'Volver en 7 días',
-        }),
-      );
-    });
-
-    it('nunca manda professionalId ni createdAt', async () => {
-      // Los dos entran a la preimagen del hash y los pone el servidor.
-      renderRecord();
-      await abrirAlta();
-
-      await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Control');
-      await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
-
-      await waitFor(() => {
-        const body = lastPostBody(fetchSpy);
-        expect(body).toBeDefined();
-        expect(body).not.toHaveProperty('professionalId');
-        expect(body).not.toHaveProperty('createdAt');
-      });
-    });
-
-    it('asocia la entrada a la consulta en curso cuando la hay', async () => {
-      renderRecord({ consultationId: '44444444-4444-4444-8444-444444444444' });
-      await abrirAlta();
-
-      await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Durante la consulta');
-      await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
-
-      await waitFor(() =>
-        expect(lastPostBody(fetchSpy)?.consultationId).toBe('44444444-4444-4444-8444-444444444444'),
-      );
-    });
-
-    it('la entrada aparece en la lista apenas se guarda', async () => {
-      // Es el cuarto criterio de aceptación.
-      renderRecord();
-      await abrirAlta();
-
-      expect(await screen.findByText(/no hay entradas para mostrar/i)).toBeInTheDocument();
-
-      await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Dolor lumbar de 3 días');
-      await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
-
-      expect(await screen.findByText('Dolor lumbar de 3 días')).toBeInTheDocument();
-    });
-
-    /**
-     * Al guardar, el diálogo se cierra. Lo que hay que probar es qué se
-     * encuentra quien lo vuelve a abrir: un formulario limpio y sin reclamos.
-     * `attempted` quedaba en true, así que el formulario recién vaciado volvía a
-     * cumplir la condición de error y mostraba "El motivo es obligatorio".
-     */
-    it('al reabrirlo no reclama el motivo del asiento anterior', async () => {
-      renderRecord();
-      await abrirAlta();
-
-      await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Control');
-      await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
-
-      await abrirAlta();
-      expect(screen.queryByText(/el motivo es obligatorio/i)).not.toBeInTheDocument();
-    });
-
-    it('al reabrirlo el formulario está vacío', async () => {
-      // Sin esto, el segundo asiento arranca con el texto del primero a la
-      // vista: en una historia clínica eso es copiar la consulta anterior sin
-      // darse cuenta, y la fila no se puede borrar.
-      renderRecord();
-      await abrirAlta();
-
-      await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Control');
-      await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
-
-      await abrirAlta();
-      expect(screen.getByLabelText(/motivo de consulta/i)).toHaveValue('');
-    });
-
-    it('el diálogo se cierra al guardar', async () => {
-      renderRecord();
-      await abrirAlta();
-
-      await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Control');
-      await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
-
-      // La confirmación es la entrada apareciendo en la lista, que es lo que
-      // pide el criterio de aceptación: no hace falta un cartel además.
-      await waitFor(() =>
-        expect(screen.queryByLabelText(/motivo de consulta/i)).not.toBeInTheDocument(),
-      );
-    });
-
-    it('se puede cerrar sin guardar', async () => {
-      renderRecord();
-      await abrirAlta();
-
-      await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Me arrepentí');
-      await userEvent.click(screen.getByRole('button', { name: /cancelar/i }));
-
-      expect(screen.queryByLabelText(/motivo de consulta/i)).not.toBeInTheDocument();
-      expect(postCount(fetchSpy)).toBe(0);
-    });
-
-    it('muestra el mensaje del backend cuando rechaza', async () => {
-      fetchSpy.mockImplementation((_input: unknown, init?: RequestInit) =>
-        Promise.resolve(
-          (init?.method ?? 'GET') === 'POST'
-            ? jsonResponse(
-                {
-                  message:
-                    'Solo podés escribir en la historia clínica de un paciente al que atendiste.',
-                },
-                403,
-              )
-            : jsonResponse([]),
-        ),
-      );
-
-      renderRecord();
-      await abrirAlta();
-      await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Control');
-      await userEvent.click(screen.getByRole('button', { name: /guardar/i }));
-
-      expect(await screen.findByText(/paciente al que atendiste/i)).toBeInTheDocument();
-    });
   });
 
   describe('listado', () => {

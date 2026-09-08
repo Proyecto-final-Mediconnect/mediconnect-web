@@ -11,6 +11,12 @@ type DashboardLayoutProps = {
    */
   greeting?: string;
   subtitle?: string;
+  /**
+   * Acción principal de la pantalla, a la derecha del saludo y a su misma
+   * altura. Es donde el ojo la busca: pegada al título de lo que se está
+   * mirando, no perdida arriba de una lista.
+   */
+  action?: ReactNode;
   children?: ReactNode;
 };
 
@@ -26,19 +32,27 @@ export function DashboardLayout({
   barTitle,
   greeting,
   subtitle,
+  action,
   children,
 }: DashboardLayoutProps) {
   return (
     <AppShell title={barTitle}>
-      {greeting && (
-        <h2 className="font-display text-[30px] leading-[1.1] text-brand-deep lg:text-[36px]">
-          {greeting}
-        </h2>
+      {(greeting || subtitle || action) && (
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            {greeting && (
+              <h2 className="font-display text-[30px] leading-[1.1] text-brand-deep lg:text-[36px]">
+                {greeting}
+              </h2>
+            )}
+            {subtitle && (
+              <p className={`text-base text-muted ${greeting ? 'mt-2.5' : ''}`}>{subtitle}</p>
+            )}
+          </div>
+          {action && <div className="flex-none print:hidden">{action}</div>}
+        </div>
       )}
-      {subtitle && (
-        <p className={`text-base text-muted ${greeting ? 'mt-2.5' : ''}`}>{subtitle}</p>
-      )}
-      <div className={greeting || subtitle ? 'mt-[26px]' : ''}>{children}</div>
+      <div className={greeting || subtitle || action ? 'mt-[26px]' : ''}>{children}</div>
     </AppShell>
   );
 }

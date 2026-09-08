@@ -8,10 +8,12 @@ import { DashboardLayout } from './DashboardLayout';
  * Es la misma lista que ve el profesional, con dos diferencias que no son de
  * estilo:
  *
- * - **Sin formulario.** Quien firma un asiento clínico es el profesional. No es
- *   una decisión de UI: el backend rechaza el POST de cualquiera que no tenga un
- *   turno con el paciente, así que esconder el formulario solo evita ofrecer una
- *   acción que iba a fallar.
+ * - **Sin alta.** Quien firma un asiento clínico es el profesional, así que esta
+ *   pantalla no ofrece "Agregar entrada". No es una decisión de UI: el backend
+ *   rechaza el POST de cualquiera que no tenga un turno con el paciente, así que
+ *   esconderlo solo evita ofrecer una acción que iba a fallar. Por eso el alta
+ *   vive en `PatientClinicalRecordPage` y no en `ClinicalRecord`: es de la
+ *   pantalla del profesional, no de la historia.
  * - **El vacío significa otra cosa.** Para el paciente es "todavía no te
  *   registraron nada"; para el profesional, que desde ENG-60 también ve la
  *   historia completa, es "este paciente no tiene historia". Por eso el texto lo
@@ -39,7 +41,6 @@ export function MyClinicalRecordPage() {
       {user && (
         <ClinicalRecord
           patientId={user.id}
-          canAddEntries={false}
           scopeNote="En orden cronológico, de lo más reciente a lo más viejo. Los registros cerrados no se editan: si hubo una corrección, aparece como una entrada nueva vinculada al original."
           emptyText="Todavía no hay entradas en tu historia clínica. Aparecen acá cuando un profesional registra algo de una consulta."
         />

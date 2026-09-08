@@ -1,6 +1,10 @@
+import { useState } from 'react';
 import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMyAppointments } from '../features/appointments/hooks/useAppointments';
+import { ClinicalEntryForm } from '../features/clinical-records/components/ClinicalEntryForm';
 import { ClinicalRecord } from '../features/clinical-records/components/ClinicalRecord';
+import { Button } from '../shared/ui/Button';
+import { Modal } from '../shared/ui/Modal';
 import { DashboardLayout } from './DashboardLayout';
 
 /** Espeja el `@IsUUID('4')` del DTO del backend. */
@@ -31,6 +35,7 @@ export function PatientClinicalRecordPage() {
   const { patientId } = useParams<{ patientId: string }>();
   const [searchParams] = useSearchParams();
   const nombre = useNombreDelPaciente(patientId);
+  const [altaAbierta, setAltaAbierta] = useState(false);
 
   if (!patientId) return <Navigate to="/mis-turnos" replace />;
 
@@ -49,11 +54,14 @@ export function PatientClinicalRecordPage() {
       barTitle="Historia clínica"
       greeting={nombre ?? undefined}
       subtitle="Cada entrada queda sellada en la cadena y no se puede modificar."
+      action={
+        <Button type="button" onClick={() => setAltaAbierta(true)}>
+          Agregar entrada
+        </Button>
+      }
     >
       <ClinicalRecord
         patientId={patientId}
-        consultationId={consultationId}
-        pacienteNombre={nombre ?? undefined}
         // Con ENG-60 el vacío pasó a ser literal: si no hay entradas, este
         // paciente no tiene historia clínica. Antes podía haber una historia
         // entera escrita por otros e invisible para quien miraba, y por eso el
@@ -61,6 +69,27 @@ export function PatientClinicalRecordPage() {
         emptyText="Este paciente todavía no tiene entradas en su historia clínica. La primera la podés cargar desde “Agregar entrada”."
         scopeNote="Ves la historia completa, incluidas las entradas firmadas por otros profesionales. Los registros cerrados no se editan: si hubo una corrección, aparece como una entrada nueva vinculada al original."
       />
+
+      {/* El alta vive acá y no adentro de `ClinicalRecord`: es de esta pantalla,
+          no de la historia. El paciente ve la misma lista y no la tiene, porque
+          quien firma un asiento clínico es el profesional. */}
+      <Modal
+        open={altaAbierta}
+        titulo="Agregar una entrada"
+        descripcion={
+          nombre
+            ? `Se guarda en la historia clínica de ${nombre}, firmada por vos.`
+            : 'Se guarda firmada por vos.'
+        }
+        onClose={() => setAltaAbierta(false)}
+      >
+        <ClinicalEntryForm
+          patientId={patientId}
+          consultationId={consultationId}
+          onSaved={() => setAltaAbierta(false)}
+          onCancel={() => setAltaAbierta(false)}
+        />
+      </Modal>
     </DashboardLayout>
   );
 }

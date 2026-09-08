@@ -1,6 +1,4 @@
 import { useMemo, useState } from 'react';
-import { Button } from '../../../shared/ui/Button';
-import { Modal } from '../../../shared/ui/Modal';
 import { isClientError } from '../../../shared/api/apiError';
 import { useClinicalRecord } from '../hooks/useClinicalRecord';
 import {
@@ -10,7 +8,6 @@ import {
   type FiltrosHC,
 } from '../lib/filtrarEntradas';
 import type { ClinicalEntry } from '../types/clinicalRecord';
-import { ClinicalEntryForm } from './ClinicalEntryForm';
 import { EntryCard } from './EntryCard';
 import { RecordFilters } from './RecordFilters';
 
@@ -29,8 +26,6 @@ import { RecordFilters } from './RecordFilters';
 
 type ClinicalRecordProps = {
   patientId: string;
-  /** Consulta en curso, si se entra desde la videoconsulta. */
-  consultationId?: string;
   /**
    * Qué decir cuando no hay nada que mostrar.
    *
@@ -46,29 +41,15 @@ type ClinicalRecordProps = {
    * encabeza la copia impresa, que sale sin ninguna de las dos cosas.
    */
   scopeNote?: string;
-  /** Nombre del titular de la historia, para encabezar el diálogo de alta. */
-  pacienteNombre?: string;
-  /**
-   * Si se ofrece agregar una entrada.
-   *
-   * El paciente lee su historia pero no escribe en ella (ENG-59): quien firma un
-   * asiento clínico es el profesional. No es solo una decisión de UI — el
-   * backend rechaza el POST de cualquiera que no tenga un turno con el paciente.
-   */
-  canAddEntries?: boolean;
 };
 
 export function ClinicalRecord({
   patientId,
-  consultationId,
   emptyText = 'No hay entradas para mostrar.',
   scopeNote,
-  pacienteNombre,
-  canAddEntries = true,
 }: ClinicalRecordProps) {
   const record = useClinicalRecord(patientId);
   const [filtros, setFiltros] = useState<FiltrosHC>(FILTROS_VACIOS);
-  const [altaAbierta, setAltaAbierta] = useState(false);
 
   const entries = useMemo(() => record.data ?? [], [record.data]);
 
@@ -93,20 +74,6 @@ export function ClinicalRecord({
 
   return (
     <div className="grid gap-8">
-      {/* El alta va en un diálogo y no arriba de la lista.
-          El formulario tiene cinco campos y ocupaba la primera pantalla entera:
-          al entrar a la historia de un paciente lo primero que se veía era un
-          formulario vacío, y había que scrollear para llegar a lo que se venía a
-          leer. Escribir un asiento es una acción puntual; leer la historia es a
-          lo que se entra. */}
-      {canAddEntries && (
-        <div className="flex justify-end print:hidden">
-          <Button type="button" onClick={() => setAltaAbierta(true)}>
-            Agregar entrada
-          </Button>
-        </div>
-      )}
-
       <section aria-labelledby="entradas">
         {/* El título de la sección no se dibuja: la barra del panel ya dice en
             qué pantalla estás y repetirlo empujaba la cadena media pantalla
@@ -168,25 +135,6 @@ export function ClinicalRecord({
         )}
       </section>
 
-      {canAddEntries && (
-        <Modal
-          open={altaAbierta}
-          titulo="Agregar una entrada"
-          descripcion={
-            pacienteNombre
-              ? `Se guarda en la historia clínica de ${pacienteNombre}, firmada por vos.`
-              : 'Se guarda firmada por vos.'
-          }
-          onClose={() => setAltaAbierta(false)}
-        >
-          <ClinicalEntryForm
-            patientId={patientId}
-            consultationId={consultationId}
-            onSaved={() => setAltaAbierta(false)}
-            onCancel={() => setAltaAbierta(false)}
-          />
-        </Modal>
-      )}
     </div>
   );
 }
