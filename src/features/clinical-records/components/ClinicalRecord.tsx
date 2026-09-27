@@ -41,12 +41,31 @@ type ClinicalRecordProps = {
    * encabeza la copia impresa, que sale sin ninguna de las dos cosas.
    */
   scopeNote?: string;
+  /**
+   * Quién está mirando, para saber qué entradas firmó (ENG-100).
+   *
+   * Solo lo pasa la pantalla del profesional. Sin esto no se dibuja ningún botón
+   * de corregir, que es lo correcto en la pantalla del paciente: quien firma —y
+   * quien corrige— un asiento clínico es el profesional.
+   */
+  viewerId?: string;
+  /**
+   * Abre la corrección de una entrada (ENG-100).
+   *
+   * El diálogo vive en la pantalla y no acá por el mismo motivo que el alta: es
+   * de la pantalla, no de la historia. Este componente solo decide **sobre qué
+   * entradas se ofrece**, porque es el que tiene la cadena completa para saber
+   * cuáles ya están corregidas.
+   */
+  onCorregir?: (entry: ClinicalEntry) => void;
 };
 
 export function ClinicalRecord({
   patientId,
   emptyText = 'No hay entradas para mostrar.',
   scopeNote,
+  viewerId,
+  onCorregir,
 }: ClinicalRecordProps) {
   const record = useClinicalRecord(patientId);
   const [filtros, setFiltros] = useState<FiltrosHC>(FILTROS_VACIOS);
@@ -71,6 +90,27 @@ export function ClinicalRecord({
       posicionDe,
     };
   }, [entries, filtros]);
+
+  /**
+   * Las tres condiciones para ofrecer la corrección de una entrada (ENG-100).
+   *
+   * Espejan lo que el backend exige, y están acá para no ofrecer un botón que va
+   * a terminar en un 403 o un 409. **El backend sigue siendo la autoridad**: esto
+   * es lo que evita el error, no lo que lo previene.
+   *
+   * La comparación de UUID es sin distinguir mayúsculas porque es la misma
+   * comparación que el backend hace con `sameUuid`, y en JS son strings.
+   */
+  function puedeCorregir(entry: ClinicalEntry): boolean {
+    if (!onCorregir || !viewerId) return false;
+    // Solo el que firmó. La pantalla del profesional lista también las entradas
+    // de otros profesionales del mismo paciente (ENG-60).
+    if (entry.professionalId.toLowerCase() !== viewerId.toLowerCase()) return false;
+    // Una entrada ya corregida no se vuelve a corregir: hay que corregir la
+    // corrección, así el historial queda lineal y se sabe cuál es el dato
+    // vigente. Se mira sobre la cadena completa, no sobre lo filtrado.
+    return !corregidaPor.has(entry.id);
+  }
 
   return (
     <div className="grid gap-8">
@@ -125,6 +165,9 @@ export function ClinicalRecord({
                     corregidaPor={corregidaPor.get(entry.id)}
                     corrigeA={
                       entry.correctsEntryId ? posicionDe.get(entry.correctsEntryId) : undefined
+                    }
+                    onCorregir={
+                      puedeCorregir(entry) ? () => onCorregir?.(entry) : undefined
                     }
                   />
                 ))}

@@ -64,6 +64,23 @@ function renderPage(turnos: unknown[]) {
     const url = String(input);
     if (url.includes('/appointments/me')) return Promise.resolve(json(turnos));
 
+    // La corrección (ENG-100) va a una subruta y se guarda como una entrada más,
+    // vinculada a la que corrige. El backend hereda `entryType: CORRECCION`.
+    if ((init?.method ?? 'GET') === 'POST' && url.includes('/corrections')) {
+      const body = JSON.parse(String(init?.body)) as { reason: string };
+      const corregida = url.split('/clinical-record/')[1].split('/')[0];
+      const correccion = {
+        ...(entradas[0] as Record<string, unknown>),
+        id: 'correccion',
+        sequenceNumber: entradas.length + 1,
+        entryType: 'CORRECCION',
+        correctsEntryId: corregida,
+        content: { description: body.reason },
+      };
+      entradas = [...entradas, correccion];
+      return Promise.resolve(json(correccion));
+    }
+
     if ((init?.method ?? 'GET') === 'POST') {
       const creada = {
         id: 'nueva',
@@ -115,6 +132,14 @@ function postCount(): number {
 
 async function abrirAlta() {
   await userEvent.click(await screen.findByRole('button', { name: /agregar entrada/i }));
+}
+
+/** Carga una entrada por el alta, que es la única forma de tener una propia. */
+async function conUnaEntrada(motivo = 'Dolor lumbar de 3 días') {
+  await abrirAlta();
+  await userEvent.type(screen.getByLabelText(/motivo de consulta/i), motivo);
+  await userEvent.click(screen.getByRole('button', { name: /guardar en la historia/i }));
+  await screen.findByText(motivo);
 }
 
 afterEach(() => {
@@ -214,6 +239,77 @@ describe('PatientClinicalRecordPage', () => {
 
       expect(screen.queryByLabelText(/motivo de consulta/i)).not.toBeInTheDocument();
       expect(postCount()).toBe(0);
+    });
+  });
+
+  /**
+   * La corrección (ENG-100), del botón de la tarjeta al diálogo.
+   *
+   * Lo que prueba esta pantalla —y no los componentes por separado— es el cable:
+   * que el botón de una entrada propia abra el diálogo cargado con ESA entrada, y
+   * que al guardar la corrección aparezca en la cadena con la original marcada.
+   */
+  describe('corrección de una entrada', () => {
+    const botonCorregir = () => screen.getByRole('button', { name: /corregir esta entrada/i });
+
+    it('ofrece corregir la entrada que el profesional firmó', async () => {
+      renderPage([turno(PACIENTE)]);
+      await conUnaEntrada();
+
+      expect(botonCorregir()).toBeInTheDocument();
+    });
+
+    it('el diálogo abre con el contenido de esa entrada', async () => {
+      renderPage([turno(PACIENTE)]);
+      await conUnaEntrada('Dolor lumbar de 3 días');
+
+      await userEvent.click(botonCorregir());
+
+      expect(screen.getByLabelText(/motivo de consulta/i)).toHaveValue('Dolor lumbar de 3 días');
+      expect(screen.getByLabelText(/qué estás corrigiendo/i)).toHaveValue('');
+    });
+
+    it('la corrección aparece en la cadena y la original queda marcada', async () => {
+      renderPage([turno(PACIENTE)]);
+      await conUnaEntrada('Dolor lumbar de 3 días');
+      await userEvent.click(botonCorregir());
+
+      await userEvent.clear(screen.getByLabelText(/motivo de consulta/i));
+      await userEvent.type(screen.getByLabelText(/motivo de consulta/i), 'Dolor cervical');
+      await userEvent.type(
+        screen.getByLabelText(/qué estás corrigiendo/i),
+        'Era dolor cervical, no lumbar',
+      );
+      await userEvent.click(screen.getByRole('button', { name: /guardar la corrección/i }));
+
+      expect(await screen.findByText('Dolor cervical')).toBeInTheDocument();
+      // La original sigue ahí, con su texto intacto y la etiqueta.
+      expect(screen.getByText('Dolor lumbar de 3 días')).toBeInTheDocument();
+      expect(screen.getByText('CORREGIDA')).toBeInTheDocument();
+    });
+
+    it('la entrada ya corregida deja de ofrecer el botón', async () => {
+      renderPage([turno(PACIENTE)]);
+      await conUnaEntrada('Dolor lumbar de 3 días');
+      await userEvent.click(botonCorregir());
+      await userEvent.type(screen.getByLabelText(/qué estás corrigiendo/i), 'Error de tipeo');
+      await userEvent.click(screen.getByRole('button', { name: /guardar la corrección/i }));
+      await screen.findByText('CORREGIDA');
+
+      // Queda uno solo: el de la corrección, que todavía nadie corrigió.
+      expect(screen.getAllByRole('button', { name: /corregir esta entrada/i })).toHaveLength(1);
+    });
+
+    it('se puede cerrar sin guardar', async () => {
+      renderPage([turno(PACIENTE)]);
+      await conUnaEntrada();
+      const antes = postCount();
+      await userEvent.click(botonCorregir());
+
+      await userEvent.click(screen.getByRole('button', { name: /cancelar/i }));
+
+      expect(screen.queryByLabelText(/qué estás corrigiendo/i)).not.toBeInTheDocument();
+      expect(postCount()).toBe(antes);
     });
   });
 });
