@@ -18,11 +18,7 @@
  * una vida a lo que es privacidad pura. Un médico de guardia necesita el primero;
  * el último no lo necesita nadie sin autorización expresa.
  */
-export type EmergencyScope =
-  | 'VITAL'
-  | 'CONDICIONES'
-  | 'NOTAS'
-  | 'ESTUDIOS';
+export type EmergencyScope = 'VITAL' | 'CONDICIONES' | 'NOTAS' | 'ESTUDIOS';
 
 export interface EmergencyScopeOption {
   id: EmergencyScope;
@@ -71,4 +67,33 @@ export interface VitalBlock {
   medicacion: { droga: string; dosis: string; nota?: string }[];
   condiciones: { nombre: string; codigo: string }[];
   contacto: { nombre: string; vinculo: string; telefono: string };
+}
+
+/* Contrato de la API del MediPass (ENG-135; ENG-72, ENG-73, ENG-103, ENG-104). */
+
+/** `GET /medipass/me`: el código vigente del paciente. */
+export interface MediPassCode {
+  codigo: string;
+  /** ISO-8601: cuándo deja de valer y hay que pedir el siguiente. */
+  expiraEl: string;
+}
+
+/** `POST /medipass/sessions` (público): lo que manda quien escanea. */
+export interface OpenEmergencySessionInput {
+  codigo: string;
+  nombre: string;
+  matricula?: string;
+}
+
+/** Respuesta de `POST /medipass/sessions`. */
+export interface EmergencySession {
+  sesionId: string;
+  expiraEl: string;
+  vital: VitalBlock;
+}
+
+/** `GET /medipass/sessions/:id`: la sesión sigue viva; 410 si venció. */
+export interface EmergencySessionStatus {
+  expiraEl: string;
+  vital: VitalBlock;
 }

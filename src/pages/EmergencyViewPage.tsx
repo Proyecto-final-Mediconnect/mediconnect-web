@@ -1,142 +1,284 @@
-import { Link } from 'react-router-dom';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import { useEffect, useState, type FormEvent } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  MEDIPASS_PREFIJO,
-  MOCK_VITAL_BLOCK,
-} from '../features/medipass/lib/mockMediPass';
-import { DashboardLayout } from './DashboardLayout';
+  getEmergencySession,
+  openEmergencySession,
+  SESION_VENCIDA,
+} from '../features/medipass/api/medipassApi';
+import { VitalBlockCard } from '../features/medipass/components/VitalBlockCard';
+import { cuentaRegresiva, formatCodigo } from '../features/medipass/lib/medipass';
+import type { EmergencySession } from '../features/medipass/types/medipass';
+import { useNow } from '../shared/hooks/useNow';
+import { Logo } from '../shared/ui/Logo';
+
+/** Dónde se guarda el acceso abierto: sobrevive a recargar la página, no a cerrar la pestaña. */
+const CLAVE_SESION = 'medipass.sesion';
+
+function sesionGuardada(): string | null {
+  try {
+    return sessionStorage.getItem(CLAVE_SESION);
+  } catch {
+    return null;
+  }
+}
+
+function guardarSesion(id: string | null): void {
+  try {
+    if (id) sessionStorage.setItem(CLAVE_SESION, id);
+    else sessionStorage.removeItem(CLAVE_SESION);
+  } catch {
+    // Sin storage (modo privado): el acceso dura lo que la pestaña abierta.
+  }
+}
 
 /**
- * Vista de emergencia del MediPass (pantalla "qr" del canvas).
+ * Vista de emergencia del MediPass (ENG-135, ENG-73). **Es pública**: la abre un
+ * médico de guardia que escaneó el QR del paciente con la cámara de su
+ * celular, sin cuenta ni app.
  *
- * Es lo que ve alguien que escanea el código **sin autorización expresa**: el
- * bloque vital y nada más. Acá se muestra como una previsualización para el
- * paciente —el canvas la ofrece con "ver cómo lo lee un médico en el exterior"—;
- * el acceso real de un consultante externo es ENG-73 y ENG-118, y entra sin
- * sesión con el código.
+ * 1. El QR trae el código en la URL (`?codigo=`). El médico pone su nombre y,
+ *    si quiere, su matrícula: el acceso queda registrado a su nombre.
+ * 2. `POST /medipass/sessions` abre un acceso de 30 minutos (ENG-104) y
+ *    devuelve el bloque vital. El código sale de la URL apenas se usa, para que
+ *    no quede en el historial del navegador.
+ * 3. Si el acceso vence (410), vuelve a pedir el código.
  *
- * **Está en inglés a propósito, y eso es del canvas.** El caso de uso es una
- * guardia en el exterior: quien la lee puede no hablar español, y una alergia mal
- * entendida es el peor error posible de esta pantalla. Los códigos van en CIE-10
- * por lo mismo — un diagnóstico escrito en otro idioma sigue siendo legible por
- * su código.
- *
- * ⚠️ Nada de esto sale de la API: no hay MediPass en el backend, y el perfil de
- * paciente ni siquiera tiene grupo sanguíneo, alergias o contacto de emergencia.
+ * Código inexistente y código vencido muestran el mismo mensaje: distinguirlos
+ * le diría a quien prueba códigos cuáles existieron.
  */
 export function EmergencyViewPage() {
-  const v = MOCK_VITAL_BLOCK;
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const [sesionId, setSesionId] = useState<string | null>(sesionGuardada);
+  const [aviso, setAviso] = useState<string | null>(null);
+
+  function cerrar(mensaje: string | null): void {
+    guardarSesion(null);
+    setSesionId(null);
+    setAviso(mensaje);
+  }
 
   return (
-    <DashboardLayout
-      barTitle="Vista de emergencia"
-      // La orientación pasa al subtítulo del marco. Sin ella queda un bloque en
-      // inglés sin explicación de por qué está en inglés, que es lo único que
-      // esta pantalla necesita aclarar.
-      subtitle="Así se ve tu MediPass para quien escanee tu código sin tu autorización. Está en inglés porque el caso es una guardia en el exterior."
-    >
-      <div className="grid gap-5">
-        <article className="mx-auto w-full max-w-[560px] overflow-hidden rounded-[14px] border border-night bg-night text-white">
-          <header className="border-b border-white/10 px-7 py-6">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-[15px] font-bold text-white">MediPass</p>
-              <p className="rounded-full bg-danger/20 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-danger">
-                Emergency access · read only
-              </p>
-            </div>
-            <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-bright">
-              Critical information
-            </p>
-            <h2 className="font-display mt-2 text-[30px] leading-[1.1] text-white">{v.nombre}</h2>
-            <p className="mt-2 text-[13px] text-on-night">
-              {v.sexo} · {v.edad} y · Blood type {v.grupoSanguineo} · {v.pais}
-            </p>
-            <p className="mt-1 font-mono text-[12px] text-on-night-soft">
-              {MEDIPASS_PREFIJO}-····-····
-            </p>
-          </header>
+    <main className="min-h-dvh bg-night px-4 py-6 sm:py-10">
+      <div className="mx-auto grid w-full max-w-[560px] gap-6">
+        <Logo tone="light" className="h-7" alt="MediConnect" />
 
-          <div className="grid gap-6 px-7 py-6">
-            {/* Las alergias van primero y en rojo: es el dato que cambia lo que
-                el médico indica en los primeros segundos. */}
-            <Bloque titulo="Allergies" destacado>
-              {v.alergias.map((a) => (
-                <p key={a.que} className="text-[15px] font-bold text-danger">
-                  {a.que} — {a.gravedad}
-                </p>
-              ))}
-            </Bloque>
-
-            <Bloque titulo="Active medication">
-              {v.medicacion.map((m) => (
-                <p key={m.droga} className="text-[15px] font-semibold text-white">
-                  {m.droga} <span className="font-medium text-on-night">{m.dosis}</span>
-                  {m.nota && (
-                    <span className="ml-2 rounded-full bg-danger/20 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-danger">
-                      {m.nota}
-                    </span>
-                  )}
-                </p>
-              ))}
-            </Bloque>
-
-            <Bloque titulo="Conditions">
-              {v.condiciones.map((c) => (
-                <p key={c.codigo} className="text-[15px] font-semibold text-white">
-                  {c.nombre}{' '}
-                  <span className="font-mono text-[12px] text-on-night-soft">{c.codigo}</span>
-                </p>
-              ))}
-            </Bloque>
-
-            <Bloque titulo="Emergency contact">
-              <p className="text-[15px] font-semibold text-white">
-                {v.contacto.nombre} · {v.contacto.vinculo}
-              </p>
-              <a
-                href={`tel:${v.contacto.telefono.replace(/\s/g, '')}`}
-                className="text-[15px] font-bold text-brand-bright underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-bright"
-              >
-                {v.contacto.telefono}
-              </a>
-            </Bloque>
-          </div>
-
-          <p className="border-t border-white/10 px-7 py-4 text-[12px] leading-[1.6] text-on-night-soft">
-            This access is logged and limited to the vital block. Full clinical notes require
-            the patient&rsquo;s explicit authorization.
-          </p>
-        </article>
-
-        <Link
-          to="/medipass"
-          className="mx-auto text-[13px] font-semibold text-brand-hover underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-        >
-          ← Volver a mi MediPass
-        </Link>
+        {sesionId ? (
+          <AccesoAbierto
+            sesionId={sesionId}
+            onVencido={(mensaje) => cerrar(mensaje)}
+            onTerminar={() => cerrar(null)}
+          />
+        ) : (
+          <PedirAcceso
+            codigoInicial={params.get('codigo') ?? ''}
+            aviso={aviso}
+            onAbierto={(sesion) => {
+              guardarSesion(sesion.sesionId);
+              setAviso(null);
+              setSesionId(sesion.sesionId);
+              // El código no se queda en la barra ni en el historial.
+              navigate('/medipass/emergencia', { replace: true });
+            }}
+          />
+        )}
       </div>
-    </DashboardLayout>
+    </main>
   );
 }
 
-function Bloque({
-  titulo,
-  destacado = false,
-  children,
+function PedirAcceso({
+  codigoInicial,
+  aviso,
+  onAbierto,
 }: {
-  titulo: string;
-  destacado?: boolean;
-  children: React.ReactNode;
+  codigoInicial: string;
+  aviso: string | null;
+  onAbierto: (sesion: EmergencySession) => void;
+}) {
+  const [codigo, setCodigo] = useState(formatCodigo(codigoInicial));
+  const [nombre, setNombre] = useState('');
+  const [matricula, setMatricula] = useState('');
+  const [faltan, setFaltan] = useState(false);
+  const abrir = useMutation({ mutationFn: openEmergencySession, onSuccess: onAbierto });
+
+  function enviar(e: FormEvent) {
+    e.preventDefault();
+    if (!codigo.trim() || !nombre.trim()) {
+      setFaltan(true);
+      return;
+    }
+    setFaltan(false);
+    abrir.mutate({ codigo, nombre, matricula });
+  }
+
+  const error = faltan
+    ? 'Completá el código y tu nombre.'
+    : abrir.isError
+      ? abrir.error.message
+      : aviso;
+
+  return (
+    <section className="rounded-[14px] bg-white px-6 py-7 shadow-[0_18px_40px_rgba(4,29,40,0.35)]">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-danger">
+        Acceso de emergencia
+      </p>
+      <h1 className="font-display mt-2 text-[28px] leading-[1.15] text-brand-deep">
+        Información vital del paciente
+      </h1>
+      <p className="mt-2 text-[14px] leading-[1.6] text-muted">
+        Ingresá tu nombre para ver alergias, medicación y contacto de emergencia. El acceso dura 30
+        minutos y queda registrado.
+      </p>
+
+      <form onSubmit={enviar} noValidate className="mt-6 grid gap-4">
+        <Campo
+          id="codigo"
+          label="Código MediPass"
+          value={codigo}
+          onChange={setCodigo}
+          autoComplete="off"
+          mono
+        />
+        <Campo
+          id="nombre"
+          label="Tu nombre y apellido"
+          value={nombre}
+          onChange={setNombre}
+          autoComplete="name"
+          autoFocus={codigoInicial !== ''}
+        />
+        <Campo
+          id="matricula"
+          label="Matrícula (opcional)"
+          value={matricula}
+          onChange={setMatricula}
+          autoComplete="off"
+        />
+
+        {error && (
+          <p
+            role="alert"
+            className="rounded-[10px] border border-danger/30 bg-danger/5 px-4 py-3 text-[14px] font-semibold text-danger"
+          >
+            {error}
+          </p>
+        )}
+
+        <button
+          type="submit"
+          disabled={abrir.isPending}
+          className="mt-1 rounded-[9px] bg-brand-deep py-3.5 text-[15px] font-bold text-white transition-opacity disabled:cursor-wait disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          {abrir.isPending ? 'Abriendo…' : 'Ver información vital'}
+        </button>
+      </form>
+    </section>
+  );
+}
+
+function Campo({
+  id,
+  label,
+  value,
+  onChange,
+  autoComplete,
+  autoFocus = false,
+  mono = false,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  autoComplete: string;
+  autoFocus?: boolean;
+  mono?: boolean;
 }) {
   return (
-    <section>
-      <h3
-        className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${
-          destacado ? 'text-danger' : 'text-on-night-soft'
+    <label htmlFor={id} className="grid gap-1.5">
+      <span className="text-[13px] font-semibold text-brand-deep">{label}</span>
+      <input
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        autoComplete={autoComplete}
+        autoFocus={autoFocus}
+        autoCapitalize={mono ? 'characters' : 'words'}
+        spellCheck={false}
+        className={`min-h-12 rounded-[10px] border border-line-strong bg-white px-4 text-[16px] text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30 ${
+          mono ? 'font-mono tracking-[0.12em]' : ''
         }`}
-      >
-        {titulo}
-      </h3>
-      <div className="mt-2 grid gap-1.5">{children}</div>
-    </section>
+      />
+    </label>
+  );
+}
+
+function AccesoAbierto({
+  sesionId,
+  onVencido,
+  onTerminar,
+}: {
+  sesionId: string;
+  onVencido: (mensaje: string) => void;
+  onTerminar: () => void;
+}) {
+  const now = useNow(1000);
+  const sesion = useQuery({
+    queryKey: ['medipass', 'session', sesionId],
+    queryFn: () => getEmergencySession(sesionId),
+    // Cada minuto: si el paciente lo revocó o venció, la pantalla se entera.
+    refetchInterval: 60_000,
+    retry: false,
+  });
+
+  const expiraEl = sesion.data?.expiraEl;
+  const vital = sesion.data?.vital;
+  const restante = expiraEl ? new Date(expiraEl).getTime() - now.getTime() : null;
+  const vencio = sesion.isError || (restante !== null && restante <= 0);
+
+  // Vencido o revocado: vuelve al formulario con el motivo.
+  useEffect(() => {
+    if (!vencio) return;
+    onVencido(sesion.isError ? sesion.error.message : SESION_VENCIDA);
+  }, [vencio, onVencido, sesion.isError, sesion.error]);
+
+  if (vencio) return null;
+
+  if (!vital || restante === null) {
+    return (
+      <p role="status" className="text-center text-[14px] text-on-night">
+        Abriendo el MediPass…
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid gap-4">
+      <VitalBlockCard
+        vital={vital}
+        footer={
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 px-6 py-4 sm:px-7">
+            <p role="timer" className="text-[12px] text-on-night-soft">
+              Access expires in{' '}
+              <span className="font-bold tabular-nums text-brand-bright">
+                {cuentaRegresiva(restante)}
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={onTerminar}
+              className="rounded-[8px] border border-white/20 px-4 py-2 text-[13px] font-bold text-white hover:border-white/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-bright"
+            >
+              Terminar acceso
+            </button>
+          </div>
+        }
+      />
+      <p className="text-center text-[12px] leading-[1.6] text-on-night-soft">
+        This access is logged and limited to the vital block. Full clinical notes require the
+        patient&rsquo;s explicit authorization.
+      </p>
+    </div>
   );
 }

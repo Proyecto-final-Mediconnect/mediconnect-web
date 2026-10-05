@@ -157,8 +157,7 @@ function App() {
           </RequireAuth>
         }
       />
-      {/* MediPass (EP-05, Release 3). Es del paciente: el acceso del consultante
-          externo con código es otra historia (ENG-73) y entra sin sesión. */}
+      {/* MediPass (EP-05). Es del paciente. */}
       <Route
         path="/medipass"
         element={
@@ -167,14 +166,9 @@ function App() {
           </RequireAuth>
         }
       />
-      <Route
-        path="/medipass/emergencia"
-        element={
-          <RequireAuth allow={['PACIENTE']}>
-            <EmergencyViewPage />
-          </RequireAuth>
-        }
-      />
+      {/* Pública: la abre un médico de guardia que escaneó el QR con la cámara,
+          sin cuenta (ENG-135, ENG-73). Entra con el código, no con sesión. */}
+      <Route path="/medipass/emergencia" element={<EmergencyViewPage />} />
       {/* Pago del turno (ENG-63) y confirmación (ENG-64). Solo PACIENTE: el que
           paga la consulta es quien la reservó. El cobro todavía está simulado —no
           existen los endpoints de MercadoPago— y las dos pantallas lo dicen. */}
