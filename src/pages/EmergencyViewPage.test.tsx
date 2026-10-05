@@ -147,3 +147,32 @@ describe('EmergencyViewPage (ENG-135)', () => {
     expect(sessionStorage.getItem('medipass.sesion')).toBeNull();
   });
 });
+
+// Un paciente sin todos los datos cargados no puede mostrar "undefined" a un médico.
+describe('EmergencyViewPage con datos incompletos', () => {
+  it('omite lo que falta en vez de romper', async () => {
+    renderPage('/medipass/emergencia?codigo=AB12CD34', {
+      abrir: () =>
+        json(
+          {
+            sesionId: 's-2',
+            expiraEl: EXPIRA(),
+            vital: { nombre: 'Paciente Nuevo', alergias: null, contacto: null },
+          },
+          201,
+        ),
+      consultar: () =>
+        json({
+          expiraEl: EXPIRA(),
+          vital: { nombre: 'Paciente Nuevo', alergias: null, contacto: null },
+        }),
+    });
+
+    completar('Dra. Laura Pérez');
+
+    expect(await screen.findByText('Paciente Nuevo')).toBeVisible();
+    expect(screen.getByText('No known allergies')).toBeVisible();
+    expect(screen.getByText('Not recorded')).toBeVisible();
+    expect(screen.queryByText(/undefined/)).not.toBeInTheDocument();
+  });
+});

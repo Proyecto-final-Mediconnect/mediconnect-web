@@ -11,6 +11,16 @@ import type { VitalBlock } from '../types/medipass';
  * su código.
  */
 export function VitalBlockCard({ vital, footer }: { vital: VitalBlock; footer?: ReactNode }) {
+  const alergias = vital.alergias ?? [];
+  const medicacion = vital.medicacion ?? [];
+  const condiciones = vital.condiciones ?? [];
+  const datos = [
+    vital.sexo,
+    typeof vital.edad === 'number' ? `${vital.edad} y` : null,
+    vital.grupoSanguineo ? `Blood type ${vital.grupoSanguineo}` : 'Blood type not recorded',
+    vital.pais,
+  ].filter(Boolean);
+
   return (
     <article className="mx-auto w-full max-w-[560px] overflow-hidden rounded-[14px] border border-night bg-night text-white">
       <header className="border-b border-white/10 px-6 py-6 sm:px-7">
@@ -24,19 +34,17 @@ export function VitalBlockCard({ vital, footer }: { vital: VitalBlock; footer?: 
           Critical information
         </p>
         <h2 className="font-display mt-2 text-[30px] leading-[1.1] text-white">{vital.nombre}</h2>
-        <p className="mt-2 text-[13px] text-on-night">
-          {vital.sexo} · {vital.edad} y · Blood type {vital.grupoSanguineo} · {vital.pais}
-        </p>
+        <p className="mt-2 text-[13px] text-on-night">{datos.join(' · ')}</p>
       </header>
 
       <div className="grid gap-6 px-6 py-6 sm:px-7">
         {/* Las alergias van primero y en rojo: es el dato que cambia lo que el
             médico indica en los primeros segundos. */}
         <Bloque titulo="Allergies" destacado>
-          {vital.alergias.length === 0 ? (
+          {alergias.length === 0 ? (
             <p className="text-[15px] font-semibold text-white">No known allergies</p>
           ) : (
-            vital.alergias.map((a) => (
+            alergias.map((a) => (
               <p key={a.que} className="text-[15px] font-bold text-danger">
                 {a.que} — {a.gravedad}
               </p>
@@ -45,10 +53,10 @@ export function VitalBlockCard({ vital, footer }: { vital: VitalBlock; footer?: 
         </Bloque>
 
         <Bloque titulo="Active medication">
-          {vital.medicacion.length === 0 ? (
+          {medicacion.length === 0 ? (
             <p className="text-[15px] font-semibold text-white">None</p>
           ) : (
-            vital.medicacion.map((m) => (
+            medicacion.map((m) => (
               <p key={m.droga} className="text-[15px] font-semibold text-white">
                 {m.droga} <span className="font-medium text-on-night">{m.dosis}</span>
                 {m.nota && (
@@ -62,10 +70,10 @@ export function VitalBlockCard({ vital, footer }: { vital: VitalBlock; footer?: 
         </Bloque>
 
         <Bloque titulo="Conditions">
-          {vital.condiciones.length === 0 ? (
+          {condiciones.length === 0 ? (
             <p className="text-[15px] font-semibold text-white">None reported</p>
           ) : (
-            vital.condiciones.map((c) => (
+            condiciones.map((c) => (
               <p key={c.codigo} className="text-[15px] font-semibold text-white">
                 {c.nombre}{' '}
                 <span className="font-mono text-[12px] text-on-night-soft">{c.codigo}</span>
@@ -75,15 +83,21 @@ export function VitalBlockCard({ vital, footer }: { vital: VitalBlock; footer?: 
         </Bloque>
 
         <Bloque titulo="Emergency contact">
-          <p className="text-[15px] font-semibold text-white">
-            {vital.contacto.nombre} · {vital.contacto.vinculo}
-          </p>
-          <a
-            href={`tel:${vital.contacto.telefono.replace(/\s/g, '')}`}
-            className="text-[15px] font-bold text-brand-bright underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-bright"
-          >
-            {vital.contacto.telefono}
-          </a>
+          {vital.contacto ? (
+            <>
+              <p className="text-[15px] font-semibold text-white">
+                {vital.contacto.nombre} · {vital.contacto.vinculo}
+              </p>
+              <a
+                href={`tel:${vital.contacto.telefono.replace(/\s/g, '')}`}
+                className="text-[15px] font-bold text-brand-bright underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-bright"
+              >
+                {vital.contacto.telefono}
+              </a>
+            </>
+          ) : (
+            <p className="text-[15px] font-semibold text-white">Not recorded</p>
+          )}
         </Bloque>
       </div>
 

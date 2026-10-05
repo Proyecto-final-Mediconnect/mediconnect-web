@@ -56,17 +56,23 @@ export interface MediPassAccess {
   alcance: EmergencyScope[];
 }
 
-/** El bloque vital, que es lo único que se muestra sin autorización expresa. */
+/**
+ * El bloque vital, que es lo único que se muestra sin autorización expresa.
+ *
+ * Lo arma el backend (`toVitalBlock`, ENG-103) con los campos de ENG-134. Los
+ * opcionales son los que un paciente puede no tener cargados todavía: la
+ * pantalla los omite en vez de mostrar "undefined" frente a un médico.
+ */
 export interface VitalBlock {
   nombre: string;
-  edad: number;
-  sexo: string;
-  grupoSanguineo: string;
-  pais: string;
-  alergias: { que: string; gravedad: string }[];
-  medicacion: { droga: string; dosis: string; nota?: string }[];
-  condiciones: { nombre: string; codigo: string }[];
-  contacto: { nombre: string; vinculo: string; telefono: string };
+  edad?: number | null;
+  sexo?: string | null;
+  grupoSanguineo?: string | null;
+  pais?: string | null;
+  alergias?: { que: string; gravedad: string }[] | null;
+  medicacion?: { droga: string; dosis: string; nota?: string | null }[] | null;
+  condiciones?: { nombre: string; codigo: string }[] | null;
+  contacto?: { nombre: string; vinculo: string; telefono: string } | null;
 }
 
 /* Contrato de la API del MediPass (ENG-135; ENG-72, ENG-73, ENG-103, ENG-104). */
