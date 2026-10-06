@@ -6,15 +6,19 @@ import { CASOS, type Caso } from './casos';
  * En el MediPass real el código lo emite el servidor y rota cada 5 minutos
  * (ENG-72). El juego no puede depender de eso: el stand no tiene red confiable y
  * los pacientes son ficticios. Así que el código se **deriva** del paciente y de
- * la ventana de 30 segundos en la que estamos, y el celular lo verifica solo,
+ * la ventana de un minuto en la que estamos, y el celular lo verifica solo,
  * probando cada paciente contra la ventana actual. No hay servidor en el medio:
  * la notebook y el celular solo comparten la hora.
  *
  * No es seguridad — cualquiera que lea este archivo puede calcularlo. Es para
- * que un código viejo deje de andar a los 30 segundos, que es lo que da el apuro.
+ * que un código viejo deje de andar al minuto, que es lo que da el apuro.
  */
 
-export const ROTACION_JUEGO_MS = 30_000;
+/**
+ * Un minuto. Empezó en 30 segundos, pero entre escanear, leer la ficha y volver
+ * a la notebook no alcanzaba: el apuro tiene que ser del juego, no de la cámara.
+ */
+export const ROTACION_JUEGO_MS = 60_000;
 
 /**
  * Margen para el escaneo que llega justo después de la rotación: entre que la
@@ -71,7 +75,7 @@ export type Lectura =
   | { estado: 'INVALIDO' };
 
 /** Hasta cuánto para atrás un código se reconoce como "vencido" y no como basura. */
-const VENTANAS_RECONOCIBLES = 240; // dos horas
+const VENTANAS_RECONOCIBLES = 120; // dos horas
 
 export function leerCodigo(entrada: string, now: number = Date.now()): Lectura {
   const codigo = normalizarCodigo(entrada);
