@@ -7,10 +7,10 @@
  * construye el backend porque entra a la preimagen del hash.
  */
 
-/** Tipos que el profesional puede elegir en el formulario.
+/** Tipos que el profesional puede elegir en el formulario de alta.
  *
- *  `CORRECCION` no está: una corrección necesita apuntar a la entrada que
- *  corrige y es ENG-100. */
+ *  `CORRECCION` no está, y no es un olvido: una corrección apunta a la entrada
+ *  que corrige, así que va por su propia ruta (ENG-100) y su tipo no se elige. */
 export const SELECTABLE_ENTRY_TYPES = [
   'CONSULTA',
   'DIAGNOSTICO',
@@ -72,4 +72,25 @@ export interface NewClinicalEntryPayload {
   diagnosis?: string;
   plan?: string;
   consultationId?: string;
+}
+
+/**
+ * Lo que manda el formulario de corrección (ENG-100).
+ *
+ * Lleva el asiento clínico **completo**, no solo el campo que estaba mal: lo que
+ * se lee después es la corrección, y reconstruir la versión vigente mezclando dos
+ * entradas es justo donde se cuela un error de interpretación sobre datos
+ * clínicos.
+ *
+ * No lleva `entryType` —es siempre `CORRECCION`—, ni a qué entrada corrige —va en
+ * la URL—, ni `consultationId`, que el backend hereda de la entrada corregida.
+ * Mandar cualquiera de los tres hace fallar el request entero.
+ */
+export interface CorrectionPayload {
+  reason: string;
+  findings?: string;
+  diagnosis?: string;
+  plan?: string;
+  /** Qué estaba mal en la entrada original. Obligatorio. */
+  correctionReason: string;
 }

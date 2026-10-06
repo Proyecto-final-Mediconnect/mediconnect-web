@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Button } from '../../../shared/ui/Button';
+import { EntryField } from './EntryField';
 import { useAddClinicalEntry } from '../hooks/useClinicalRecord';
 import {
   ENTRY_TYPE_LABELS,
@@ -115,7 +116,7 @@ export function ClinicalEntryForm({
         </select>
       </div>
 
-      <Field
+      <EntryField
         id="reason"
         label="Motivo de consulta"
         required
@@ -124,21 +125,21 @@ export function ClinicalEntryForm({
         error={reasonError}
         onChange={(value) => set('reason', value)}
       />
-      <Field
+      <EntryField
         id="findings"
         label="Evolución y hallazgos"
         rows={4}
         value={form.findings}
         onChange={(value) => set('findings', value)}
       />
-      <Field
+      <EntryField
         id="diagnosis"
         label="Diagnóstico"
         rows={2}
         value={form.diagnosis}
         onChange={(value) => set('diagnosis', value)}
       />
-      <Field
+      <EntryField
         id="plan"
         label="Plan e indicaciones"
         rows={3}
@@ -166,51 +167,5 @@ export function ClinicalEntryForm({
         </Button>
       </div>
     </form>
-  );
-}
-
-/** Campo de texto multilínea. Los cuatro del formulario son narrativos. */
-function Field({
-  id,
-  label,
-  value,
-  rows,
-  required,
-  error,
-  onChange,
-}: {
-  id: string;
-  label: string;
-  value: string;
-  rows: number;
-  required?: boolean;
-  error?: string;
-  onChange: (value: string) => void;
-}) {
-  const errorId = error ? `${id}-error` : undefined;
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <label htmlFor={id} className="text-[13px] font-semibold text-ink">
-        {label}
-        {!required && <span className="ml-1 font-normal text-muted">(opcional)</span>}
-      </label>
-      <textarea
-        id={id}
-        rows={rows}
-        value={value}
-        aria-invalid={!!error}
-        aria-describedby={errorId}
-        onChange={(event) => onChange(event.target.value)}
-        className={`w-full resize-y rounded-[9px] border bg-white px-3.5 py-2.5 text-sm leading-[1.7] text-ink outline-none transition-colors placeholder:text-muted/60 focus:border-brand focus:ring-2 focus:ring-brand/30 ${
-          error ? 'border-danger' : 'border-line-strong'
-        }`}
-      />
-      {error && (
-        <p id={errorId} role="alert" className="text-sm text-danger">
-          {error}
-        </p>
-      )}
-    </div>
   );
 }
