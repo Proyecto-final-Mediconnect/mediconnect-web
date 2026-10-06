@@ -7,6 +7,7 @@ import {
   ROTACION_JUEGO_MS,
   type Lectura,
 } from '../features/juego/lib/codigo';
+import { usePageBackground } from '../shared/hooks/usePageBackground';
 import { Logo } from '../shared/ui/Logo';
 
 /**
@@ -19,7 +20,12 @@ import { Logo } from '../shared/ui/Logo';
  * El código se lee **una vez**, al abrir: el médico que ya abrió la ficha la
  * sigue viendo aunque el QR rote, igual que una sesión del MediPass real.
  */
+/** `--color-abyss`: el fondo de la ficha. */
+const FONDO = '#041d28';
+
 export function GuardiaFichaPage() {
+  // El mismo azul que la página, también en el rebote del scroll de iOS.
+  usePageBackground(FONDO);
   const [params, setParams] = useSearchParams();
   const [lectura, setLectura] = useState<Lectura | null>(() => {
     const c = params.get('c');
