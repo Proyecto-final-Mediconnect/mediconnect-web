@@ -5,6 +5,8 @@ import { AppointmentConfirmedPage } from './pages/AppointmentConfirmedPage';
 import { BookAppointmentPage } from './pages/BookAppointmentPage';
 import { CatalogPage } from './pages/CatalogPage';
 import { EmergencyViewPage } from './pages/EmergencyViewPage';
+import { GuardiaFichaPage } from './pages/GuardiaFichaPage';
+import { GuardiaJuegoPage } from './pages/GuardiaJuegoPage';
 import { MediPassPage } from './pages/MediPassPage';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
@@ -175,6 +177,10 @@ function App() {
           </RequireAuth>
         }
       />
+      {/* Juego del stand para la jornada del 06/10: pacientes ficticios, sin
+          backend. La notebook muestra la guardia y el celular abre la ficha. */}
+      <Route path="/juego/guardia" element={<GuardiaJuegoPage />} />
+      <Route path="/juego/guardia/ficha" element={<GuardiaFichaPage />} />
       {/* Pago del turno (ENG-63) y confirmación (ENG-64). Solo PACIENTE: el que
           paga la consulta es quien la reservó. El cobro todavía está simulado —no
           existen los endpoints de MercadoPago— y las dos pantallas lo dicen. */}
