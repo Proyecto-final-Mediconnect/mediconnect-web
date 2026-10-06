@@ -1,5 +1,9 @@
 @import 'tailwindcss';
 
+/* Pantallas bajas (notebooks de 720-768 px de alto, iPad acostado). Lo usa el juego del stand,
+ * que tiene que entrar entero sin scroll: el QR no puede quedar abajo. */
+@custom-variant bajo (@media (max-height: 800px));
+
 /* Paleta de marca MediConnect (logo + presentaciones del proyecto).
  *
  * Los valores salen del canvas de diseño "Diseño web Mediconnect": no son una

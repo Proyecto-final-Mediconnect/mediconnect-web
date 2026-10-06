@@ -177,7 +177,7 @@ export function GuardiaJuegoPage() {
       </header>
 
       {/* El monitor cruza toda la pantalla: es lo primero que se ve de lejos. */}
-      <div className="relative h-[92px] border-b border-white/10 bg-[#03161f]">
+      <div className="relative h-[92px] bajo:h-[72px] border-b border-white/10 bg-[#03161f]">
         {/* El trazo termina antes del número, como en un monitor real. */}
         <div className="absolute inset-y-0 left-0 right-[150px] lg:right-[170px]">
           <MonitorEcg
@@ -273,20 +273,20 @@ function Inicio({
   }
 
   return (
-    <div className="mx-auto grid w-full max-w-[1200px] flex-1 gap-10 px-6 py-10 lg:grid-cols-[1.4fr_1fr] lg:px-10 lg:py-14">
+    <div className="mx-auto grid w-full max-w-[1200px] flex-1 gap-10 px-6 py-8 bajo:py-6 md:grid-cols-[1.4fr_1fr] lg:px-10 xl:py-14">
       <section>
         <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-danger">
           Ingreso a la guardia
         </p>
-        <h1 className="font-display mt-3 text-[56px] leading-[1.02] text-white text-balance lg:text-[76px]">
+        <h1 className="font-display mt-3 text-[44px] leading-[1.02] text-white text-balance lg:text-[60px] xl:text-[76px] bajo:lg:text-[46px] bajo:xl:text-[56px]">
           Llega un paciente inconsciente.
         </h1>
-        <p className="mt-5 max-w-[56ch] text-[18px] leading-[1.55] text-on-night">
+        <p className="mt-5 max-w-[56ch] text-[18px] bajo:mt-3 bajo:text-[16px] leading-[1.55] text-on-night">
           No puede decirte nada. Lo único que tenés es su MediPass. Atendé a tres pacientes lo más
           rápido que puedas, sin matar a ninguno.
         </p>
 
-        <ol className="mt-8 grid gap-3 sm:grid-cols-3">
+        <ol className="mt-8 grid gap-3 bajo:mt-5 lg:grid-cols-3">
           {[
             ['Escaneá', 'el QR del paciente con la cámara de tu celular.'],
             ['Leé', 'su MediPass: qué tiene, a qué es alérgico, qué toma.'],
@@ -305,7 +305,7 @@ function Inicio({
           escanear.
         </p>
 
-        <form onSubmit={enviar} className="mt-8 flex max-w-[520px] flex-wrap gap-3">
+        <form onSubmit={enviar} className="mt-8 bajo:mt-5 flex max-w-[520px] flex-wrap gap-3">
           <label className="sr-only" htmlFor="apodo">
             Tu apodo
           </label>
@@ -349,31 +349,31 @@ function Guardia({
   const local = /localhost|127\.0\.0\.1/.test(origen);
 
   return (
-    <div className="mx-auto grid w-full max-w-[1280px] flex-1 gap-8 px-6 py-8 lg:grid-cols-[1.5fr_1fr] lg:px-10 lg:py-10">
+    <div className="mx-auto grid w-full max-w-[1280px] flex-1 gap-6 px-6 py-6 bajo:py-4 md:grid-cols-[1.4fr_1fr] lg:gap-8 lg:px-10 xl:py-10">
       <section className="flex flex-col">
         <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-danger">Ingreso</p>
-        <h2 className="font-display mt-2 text-[44px] leading-[1.08] text-white text-balance lg:text-[54px]">
+        <h2 className="font-display mt-2 text-[32px] leading-[1.1] text-white text-balance lg:text-[40px] xl:text-[54px] bajo:xl:text-[42px]">
           {caso.ingreso}
         </h2>
         <p className="mt-3 text-[16px] text-on-night">
           {caso.sexo}, {caso.edad} años. No responde preguntas.
         </p>
 
-        <div className="mt-auto pt-10">
+        <div className="mt-auto pt-6 xl:pt-10 bajo:xl:pt-6">
           <p className="text-[22px] font-bold text-white">{caso.pregunta}</p>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="mt-4 grid gap-3 xl:grid-cols-3">
             {caso.opciones.map((opcion, i) => (
               <button
                 key={opcion.texto}
                 type="button"
                 disabled={!activa}
                 onClick={() => onElegir(opcion)}
-                className="group flex min-h-[132px] flex-col justify-between rounded-[14px] border border-white/15 bg-night px-5 py-4 text-left transition hover:-translate-y-0.5 hover:border-brand-bright hover:bg-[#0a3a4e] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-bright disabled:pointer-events-none"
+                className="group flex min-h-[64px] items-center gap-4 xl:min-h-[132px] bajo:xl:min-h-[100px] xl:flex-col xl:items-start xl:justify-between rounded-[14px] border border-white/15 bg-night px-5 py-4 text-left transition hover:-translate-y-0.5 hover:border-brand-bright hover:bg-[#0a3a4e] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-bright disabled:pointer-events-none"
               >
-                <span className="font-mono text-[12px] text-on-night-soft group-hover:text-brand-bright">
-                  Tecla {i + 1}
+                <span className="grid size-7 shrink-0 place-items-center rounded-[6px] border border-white/20 font-mono text-[12px] text-on-night-soft group-hover:border-brand-bright group-hover:text-brand-bright">
+                  {i + 1}
                 </span>
-                <span className="text-[24px] font-bold leading-[1.15] text-white">
+                <span className="text-[20px] font-bold leading-[1.15] text-white xl:text-[24px]">
                   {opcion.texto}
                 </span>
               </button>
@@ -382,13 +382,18 @@ function Guardia({
         </div>
       </section>
 
-      <aside className="flex flex-col items-center rounded-[16px] bg-white px-6 py-7 text-center text-ink">
+      <aside className="flex flex-col items-center rounded-[16px] bg-white px-6 py-7 bajo:py-5 text-center text-ink">
         <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand-deep">
           MediPass del paciente
         </p>
         <p className="mt-1 text-[14px] text-muted">Escanealo con la cámara del celular</p>
         <div className="mt-5 rounded-[12px] border border-line p-4">
-          <MediPassQr key={codigo} value={urlDeFicha(origen, codigo)} size={248} />
+          <MediPassQr
+            key={codigo}
+            value={urlDeFicha(origen, codigo)}
+            size={248}
+            className="h-auto w-full max-w-[248px]"
+          />
         </div>
         <p className="mt-4 font-mono text-[26px] font-bold tracking-[0.12em] text-brand-deep">
           {formatearCodigo(codigo)}
@@ -479,7 +484,7 @@ function Muerte({
         </p>
         <h2
           id="murio"
-          className="font-display mt-3 text-[64px] leading-[1] text-white lg:text-[88px]"
+          className="font-display mt-3 text-[56px] leading-[1] text-white lg:text-[88px]"
         >
           {caso.nombre.split(' ')[0]} murió.
         </h2>
@@ -522,15 +527,15 @@ function Final({
   onOtro: () => void;
 }) {
   return (
-    <div className="mx-auto grid w-full max-w-[1200px] flex-1 gap-10 px-6 py-10 lg:grid-cols-[1.4fr_1fr] lg:px-10 lg:py-14">
+    <div className="mx-auto grid w-full max-w-[1200px] flex-1 gap-10 px-6 py-8 bajo:py-6 md:grid-cols-[1.4fr_1fr] lg:px-10 xl:py-14">
       <section>
         <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-brand-bright">
           Guardia completa
         </p>
-        <h1 className="font-display mt-3 text-[56px] leading-[1.02] text-white lg:text-[72px]">
+        <h1 className="font-display mt-3 text-[44px] leading-[1.02] text-white lg:text-[56px] xl:text-[72px] bajo:lg:text-[44px] bajo:xl:text-[52px]">
           Salvaste a los tres, {ultima.marca.apodo}.
         </h1>
-        <p className="mt-8 font-mono text-[88px] font-bold leading-none tabular-nums text-white">
+        <p className="mt-8 font-mono text-[64px] font-bold bajo:mt-5 xl:text-[88px] bajo:xl:text-[64px] leading-none tabular-nums text-white">
           {formatearTiempo(ultima.marca.ms)}
         </p>
         <p className="mt-4 text-[18px] text-on-night">

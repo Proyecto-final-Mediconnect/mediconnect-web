@@ -1,7 +1,12 @@
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { Caso } from '../features/juego/lib/casos';
-import { formatearCodigo, leerCodigo, type Lectura } from '../features/juego/lib/codigo';
+import {
+  formatearCodigo,
+  leerCodigo,
+  ROTACION_JUEGO_MS,
+  type Lectura,
+} from '../features/juego/lib/codigo';
 import { Logo } from '../shared/ui/Logo';
 
 /**
@@ -50,7 +55,7 @@ export function GuardiaFichaPage() {
               }
               aviso={
                 lectura?.estado === 'VENCIDO'
-                  ? 'Este código ya rotó. Volvé a escanear el QR de la pantalla: cambia cada 30 segundos.'
+                  ? `Este código ya rotó. Volvé a escanear el QR de la pantalla: cambia cada ${ROTACION_JUEGO_MS / 1000} segundos.`
                   : lectura?.estado === 'INVALIDO'
                     ? 'No reconocemos ese código. Revisalo o escaneá el QR de nuevo.'
                     : null
