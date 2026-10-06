@@ -23,6 +23,7 @@ import {
 } from '../features/juego/lib/ranking';
 import { sonido } from '../features/juego/lib/sonido';
 import { useNow } from '../shared/hooks/useNow';
+import { usePageBackground } from '../shared/hooks/usePageBackground';
 import { Logo } from '../shared/ui/Logo';
 import { MediPassQr } from '../shared/ui/MediPassQr';
 
@@ -54,6 +55,7 @@ type Partida = {
 const BPM_BASE = 72;
 
 export function GuardiaJuegoPage() {
+  usePageBackground('#041d28'); // `--color-abyss`, igual que el fondo de la guardia
   const now = useNow(100).getTime();
   const [fase, setFase] = useState<Fase>('inicio');
   const [partida, setPartida] = useState<Partida | null>(null);
