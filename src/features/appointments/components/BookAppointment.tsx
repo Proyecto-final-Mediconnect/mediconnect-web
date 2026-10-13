@@ -30,10 +30,9 @@ import { WeeklyAvailabilityCalendar } from './WeeklyAvailabilityCalendar';
  * El panel de revisión queda pegado al hacer scroll: mientras se recorren los
  * días hay que poder ver qué se está por reservar y cuánto sale.
  *
- * Los cinco pasos del stepper existen los cinco en el front. Los dos últimos
- * —Pago y Listo— están construidos pero **simulados**: ENG-63 todavía no expuso
- * los endpoints de MercadoPago, así que el turno sigue quedando en
- * `RESERVADO_SIN_PAGAR` hasta que existan. La pantalla de pago lo dice de frente.
+ * Los dos últimos pasos del stepper —Pago y Listo— son la pantalla de pago con
+ * MercadoPago (ENG-63) y la confirmación, que llega cuando el webhook de ENG-64
+ * pasa el turno a `CONFIRMADO`.
  */
 
 type BookAppointmentProps = {
@@ -64,10 +63,7 @@ export function BookAppointment({ professionalId }: BookAppointmentProps) {
   const { from, to } = useMemo(() => horizonRange(), []);
   const availability = useAvailability(professionalId, from, to);
 
-  const todosLosDias = useMemo(
-    () => availability.data?.days ?? [],
-    [availability.data],
-  );
+  const todosLosDias = useMemo(() => availability.data?.days ?? [], [availability.data]);
 
   /**
    * Dónde abrir: la página del primer día con algo que reservar.
@@ -92,10 +88,7 @@ export function BookAppointment({ professionalId }: BookAppointmentProps) {
   const libresPorFecha = useMemo(
     () =>
       Object.fromEntries(
-        todosLosDias.map((d) => [
-          d.date,
-          d.slots.filter((s) => s.status === 'AVAILABLE').length,
-        ]),
+        todosLosDias.map((d) => [d.date, d.slots.filter((s) => s.status === 'AVAILABLE').length]),
       ),
     [todosLosDias],
   );
@@ -202,7 +195,9 @@ export function BookAppointment({ professionalId }: BookAppointmentProps) {
   const primero = diasVisibles[0]?.date;
   const ultimo = diasVisibles[diasVisibles.length - 1]?.date;
   const rangeLabel = `${
-    primero && ultimo ? `Del ${formatDate(primero)} al ${formatDate(ultimo)}` : 'Sin días para mostrar'
+    primero && ultimo
+      ? `Del ${formatDate(primero)} al ${formatDate(ultimo)}`
+      : 'Sin días para mostrar'
   }${availability.isFetching ? ' · actualizando…' : ''}`;
 
   return (
@@ -299,20 +294,16 @@ function PanelRevision({
         </Fila>
         <Fila titulo="Fecha">{selected ? formatDate(selected.date) : '—'}</Fila>
         <Fila titulo="Hora">
-          {selected ? (
-            <span className="font-bold text-brand-deep">{selected.startTime}</span>
-          ) : (
-            '—'
-          )}
+          {selected ? <span className="font-bold text-brand-deep">{selected.startTime}</span> : '—'}
         </Fila>
       </dl>
 
       <div className="grid gap-3.5 px-[22px] py-[18px]">
         {/* El estado inicial no es un detalle que se pueda ocultar: el turno
-            queda reservado pero sin pagar hasta que exista el pago (ENG-63). */}
+            queda reservado pero sin pagar hasta que se pague (ENG-63). */}
         <p className="rounded-[10px] border border-brand/30 bg-surface-teal px-4 py-3 text-[13px] leading-[1.6] text-brand-deep">
-          El turno queda <strong className="font-bold">reservado sin pagar</strong>. El pago online
-          se habilita más adelante.
+          El turno queda <strong className="font-bold">reservado sin pagar</strong>. Lo pagás en el
+          paso siguiente, con MercadoPago.
         </p>
 
         <div className="flex items-baseline justify-between">
@@ -379,8 +370,8 @@ function PanelRevision({
         )}
 
         <p className="text-xs leading-[1.6] text-muted-soft">
-          Vas a poder cancelarlo desde “Mis turnos”. El plazo y el reembolso los
-          define cada profesional.
+          Vas a poder cancelarlo desde “Mis turnos”. El plazo y el reembolso los define cada
+          profesional.
         </p>
       </div>
     </aside>

@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { amountLinesFor, canPay, findAppointment, payabilityOf } from './checkout';
+import {
+  amountLinesFor,
+  canPay,
+  checkoutResultOf,
+  findAppointment,
+  payabilityOf,
+  paymentOutcomeOf,
+} from './checkout';
 import type { Appointment } from '../../appointments/types/appointment';
+import type { PaymentStatusView } from '../types/payment';
 
 const AHORA = new Date('2026-09-03T12:00:00Z');
 
@@ -46,10 +54,7 @@ describe('payabilityOf', () => {
   });
 
   it('un turno que ya pasó no se paga aunque siga sin pagar', () => {
-    const resultado = payabilityOf(
-      turno({ scheduledAt: '2026-09-01T12:00:00Z' }),
-      AHORA,
-    );
+    const resultado = payabilityOf(turno({ scheduledAt: '2026-09-01T12:00:00Z' }), AHORA);
 
     expect(resultado).toHaveProperty('reason', expect.stringMatching(/ya pasó/i));
   });
@@ -86,5 +91,44 @@ describe('findAppointment', () => {
 
   it('un id que no está en la lista devuelve null', () => {
     expect(findAppointment([turno()], 'no-existe')).toBeNull();
+  });
+});
+
+describe('checkoutResultOf', () => {
+  it.each(['exito', 'pendiente', 'fallo'] as const)('reconoce resultado=%s', (valor) => {
+    expect(checkoutResultOf(new URLSearchParams({ resultado: valor }))).toBe(valor);
+  });
+
+  it('ignora lo que no mandó MercadoPago', () => {
+    expect(checkoutResultOf(new URLSearchParams({ resultado: 'approved' }))).toBeNull();
+    expect(checkoutResultOf(new URLSearchParams())).toBeNull();
+  });
+});
+
+describe('paymentOutcomeOf', () => {
+  const vista = (status: PaymentStatusView['status'], appointmentStatus: string) => ({
+    appointmentId: 'a1',
+    status,
+    appointmentStatus,
+  });
+
+  it('solo el turno CONFIRMADO cuenta como confirmado', () => {
+    expect(paymentOutcomeOf(vista('APROBADO', 'CONFIRMADO'))).toBe('CONFIRMADO');
+  });
+
+  it('un pago aprobado con el turno todavía sin confirmar sigue esperando', () => {
+    // El webhook mueve las dos filas; entre una lectura y otra puede verse a medias.
+    expect(paymentOutcomeOf(vista('APROBADO', 'RESERVADO_SIN_PAGAR'))).toBe('ESPERANDO');
+  });
+
+  it('un pago aprobado sobre un turno cancelado o liberado no se confirma', () => {
+    expect(paymentOutcomeOf(vista('APROBADO', 'CANCELADO'))).toBe('SIN_TURNO');
+    expect(paymentOutcomeOf(vista('APROBADO', 'LIBERADO'))).toBe('SIN_TURNO');
+  });
+
+  it('distingue el rechazo de la espera', () => {
+    expect(paymentOutcomeOf(vista('RECHAZADO', 'RESERVADO_SIN_PAGAR'))).toBe('RECHAZADO');
+    expect(paymentOutcomeOf(vista('PENDIENTE', 'RESERVADO_SIN_PAGAR'))).toBe('ESPERANDO');
+    expect(paymentOutcomeOf(vista('SIN_INICIAR', 'RESERVADO_SIN_PAGAR'))).toBe('ESPERANDO');
   });
 });

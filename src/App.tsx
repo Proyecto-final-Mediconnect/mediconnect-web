@@ -181,9 +181,9 @@ function App() {
           backend. La notebook muestra la guardia y el celular abre la ficha. */}
       <Route path="/juego/guardia" element={<GuardiaJuegoPage />} />
       <Route path="/juego/guardia/ficha" element={<GuardiaFichaPage />} />
-      {/* Pago del turno (ENG-63) y confirmación (ENG-64). Solo PACIENTE: el que
-          paga la consulta es quien la reservó. El cobro todavía está simulado —no
-          existen los endpoints de MercadoPago— y las dos pantallas lo dicen. */}
+      {/* Pago del turno con MercadoPago (ENG-63) y confirmación (ENG-64). Solo
+          PACIENTE: el que paga la consulta es quien la reservó. La ruta de pago es
+          también la vuelta desde MercadoPago (`?resultado=…`). */}
       <Route
         path="/turnos/:appointmentId/pago"
         element={
