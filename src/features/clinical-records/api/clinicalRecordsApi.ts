@@ -1,6 +1,10 @@
 import { apiFetch } from '../../../shared/api/apiFetch';
 import { toApiError } from '../../../shared/api/apiError';
-import type { ClinicalEntry, NewClinicalEntryPayload } from '../types/clinicalRecord';
+import type {
+  ClinicalEntry,
+  CorrectionPayload,
+  NewClinicalEntryPayload,
+} from '../types/clinicalRecord';
 
 /**
  * Historia clínica de un paciente (ENG-58, ENG-60).
@@ -44,6 +48,37 @@ export async function addClinicalEntry(
 
   if (!response.ok) {
     throw await toApiError(response, 'No se pudo guardar la entrada.');
+  }
+
+  return (await response.json()) as ClinicalEntry;
+}
+
+/**
+ * Corrige una entrada agregando un asiento nuevo que la referencia (ENG-100).
+ *
+ * `POST` a una subruta y no `PATCH` sobre la entrada porque **nada se modifica**:
+ * la original queda con su hash y su lugar en la cadena, y la corrección es una
+ * entrada más. Devuelve la corrección ya sellada.
+ *
+ * Los errores que trae este endpoint y que la pantalla distingue: **403** si la
+ * entrada la firmó otro profesional, **409** si ya tiene una corrección.
+ */
+export async function correctClinicalEntry(
+  patientId: string,
+  entryId: string,
+  payload: CorrectionPayload,
+): Promise<ClinicalEntry> {
+  const response = await apiFetch(
+    `${base(patientId)}/${encodeURIComponent(entryId)}/corrections`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    },
+  );
+
+  if (!response.ok) {
+    throw await toApiError(response, 'No se pudo guardar la corrección.');
   }
 
   return (await response.json()) as ClinicalEntry;

@@ -5,6 +5,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ClinicalRecord } from './ClinicalRecord';
+import type { ClinicalEntry } from '../types/clinicalRecord';
 
 const PATIENT = '11111111-1111-4111-8111-111111111111';
 
@@ -38,12 +39,14 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function renderRecord() {
+function renderRecord(
+  props: { viewerId?: string; onCorregir?: (entry: ClinicalEntry) => void } = {},
+) {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
   return render(
     <QueryClientProvider client={queryClient}>
-      <ClinicalRecord patientId={PATIENT} />
+      <ClinicalRecord patientId={PATIENT} {...props} />
     </QueryClientProvider>,
   );
 }
@@ -299,6 +302,111 @@ describe('ClinicalRecord', () => {
       await userEvent.click(screen.getByRole('button', { name: /descargar historia en pdf/i }));
 
       expect(print).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  /**
+   * Quién ve el botón de corregir (ENG-100).
+   *
+   * Es la mitad de la historia que vive en el front: el backend rechaza igual una
+   * corrección de otro profesional (403) o de una entrada ya corregida (409), y
+   * acá se evita ofrecer un botón que iba a terminar en ese error.
+   */
+  describe('corrección (ENG-100)', () => {
+    const AUTOR = 'q1';
+    const OTRO = 'q2';
+
+    const boton = () => screen.queryByRole('button', { name: /corregir esta entrada/i });
+
+    it('el paciente no ve el botón: no le pasan viewerId', async () => {
+      // Quien firma —y quien corrige— un asiento clínico es el profesional.
+      entries = [makeEntry()];
+      renderRecord();
+
+      await screen.findByText('Dolor lumbar de 3 días');
+      expect(boton()).not.toBeInTheDocument();
+    });
+
+    it('no lo ofrece sobre la entrada que firmó otro profesional', async () => {
+      // La pantalla del profesional lista la HC completa desde ENG-60, con las
+      // entradas de todos.
+      entries = [makeEntry({ professionalId: OTRO })];
+      renderRecord({ viewerId: AUTOR, onCorregir: vi.fn() });
+
+      await screen.findByText('Dolor lumbar de 3 días');
+      expect(boton()).not.toBeInTheDocument();
+    });
+
+    it('lo ofrece sobre la entrada propia', async () => {
+      entries = [makeEntry({ professionalId: AUTOR })];
+      renderRecord({ viewerId: AUTOR, onCorregir: vi.fn() });
+
+      await screen.findByText('Dolor lumbar de 3 días');
+      expect(boton()).toBeInTheDocument();
+    });
+
+    it('no lo ofrece sobre una entrada que ya tiene corrección', async () => {
+      // Hay que corregir la corrección, no el original: así el historial queda
+      // lineal y se sabe cuál es el dato vigente.
+      entries = [
+        makeEntry({ id: 'e1', professionalId: AUTOR, sequenceNumber: 1 }),
+        makeEntry({
+          id: 'e2',
+          professionalId: AUTOR,
+          sequenceNumber: 2,
+          entryType: 'CORRECCION',
+          correctsEntryId: 'e1',
+          content: {
+            resourceType: 'ClinicalImpression',
+            description: 'Dolor lumbar de 3 dias, corregido',
+          },
+        }),
+      ];
+      renderRecord({ viewerId: AUTOR, onCorregir: vi.fn() });
+
+      await screen.findByText('Dolor lumbar de 3 dias, corregido');
+
+      // El único botón que queda es el de la corrección, que todavía no fue
+      // corregida.
+      expect(screen.getAllByRole('button', { name: /corregir esta entrada/i })).toHaveLength(1);
+      const original = screen.getByText('Dolor lumbar de 3 días').closest('article');
+      expect(
+        within(original as HTMLElement).queryByRole('button', { name: /corregir esta entrada/i }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('avisa con qué entrada, para que la pantalla abra el diálogo', async () => {
+      const onCorregir = vi.fn();
+      entries = [makeEntry({ id: 'e1', professionalId: AUTOR })];
+      renderRecord({ viewerId: AUTOR, onCorregir });
+
+      await screen.findByText('Dolor lumbar de 3 días');
+      await userEvent.click(boton() as HTMLElement);
+
+      expect(onCorregir).toHaveBeenCalledWith(expect.objectContaining({ id: 'e1' }));
+    });
+
+    it('un filtro puesto no habilita corregir una entrada ya corregida', async () => {
+      // Los vínculos se calculan sobre la cadena completa: si se calcularan sobre
+      // lo visible, filtrar por tipo escondería la corrección y el original
+      // volvería a ofrecer el botón.
+      entries = [
+        makeEntry({ id: 'e1', professionalId: AUTOR, sequenceNumber: 1 }),
+        makeEntry({
+          id: 'e2',
+          professionalId: AUTOR,
+          sequenceNumber: 2,
+          entryType: 'CORRECCION',
+          correctsEntryId: 'e1',
+        }),
+      ];
+      renderRecord({ viewerId: AUTOR, onCorregir: vi.fn() });
+      await screen.findByLabelText(/tipo de registro/i);
+
+      // Se deja solo CONSULTA, así la corrección sale de la lista.
+      await userEvent.selectOptions(screen.getByLabelText(/tipo de registro/i), 'CONSULTA');
+
+      expect(boton()).not.toBeInTheDocument();
     });
   });
 });

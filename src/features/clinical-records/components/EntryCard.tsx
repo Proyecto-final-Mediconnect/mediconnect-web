@@ -33,12 +33,22 @@ export function EntryCard({
   entry,
   corregidaPor,
   corrigeA,
+  onCorregir,
 }: {
   entry: ClinicalEntry;
   /** Nº de la entrada que corrige a esta, si existe. */
   corregidaPor?: number;
   /** Nº de la entrada que esta corrige, si está en la historia. */
   corrigeA?: number;
+  /**
+   * Abre la corrección de esta entrada (ENG-100).
+   *
+   * Viene solo cuando el que mira la firmó y la entrada todavía no tiene
+   * corrección — quién puede corregir qué lo decide `ClinicalRecord`, que es el
+   * que ve la cadena completa. Sin esto la tarjeta no dibuja el botón, y así el
+   * paciente ve la misma tarjeta sin acciones.
+   */
+  onCorregir?: () => void;
 }) {
   const campos = readEntryFields(entry);
   const [titular, ...resto] = campos;
@@ -149,6 +159,21 @@ export function EntryCard({
             </p>
           )}
 
+          {/* La acción va al pie y no arriba junto a la fecha: corregir es lo
+              último que se decide, después de leer el asiento. Y va en link y no
+              en botón sólido porque no es la acción principal de la pantalla —
+              esa es agregar una entrada. */}
+          {onCorregir && (
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={onCorregir}
+                className="rounded-[7px] px-2 py-1 text-[13px] font-semibold text-brand-deep underline underline-offset-2 outline-none transition-colors hover:text-brand-hover focus-visible:ring-2 focus-visible:ring-brand/40"
+              >
+                Corregir esta entrada
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </article>

@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { useMyAppointments } from '../features/appointments/hooks/useAppointments';
+import { useSession } from '../features/auth/hooks/useSession';
 import { ClinicalEntryForm } from '../features/clinical-records/components/ClinicalEntryForm';
 import { ClinicalRecord } from '../features/clinical-records/components/ClinicalRecord';
+import { CorrectEntryForm } from '../features/clinical-records/components/CorrectEntryForm';
+import type { ClinicalEntry } from '../features/clinical-records/types/clinicalRecord';
 import { Button } from '../shared/ui/Button';
 import { Modal } from '../shared/ui/Modal';
 import { DashboardLayout } from './DashboardLayout';
@@ -25,6 +28,11 @@ const UUID_V4 =
  * `?consultation=<uuid>` asocia la entrada a la consulta en curso. Es opcional
  * porque una entrada cargada al otro día no tiene una consulta de la que colgar.
  *
+ * **ENG-100 suma la corrección.** Cada entrada que el profesional firmó y que
+ * todavía no tiene corrección ofrece "Corregir esta entrada", que abre el mismo
+ * formulario con el contenido original cargado. La entrada corregida no se
+ * modifica: la corrección es un asiento nuevo vinculado a ella.
+ *
  * Hoy **nadie pasa ese parámetro**: la videoconsulta (ENG-56) ya está mergeada,
  * pero `POST /appointments/:id/video` devuelve la contraparte sin `id` y no
  * devuelve el `consultationId`, así que la pantalla de la consulta no tiene con
@@ -35,7 +43,12 @@ export function PatientClinicalRecordPage() {
   const { patientId } = useParams<{ patientId: string }>();
   const [searchParams] = useSearchParams();
   const nombre = useNombreDelPaciente(patientId);
+  const { user } = useSession();
   const [altaAbierta, setAltaAbierta] = useState(false);
+  // La entrada que se está corrigiendo, o `null` si el diálogo está cerrado. Se
+  // guarda la entrada entera y no su id porque el formulario arranca con el
+  // contenido original cargado.
+  const [corrigiendo, setCorrigiendo] = useState<ClinicalEntry | null>(null);
 
   if (!patientId) return <Navigate to="/mis-turnos" replace />;
 
@@ -68,6 +81,8 @@ export function PatientClinicalRecordPage() {
         // texto no podía decir "no hay entradas" a secas.
         emptyText="Este paciente todavía no tiene entradas en su historia clínica. La primera la podés cargar desde “Agregar entrada”."
         scopeNote="Ves la historia completa, incluidas las entradas firmadas por otros profesionales. Los registros cerrados no se editan: si hubo una corrección, aparece como una entrada nueva vinculada al original."
+        viewerId={user?.id}
+        onCorregir={setCorrigiendo}
       />
 
       {/* El alta vive acá y no adentro de `ClinicalRecord`: es de esta pantalla,
@@ -89,6 +104,25 @@ export function PatientClinicalRecordPage() {
           onSaved={() => setAltaAbierta(false)}
           onCancel={() => setAltaAbierta(false)}
         />
+      </Modal>
+
+      {/* La corrección (ENG-100). El diálogo se monta solo cuando hay una entrada
+          elegida: así el formulario arranca de cero cada vez y no queda con el
+          contenido de la entrada anterior cargado. */}
+      <Modal
+        open={corrigiendo !== null}
+        titulo="Corregir una entrada"
+        descripcion="La entrada original se conserva. Esto agrega un registro nuevo vinculado a ella, firmado por vos."
+        onClose={() => setCorrigiendo(null)}
+      >
+        {corrigiendo && (
+          <CorrectEntryForm
+            patientId={patientId}
+            entry={corrigiendo}
+            onSaved={() => setCorrigiendo(null)}
+            onCancel={() => setCorrigiendo(null)}
+          />
+        )}
       </Modal>
     </DashboardLayout>
   );
