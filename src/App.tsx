@@ -159,8 +159,7 @@ function App() {
           </RequireAuth>
         }
       />
-      {/* MediPass (EP-05, Release 3). Es del paciente: el acceso del consultante
-          externo con código es otra historia (ENG-73) y entra sin sesión. */}
+      {/* MediPass (EP-05). Es del paciente. */}
       <Route
         path="/medipass"
         element={
@@ -169,14 +168,9 @@ function App() {
           </RequireAuth>
         }
       />
-      <Route
-        path="/medipass/emergencia"
-        element={
-          <RequireAuth allow={['PACIENTE']}>
-            <EmergencyViewPage />
-          </RequireAuth>
-        }
-      />
+      {/* Pública: la abre un médico de guardia que escaneó el QR con la cámara,
+          sin cuenta (ENG-135, ENG-73). Entra con el código, no con sesión. */}
+      <Route path="/medipass/emergencia" element={<EmergencyViewPage />} />
       {/* Juego del stand para la jornada del 06/10: pacientes ficticios, sin
           backend. La notebook muestra la guardia y el celular abre la ficha. */}
       <Route path="/juego/guardia" element={<GuardiaJuegoPage />} />

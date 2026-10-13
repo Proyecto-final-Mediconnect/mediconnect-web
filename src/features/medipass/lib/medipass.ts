@@ -31,9 +31,7 @@ export function msHastaRotacion(now: Date, ventanaMs: number = ROTACION_MS): num
   return ventanaMs - (now.getTime() % ventanaMs);
 }
 
-export type EstadoAcceso =
-  | { estado: 'VIGENTE'; msRestantes: number }
-  | { estado: 'VENCIDO' };
+export type EstadoAcceso = { estado: 'VIGENTE'; msRestantes: number } | { estado: 'VENCIDO' };
 
 /**
  * Si un acceso sigue en pie.
@@ -81,4 +79,18 @@ export function normalizarAlcance(scopes: EmergencyScope[]): EmergencyScope[] {
 /** Si un bloque se muestra con el alcance elegido. */
 export function muestraBloque(scopes: EmergencyScope[], bloque: EmergencyScope): boolean {
   return normalizarAlcance(scopes).includes(bloque);
+}
+
+/**
+ * La URL que codifica el QR: la vista de emergencia con el código cargado. El
+ * médico la abre con la cámara del celular, sin instalar nada.
+ */
+export function emergencyUrl(origin: string, codigo: string): string {
+  return `${origin}/medipass/emergencia?codigo=${encodeURIComponent(codigo)}`;
+}
+
+/** `AB12CD34` → `AB12-CD34`: de a cuatro se lee y se dicta sin errores. */
+export function formatCodigo(codigo: string): string {
+  const limpio = codigo.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
+  return limpio.length === 8 ? `${limpio.slice(0, 4)}-${limpio.slice(4)}` : limpio;
 }
