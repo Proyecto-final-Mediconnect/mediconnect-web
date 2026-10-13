@@ -5,6 +5,7 @@ import { TextField } from '../../../shared/ui/TextField';
 import { PasswordRules } from './PasswordRules';
 import { useRegisterProfessional } from '../hooks/useRegisterProfessional';
 import { registerProfessionalSchema } from '../types/registerProfessional';
+import { LegalConsentField } from '../../legal/components/LegalConsentField';
 
 type FieldKey =
   | 'email'
@@ -13,7 +14,8 @@ type FieldKey =
   | 'firstName'
   | 'lastName'
   | 'specialty'
-  | 'licenseNumber';
+  | 'licenseNumber'
+  | 'acceptedLegal';
 
 type FieldErrors = Partial<Record<FieldKey, string>>;
 
@@ -27,6 +29,7 @@ export function ProfessionalRegisterForm() {
     specialty: '',
     licenseNumber: '',
   });
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [showPasswords, setShowPasswords] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
 
@@ -44,7 +47,7 @@ export function ProfessionalRegisterForm() {
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const result = registerProfessionalSchema.safeParse(values);
+    const result = registerProfessionalSchema.safeParse({ ...values, acceptedLegal });
 
     if (!result.success) {
       const fieldErrors: FieldErrors = {};
@@ -62,10 +65,7 @@ export function ProfessionalRegisterForm() {
 
   if (isSuccess) {
     return (
-      <div
-        role="status"
-        className="rounded-[14px] border border-brand/30 bg-surface-teal p-7"
-      >
+      <div role="status" className="rounded-[14px] border border-brand/30 bg-surface-teal p-7">
         <div
           aria-hidden
           className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-deep text-xl text-white"
@@ -87,8 +87,8 @@ export function ProfessionalRegisterForm() {
             Con el enlace que te mandamos.
           </Paso>
           <Paso n={2} titulo="Validamos tu matrícula a mano">
-            Lo revisa un moderador. Hasta que lo apruebe, tu cuenta funciona pero tu perfil
-            todavía no aparece en el catálogo y nadie puede reservarte.
+            Lo revisa un moderador. Hasta que lo apruebe, tu cuenta funciona pero tu perfil todavía
+            no aparece en el catálogo y nadie puede reservarte.
           </Paso>
         </ol>
 
@@ -187,6 +187,12 @@ export function ProfessionalRegisterForm() {
         {...passwordToggle}
       />
 
+      <LegalConsentField
+        checked={acceptedLegal}
+        onChange={setAcceptedLegal}
+        error={errors.acceptedLegal}
+      />
+
       {error && (
         <p role="alert" className="text-sm text-danger">
           {error.message}
@@ -201,15 +207,7 @@ export function ProfessionalRegisterForm() {
 }
 
 /** Un paso de la espera posterior al alta. */
-function Paso({
-  n,
-  titulo,
-  children,
-}: {
-  n: number;
-  titulo: string;
-  children: React.ReactNode;
-}) {
+function Paso({ n, titulo, children }: { n: number; titulo: string; children: React.ReactNode }) {
   return (
     <li className="flex gap-3">
       <span

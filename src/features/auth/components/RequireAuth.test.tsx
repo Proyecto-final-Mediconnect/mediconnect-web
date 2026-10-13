@@ -2,10 +2,12 @@
 import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from './RequireAuth';
 import type { SessionUser } from '../types/session';
+import { LEGAL_VERSION } from '../../legal/legal';
 
 const PACIENTE: SessionUser = {
   id: 'u1',
@@ -73,5 +75,71 @@ describe('RequireAuth (ENG-44)', () => {
     renderGuarded({ status: 200, body: PACIENTE }, ['PROFESIONAL']);
     expect(await screen.findByText('DASHBOARD PACIENTE')).toBeInTheDocument();
     expect(screen.queryByText('CONTENIDO PRIVADO')).not.toBeInTheDocument();
+  });
+
+  describe('consentimiento (ENG-140)', () => {
+    it('sin aceptar los textos vigentes muestra el pedido de consentimiento, no la app', async () => {
+      renderGuarded({ status: 200, body: { ...PACIENTE, legalAccepted: false } });
+
+      expect(
+        await screen.findByRole('heading', { name: /necesitamos tu consentimiento/i }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText('CONTENIDO PRIVADO')).not.toBeInTheDocument();
+    });
+
+    it('un backend que no informa el campo no bloquea a nadie', async () => {
+      // `PACIENTE` no trae `legalAccepted`, como un backend anterior a ENG-140.
+      renderGuarded({ status: 200, body: PACIENTE });
+      expect(await screen.findByText('CONTENIDO PRIVADO')).toBeInTheDocument();
+    });
+
+    it('al aceptar registra la versión y muestra la app', async () => {
+      const user = userEvent.setup();
+      const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
+        const aceptando = String(input).includes('/me/legal-acceptance');
+        const body =
+          aceptando || init?.method === 'POST'
+            ? { ...PACIENTE, legalAccepted: true }
+            : { ...PACIENTE, legalAccepted: false };
+        return Promise.resolve(
+          new Response(JSON.stringify(body), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          }),
+        );
+      });
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      render(
+        <QueryClientProvider client={client}>
+          <MemoryRouter initialEntries={['/privado']}>
+            <Routes>
+              <Route
+                path="/privado"
+                element={
+                  <RequireAuth>
+                    <div>CONTENIDO PRIVADO</div>
+                  </RequireAuth>
+                }
+              />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      // Sin marcar la casilla no manda nada.
+      await user.click(await screen.findByRole('button', { name: /aceptar y continuar/i }));
+      expect(
+        await screen.findByText(/consentimiento para el tratamiento/i, { selector: 'p' }),
+      ).toBeInTheDocument();
+
+      await user.click(screen.getByRole('checkbox', { name: /leí y acepto/i }));
+      await user.click(screen.getByRole('button', { name: /aceptar y continuar/i }));
+
+      expect(await screen.findByText('CONTENIDO PRIVADO')).toBeInTheDocument();
+      const aceptacion = fetchSpy.mock.calls.find(([input]) =>
+        String(input).includes('/me/legal-acceptance'),
+      );
+      expect(JSON.parse(String(aceptacion?.[1]?.body))).toEqual({ version: LEGAL_VERSION });
+    });
   });
 });

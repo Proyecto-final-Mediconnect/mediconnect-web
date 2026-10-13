@@ -9,6 +9,7 @@ import { GuardiaFichaPage } from './pages/GuardiaFichaPage';
 import { GuardiaJuegoPage } from './pages/GuardiaJuegoPage';
 import { MediPassPage } from './pages/MediPassPage';
 import { LandingPage } from './pages/LandingPage';
+import { LegalPage } from './pages/LegalPage';
 import { LoginPage } from './pages/LoginPage';
 import { ModeratorDashboardPage } from './pages/ModeratorDashboardPage';
 import { MyAppointmentsPage } from './pages/MyAppointmentsPage';
@@ -45,6 +46,8 @@ function App() {
       <Route path="/ingresar" element={<LoginPage />} />
       <Route path="/registro" element={<RegisterPage />} />
       <Route path="/registro/profesional" element={<ProfessionalRegisterPage />} />
+      {/* Pública: se lee antes de crear la cuenta (ENG-140). */}
+      <Route path="/legales" element={<LegalPage />} />
 
       {/* Privadas — un dashboard por rol (ENG-44) */}
       {/* Los dos perfiles quedaron sin guard desde antes de que existiera

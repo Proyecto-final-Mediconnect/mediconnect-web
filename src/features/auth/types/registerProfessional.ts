@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LEGAL_REQUIRED_MESSAGE } from '../../legal/legal';
 
 /**
  * Validación del registro de profesional (ENG-43).
@@ -33,6 +34,7 @@ export const registerProfessionalSchema = z
       .string()
       .trim()
       .regex(/^[A-Za-z0-9./-]{3,20}$/, 'El número de matrícula no tiene un formato válido'),
+    acceptedLegal: z.boolean().refine((v) => v, LEGAL_REQUIRED_MESSAGE),
   })
   .refine((data) => data.password === data.passwordConfirmation, {
     message: 'Las contraseñas no coinciden',
