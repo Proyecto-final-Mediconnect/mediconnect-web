@@ -9,6 +9,11 @@ export interface SessionUser {
   role: UserRole;
   firstName: string | null;
   lastName: string | null;
+  /** Si aceptó la versión vigente de los textos legales (ENG-140). Opcional
+   *  porque un backend anterior a ENG-140 no lo manda: en ese caso no se bloquea
+   *  a nadie. Solo un `false` explícito muestra `LegalAcceptanceGate`. */
+  legalAccepted?: boolean;
+  legalVersion?: string;
 }
 
 /** Cómo se nombra cada rol en pantalla. Vive acá y no en el menú porque ahora lo
@@ -24,16 +29,13 @@ export const ROLE_LABEL: Record<UserRole, string> = {
  *  nombre —pasa entre el registro y el alta de la ficha— y a un punto cuando no
  *  hay ni eso, para que el círculo nunca quede vacío. */
 export function initialsOf(user: SessionUser): string {
-  const deNombre =
-    (user.firstName?.charAt(0) ?? '') + (user.lastName?.charAt(0) ?? '');
+  const deNombre = (user.firstName?.charAt(0) ?? '') + (user.lastName?.charAt(0) ?? '');
   return (deNombre || user.email.charAt(0) || '·').toUpperCase();
 }
 
 /** Nombre completo, con el email como respaldo por el mismo motivo. */
 export function displayNameOf(user: SessionUser): string {
-  return user.firstName
-    ? `${user.firstName} ${user.lastName ?? ''}`.trim()
-    : user.email;
+  return user.firstName ? `${user.firstName} ${user.lastName ?? ''}`.trim() : user.email;
 }
 
 /** Ruta del dashboard correspondiente a cada rol (ENG-44). */

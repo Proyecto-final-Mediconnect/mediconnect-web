@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LEGAL_REQUIRED_MESSAGE } from '../../legal/legal';
 
 /**
  * Validación del registro de paciente (ENG-42).
@@ -14,6 +15,7 @@ export const registerPatientSchema = z
       .regex(/[A-Z]/, 'La contraseña debe incluir al menos una mayúscula')
       .regex(/[0-9]/, 'La contraseña debe incluir al menos un número'),
     passwordConfirmation: z.string().min(1, 'Confirmá la contraseña'),
+    acceptedLegal: z.boolean().refine((v) => v, LEGAL_REQUIRED_MESSAGE),
   })
   .refine((data) => data.password === data.passwordConfirmation, {
     message: 'Las contraseñas no coinciden',
