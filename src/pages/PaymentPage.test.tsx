@@ -10,11 +10,11 @@ import type { Appointment } from '../features/appointments/types/appointment';
 /**
  * La pantalla de pago (ENG-63).
  *
- * El cobro simulado ya está cubierto por `Checkout.test.tsx`. Lo que se prueba
+ * El botón de pago ya está cubierto por `Checkout.test.tsx`. Lo que se prueba
  * acá es lo que sabe SOLO esta página: resolver el turno del `:appointmentId` de
- * la URL contra `GET /appointments/me`, que es lo que decide si se muestra el
- * checkout o un mensaje. Es también la puerta por la que entra un enlace ajeno o
- * viejo.
+ * la URL contra `GET /appointments/me`, y la vuelta desde MercadoPago
+ * (`?resultado=…`), que espera la confirmación del webhook en vez de creerle a la
+ * URL.
  */
 
 const PATIENT_ID = '11111111-1111-4111-8111-111111111111';
@@ -55,18 +55,29 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
-/** Responde por URL: la sesión y los turnos son requests distintos, y la página
- *  ramifica según cómo salga el de turnos. */
+/** Lo que va devolviendo `GET /appointments/:id/payment`, uno por consulta. El
+ *  último se repite: así se simula el webhook llegando entre dos consultas. */
+type Pago = { status: string; appointmentStatus: string };
+
+/** Responde por URL: la sesión, los turnos y el estado del pago son requests
+ *  distintos, y la página ramifica según cómo salga cada uno. */
 function renderPage(
   turnos: Appointment[] | { error: string },
   urlId = 'a1',
+  { query = '', pagos = [] }: { query?: string; pagos?: Pago[] } = {},
 ) {
+  let consulta = 0;
   vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
     const url = String(input);
     if (url.includes('/appointments/me')) {
       return Promise.resolve(
         Array.isArray(turnos) ? json(turnos) : json({ message: turnos.error }, 500),
       );
+    }
+    if (url.includes('/payment')) {
+      const pago = pagos[Math.min(consulta, pagos.length - 1)];
+      consulta += 1;
+      return Promise.resolve(json({ appointmentId: urlId, ...pago }));
     }
     return Promise.resolve(json(SESION));
   });
@@ -75,14 +86,21 @@ function renderPage(
 
   return render(
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={[`/turnos/${urlId}/pago`]}>
+      <MemoryRouter initialEntries={[`/turnos/${urlId}/pago${query}`]}>
         <Routes>
           <Route path="/turnos/:appointmentId/pago" element={<PaymentPage />} />
+          <Route
+            path="/turnos/:appointmentId/confirmado"
+            element={<p>Pantalla de confirmación</p>}
+          />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   );
 }
+
+const PENDIENTE = { status: 'PENDIENTE', appointmentStatus: 'RESERVADO_SIN_PAGAR' };
+const CONFIRMADO = { status: 'APROBADO', appointmentStatus: 'CONFIRMADO' };
 
 beforeEach(() => {
   vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -130,5 +148,62 @@ describe('PaymentPage (ENG-63)', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent(/cargando el turno/i);
     expect(screen.queryByText(/no encontramos ese turno/i)).not.toBeInTheDocument();
+  });
+
+  describe('vuelta desde MercadoPago', () => {
+    it('con resultado=exito espera el webhook y pasa a la confirmación cuando llega', async () => {
+      renderPage([turno()], 'a1', { query: '?resultado=exito', pagos: [PENDIENTE, CONFIRMADO] });
+
+      // Volver con "éxito" no confirma nada: primero se espera al webhook.
+      expect(await screen.findByText(/esperando la confirmación de mercadopago/i)).toBeVisible();
+
+      await vi.advanceTimersByTimeAsync(2_500);
+
+      expect(await screen.findByText(/pantalla de confirmación/i)).toBeVisible();
+    });
+
+    it('si el pago se rechazó, lo dice y ofrece reintentar', async () => {
+      renderPage([turno()], 'a1', {
+        query: '?resultado=exito',
+        pagos: [{ status: 'RECHAZADO', appointmentStatus: 'RESERVADO_SIN_PAGAR' }],
+      });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/rechazó el pago/i);
+      expect(screen.getByRole('button', { name: /reintentar el pago/i })).toBeVisible();
+    });
+
+    it('con resultado=fallo vuelve a ofrecer el pago sin quedarse esperando', async () => {
+      renderPage([turno()], 'a1', { query: '?resultado=fallo', pagos: [PENDIENTE] });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/no se completó/i);
+      expect(screen.getByRole('button', { name: /reintentar el pago/i })).toBeVisible();
+    });
+
+    it('con resultado=pendiente explica que se confirma al acreditarse', async () => {
+      renderPage([turno()], 'a1', { query: '?resultado=pendiente', pagos: [PENDIENTE] });
+
+      expect(await screen.findByText(/tu pago quedó pendiente/i)).toBeVisible();
+    });
+
+    it('deja de preguntar al minuto y ofrece volver a consultar', async () => {
+      renderPage([turno()], 'a1', { query: '?resultado=exito', pagos: [PENDIENTE] });
+      await screen.findByText(/esperando la confirmación de mercadopago/i);
+
+      await vi.advanceTimersByTimeAsync(61_000);
+
+      expect(await screen.findByRole('button', { name: /volver a consultar/i })).toBeVisible();
+      const consultas = () =>
+        vi.mocked(globalThis.fetch).mock.calls.filter(([i]) => String(i).includes('/payment'))
+          .length;
+      const antes = consultas();
+      await vi.advanceTimersByTimeAsync(10_000);
+      expect(consultas()).toBe(antes);
+    });
+
+    it('un resultado inventado en la URL se ignora y muestra el checkout', async () => {
+      renderPage([turno()], 'a1', { query: '?resultado=aprobadisimo' });
+
+      expect(await screen.findByRole('button', { name: /pagar \$\s?12\.000/i })).toBeVisible();
+    });
   });
 });

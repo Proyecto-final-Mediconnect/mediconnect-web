@@ -1,15 +1,47 @@
 import { formatPrice } from '../../appointments/lib/weeks';
 import type { Appointment } from '../../appointments/types/appointment';
-import type { PaymentStatus } from '../types/payment';
+import type { CheckoutResult, PaymentStatus, PaymentStatusView } from '../types/payment';
 
 /**
  * Reglas del pago de un turno (ENG-63).
  *
  * Son puras y viven acá por el mismo motivo que `myAppointments.ts`: se pueden
- * testear sin montar React, y cuando exista el endpoint el backend va a
- * revalidar exactamente esto. **Nada de lo que decide este archivo autoriza un
- * cobro**: decide qué se dibuja.
+ * testear sin montar React, y el backend revalida exactamente esto. **Nada de lo
+ * que decide este archivo autoriza un cobro**: decide qué se dibuja.
  */
+
+/**
+ * El `resultado` con el que MercadoPago devolvió al paciente, o `null` si entró
+ * a la pantalla de pago por primera vez. Cualquier otro valor se ignora: viene
+ * en la URL y la puede escribir cualquiera.
+ */
+export function checkoutResultOf(search: URLSearchParams): CheckoutResult | null {
+  const valor = search.get('resultado');
+  return valor === 'exito' || valor === 'pendiente' || valor === 'fallo' ? valor : null;
+}
+
+/**
+ * Qué pasó con el pago, según el backend.
+ *
+ * - `CONFIRMADO`: el webhook confirmó el turno. Es lo único que cuenta como
+ *   éxito: la vuelta de MercadoPago con `resultado=exito` no confirma nada.
+ * - `RECHAZADO`: MercadoPago rechazó el pago. El turno sigue reservado y se
+ *   puede reintentar.
+ * - `SIN_TURNO`: el pago se acreditó, pero el turno ya no estaba esperando
+ *   pago (se canceló o se liberó en el medio). El webhook no lo confirma.
+ * - `ESPERANDO`: todavía no llegó el webhook, o el pago quedó pendiente (por
+ *   ejemplo, en efectivo).
+ */
+export type PaymentOutcome = 'CONFIRMADO' | 'RECHAZADO' | 'SIN_TURNO' | 'ESPERANDO';
+
+export function paymentOutcomeOf(view: PaymentStatusView): PaymentOutcome {
+  if (view.appointmentStatus === 'CONFIRMADO') return 'CONFIRMADO';
+  if (view.status === 'RECHAZADO') return 'RECHAZADO';
+  if (view.status === 'APROBADO' && view.appointmentStatus !== 'RESERVADO_SIN_PAGAR') {
+    return 'SIN_TURNO';
+  }
+  return 'ESPERANDO';
+}
 
 /** Nombre visible de cada estado de pago. */
 const STATUS_LABELS: Record<PaymentStatus, string> = {
@@ -36,10 +68,7 @@ export type Payability =
   | { kind: 'ALREADY_PAID' }
   | { kind: 'NOT_PAYABLE'; reason: string };
 
-export function payabilityOf(
-  appointment: Appointment,
-  now: Date = new Date(),
-): Payability {
+export function payabilityOf(appointment: Appointment, now: Date = new Date()): Payability {
   if (appointment.status === 'CONFIRMADO') return { kind: 'ALREADY_PAID' };
 
   if (appointment.status !== 'RESERVADO_SIN_PAGAR') {
@@ -71,8 +100,7 @@ export function canPay(appointment: Appointment, now: Date = new Date()): boolea
  *
  * Hoy es una sola línea: **MediConnect no agrega ningún cargo propio**. Se
  * devuelve como lista igual porque el checkout de MercadoPago puede sumar costos
- * de financiación, y cuando ENG-63 traiga la preferencia real esos renglones van
- * a llegar del backend en vez de calcularse acá.
+ * de financiación; esos los muestra MercadoPago en su pantalla.
  */
 export interface AmountLine {
   label: string;

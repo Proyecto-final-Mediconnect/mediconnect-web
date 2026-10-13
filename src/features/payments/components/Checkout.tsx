@@ -1,57 +1,62 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { counterpartOf, formatLongDate } from '../../appointments/lib/myAppointments';
 import { formatPrice } from '../../appointments/lib/weeks';
 import type { Appointment } from '../../appointments/types/appointment';
 import { useSession } from '../../auth/hooks/useSession';
+import { useStartCheckout } from '../hooks/usePayment';
 import { amountLinesFor, PAYMENT_METHODS, payabilityOf } from '../lib/checkout';
 
 /**
  * Checkout de un turno (ENG-63).
  *
- * ⚠️ **El pago está simulado.** No hay endpoint: el backend todavía no expone
- * `POST /appointments/:id/payment`, así que apretar "Pagar" no cobra nada, no
- * crea ninguna fila en `payments` y **no cambia el estado del turno**, que sigue
- * en `RESERVADO_SIN_PAGAR`. La pantalla está construida para que, cuando ENG-63
- * exista, solo haya que reemplazar `simularPago` por la mutación real.
+ * "Pagar" pide al backend el link de Checkout Pro (`POST
+ * /appointments/:id/payment`) y manda al paciente a MercadoPago. **MediConnect no
+ * pide datos de tarjeta** (ADR-013): se cargan del lado de MercadoPago, que es lo
+ * que deja a MediConnect fuera del alcance de PCI. Por eso acá no hay ni va a
+ * haber campos de tarjeta, solo el resumen y el botón que lleva afuera.
  *
- * El diseño respeta la arquitectura decidida (ADR-013): **MediConnect no pide
- * datos de tarjeta**. El backend crea una preferencia y redirige al checkout de
- * MercadoPago, que es lo que deja a MediConnect fuera del alcance de PCI. Por eso
- * acá no hay ni va a haber campos de tarjeta, solo el resumen y el botón que
- * lleva afuera.
+ * La vuelta la maneja `PaymentReturn`. Si el pago no salió, vuelve a montar este
+ * componente con `aviso` para que el paciente reintente.
  */
 
-type Estado = 'IDLE' | 'PROCESANDO' | 'RECHAZADO';
+/** Por qué se vuelve a ofrecer el pago después de un intento. */
+export type CheckoutNotice = 'RECHAZADO' | 'NO_COMPLETADO';
 
-/** Lo que tarda la simulación. Es puro teatro: sirve para que el estado de
- *  "procesando" se pueda ver y estilar antes de que exista el pago real. */
-const DEMORA_SIMULADA_MS = 1400;
+const AVISOS: Record<CheckoutNotice, string> = {
+  RECHAZADO:
+    'MercadoPago rechazó el pago. Tu turno sigue reservado: podés intentar de nuevo con otro medio.',
+  NO_COMPLETADO:
+    'El pago no se completó. Tu turno sigue reservado: podés intentar de nuevo cuando quieras.',
+};
 
-export function Checkout({ appointment }: { appointment: Appointment }) {
+/** Sale de la SPA: el checkout es una página de MercadoPago, no una ruta nuestra. */
+function irA(url: string) {
+  window.location.assign(url);
+}
+
+export function Checkout({
+  appointment,
+  aviso,
+  redirigir = irA,
+}: {
+  appointment: Appointment;
+  aviso?: CheckoutNotice;
+  /** Inyectable para los tests, que no pueden navegar fuera de jsdom. */
+  redirigir?: (url: string) => void;
+}) {
   const { user } = useSession();
-  const navigate = useNavigate();
-  const [estado, setEstado] = useState<Estado>('IDLE');
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const checkout = useStartCheckout();
+  // Con el link en mano el navegador ya se está yendo: el botón no vuelve a
+  // habilitarse, para que no se pida otro checkout en el medio.
+  const yendo = checkout.isPending || checkout.isSuccess;
 
-  // Sin esto, salir de la pantalla mientras "procesa" dejaría un navigate
-  // pendiente que dispara sobre un componente ya desmontado.
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  function pagar() {
+    checkout.mutate(appointment.id, { onSuccess: (link) => redirigir(link.checkoutUrl) });
+  }
 
   const profesional = counterpartOf(appointment, user?.id ?? null);
   const lineas = amountLinesFor(appointment);
   const pagable = payabilityOf(appointment);
-
-  function simularPago(apruebaElPago: boolean) {
-    setEstado('PROCESANDO');
-    timer.current = setTimeout(() => {
-      if (apruebaElPago) {
-        navigate(`/turnos/${appointment.id}/confirmado`);
-      } else {
-        setEstado('RECHAZADO');
-      }
-    }, DEMORA_SIMULADA_MS);
-  }
 
   if (pagable.kind !== 'PAYABLE') {
     return (
@@ -97,13 +102,12 @@ export function Checkout({ appointment }: { appointment: Appointment }) {
               Con MercadoPago
             </p>
             <p className="mt-2.5 max-w-[520px] text-sm leading-[1.7] text-muted">
-              Te llevamos al checkout de MercadoPago para completar el pago y volvés
-              acá con el turno confirmado.{' '}
+              Te llevamos al checkout de MercadoPago para completar el pago y volvés acá con el
+              turno confirmado.{' '}
               <strong className="font-bold text-brand-deep">
                 Los datos de tu tarjeta no pasan por MediConnect
               </strong>
-              : se cargan del lado de MercadoPago y nosotros nunca los vemos ni los
-              guardamos.
+              : se cargan del lado de MercadoPago y nosotros nunca los vemos ni los guardamos.
             </p>
 
             <ul className="mt-5 flex flex-wrap gap-2">
@@ -134,9 +138,7 @@ export function Checkout({ appointment }: { appointment: Appointment }) {
 
           <dl className="grid gap-[11px] px-[22px] py-[18px] text-sm font-medium text-ink">
             <Fila titulo="Profesional">
-              {profesional
-                ? `${profesional.firstName} ${profesional.lastName}`
-                : 'No disponible'}
+              {profesional ? `${profesional.firstName} ${profesional.lastName}` : 'No disponible'}
             </Fila>
             <Fila titulo="Fecha">{formatLongDate(appointment.date)}</Fila>
             <Fila titulo="Hora">
@@ -146,18 +148,6 @@ export function Checkout({ appointment }: { appointment: Appointment }) {
             <Fila titulo="Modalidad">Videoconsulta</Fila>
           </dl>
         </section>
-
-        {/* El disparador del camino de rechazo. Vivía dentro del cartel que
-            explicaba que el cobro es simulado; sacado el cartel, queda suelto
-            acá para poder recorrer ese camino. */}
-        <button
-          type="button"
-          onClick={() => simularPago(false)}
-          disabled={estado === 'PROCESANDO'}
-          className="justify-self-start text-[13px] font-semibold text-muted underline underline-offset-2 hover:text-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
-        >
-          Simular un pago rechazado
-        </button>
       </div>
 
       <aside className="overflow-hidden rounded-[14px] border border-line bg-white lg:sticky lg:top-24">
@@ -177,9 +167,7 @@ export function Checkout({ appointment }: { appointment: Appointment }) {
             >
               <dt
                 className={
-                  linea.isTotal
-                    ? 'text-[13px] font-semibold text-muted'
-                    : 'text-[13px] text-muted'
+                  linea.isTotal ? 'text-[13px] font-semibold text-muted' : 'text-[13px] text-muted'
                 }
               >
                 {linea.label}
@@ -198,25 +186,31 @@ export function Checkout({ appointment }: { appointment: Appointment }) {
         </dl>
 
         <div className="grid gap-3.5 border-t border-line-soft px-[22px] py-[18px]">
-          {estado === 'RECHAZADO' && (
+          {checkout.isError ? (
             <p
               role="alert"
               className="rounded-[10px] border border-danger/30 bg-danger/5 px-4 py-3 text-[13px] leading-[1.6] text-danger"
             >
-              El pago fue rechazado. Tu turno sigue reservado: podés intentar de nuevo
-              con otro medio.
+              {checkout.error.message}
             </p>
-          )}
+          ) : aviso && !yendo ? (
+            <p
+              role="alert"
+              className="rounded-[10px] border border-danger/30 bg-danger/5 px-4 py-3 text-[13px] leading-[1.6] text-danger"
+            >
+              {AVISOS[aviso]}
+            </p>
+          ) : null}
 
           <button
             type="button"
-            onClick={() => simularPago(true)}
-            disabled={estado === 'PROCESANDO'}
+            onClick={pagar}
+            disabled={yendo}
             className="w-full rounded-[10px] bg-brand py-[15px] text-[15px] font-bold text-ink-deep transition-colors hover:bg-brand-hover hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {estado === 'PROCESANDO'
-              ? 'Procesando el pago…'
-              : estado === 'RECHAZADO'
+            {yendo
+              ? 'Te llevamos a MercadoPago…'
+              : aviso || checkout.isError
                 ? 'Reintentar el pago'
                 : `Pagar ${formatPrice(appointment.price, appointment.currency)}`}
           </button>
@@ -229,8 +223,8 @@ export function Checkout({ appointment }: { appointment: Appointment }) {
           </Link>
 
           <p className="text-xs leading-[1.6] text-muted-soft">
-            Vas a poder cancelarlo desde “Mis turnos”. El plazo y el reembolso los
-            define cada profesional.
+            Vas a poder cancelarlo desde “Mis turnos”. El plazo y el reembolso los define cada
+            profesional.
           </p>
         </div>
       </aside>

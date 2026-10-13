@@ -2,7 +2,11 @@ import { Link, useParams } from 'react-router-dom';
 import { BookingStepper } from '../features/appointments/components/BookingStepper';
 import { PASO_LISTO } from '../features/appointments/lib/bookingSteps';
 import { useMyAppointments } from '../features/appointments/hooks/useAppointments';
-import { counterpartOf, formatLongDate, statusLabel } from '../features/appointments/lib/myAppointments';
+import {
+  counterpartOf,
+  formatLongDate,
+  statusLabel,
+} from '../features/appointments/lib/myAppointments';
 import { formatPrice } from '../features/appointments/lib/weeks';
 import { useSession } from '../features/auth/hooks/useSession';
 import { findAppointment } from '../features/payments/lib/checkout';
@@ -12,11 +16,10 @@ import { DashboardLayout } from './DashboardLayout';
 /**
  * Turno confirmado (ENG-64) — último paso de la reserva.
  *
- * ⚠️ Se llega desde el pago simulado, así que **el turno no está realmente
- * confirmado**: en la base sigue en `RESERVADO_SIN_PAGAR`. Por eso la pantalla
- * muestra el estado real del turno junto al mensaje, en vez de afirmar algo que
- * la base contradice. Cuando ENG-63 conecte MercadoPago, el estado que llegue
- * del backend va a ser `CONFIRMADO` y este mismo chip lo va a decir solo.
+ * Se llega desde la vuelta de MercadoPago (`PaymentReturn`) recién cuando el
+ * webhook pasó el turno a `CONFIRMADO`. Igual muestra el estado real del turno
+ * junto al mensaje: la ruta se puede abrir a mano, y la pantalla no debe afirmar
+ * algo que la base contradice.
  */
 export function AppointmentConfirmedPage() {
   const { appointmentId } = useParams<{ appointmentId: string }>();
@@ -55,8 +58,8 @@ export function AppointmentConfirmedPage() {
                 <strong className="font-bold text-white">
                   {formatLongDate(appointment.date)} a las {appointment.startTime}
                 </strong>
-                . La sala de la videoconsulta se abre {JOIN_OPENS_MINUTES_BEFORE} minutos
-                antes; vas a encontrar el acceso en Mis turnos.
+                . La sala de la videoconsulta se abre {JOIN_OPENS_MINUTES_BEFORE} minutos antes; vas
+                a encontrar el acceso en Mis turnos.
               </p>
 
               <div className="mt-7 flex flex-wrap gap-3">
@@ -85,9 +88,7 @@ export function AppointmentConfirmedPage() {
                 <dl className="grid gap-[11px] px-[22px] py-[18px] text-sm font-medium text-ink">
                   <Fila titulo="Fecha">{formatLongDate(appointment.date)}</Fila>
                   <Fila titulo="Hora">
-                    <span className="font-bold text-brand-deep">
-                      {appointment.startTime}
-                    </span>
+                    <span className="font-bold text-brand-deep">{appointment.startTime}</span>
                   </Fila>
                   <Fila titulo="Duración">{appointment.durationMinutes} min</Fila>
                   <Fila titulo="Importe">
