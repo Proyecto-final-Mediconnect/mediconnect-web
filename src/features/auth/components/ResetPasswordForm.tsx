@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../../shared/ui/Button';
 import { TextField } from '../../../shared/ui/TextField';
+import { RECOVERY_LINK_CONSUMED } from '../api/passwordRecovery';
 import { PasswordRules } from './PasswordRules';
 import { useResetPassword } from '../hooks/usePasswordRecovery';
 import { resetPasswordSchema } from '../types/passwordRecovery';
@@ -65,6 +66,26 @@ export function ResetPasswordForm({ tokenHash }: ResetPasswordFormProps) {
           className="mt-5 inline-flex items-center justify-center rounded-[9px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
         >
           Iniciar sesión
+        </Link>
+      </div>
+    );
+  }
+
+  // El cambio falló después de canjear el enlace (ej. contraseña igual a la
+  // anterior): el enlace ya no sirve, así que no tiene sentido dejar el
+  // formulario para reintentar. La única salida es pedir otro.
+  if (error?.code === RECOVERY_LINK_CONSUMED) {
+    return (
+      <div role="alert" className="rounded-[14px] border border-line bg-white p-7">
+        <h2 className="font-display text-[22px] leading-[1.2] text-brand-deep">
+          Este enlace ya se usó
+        </h2>
+        <p className="mt-2.5 text-sm leading-[1.7] text-ink">{error.message}</p>
+        <Link
+          to="/recuperar-contrasena"
+          className="mt-5 inline-flex items-center justify-center rounded-[9px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+        >
+          Pedir un enlace nuevo
         </Link>
       </div>
     );

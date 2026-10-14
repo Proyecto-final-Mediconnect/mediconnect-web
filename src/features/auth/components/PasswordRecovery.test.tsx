@@ -151,5 +151,45 @@ describe('Recuperar contraseña (ENG-142)', () => {
       expect(alerta).toHaveTextContent(/ya venció/);
       expect(screen.getByRole('link', { name: /pedir un enlace nuevo/i })).toBeInTheDocument();
     });
+
+    it('si el enlace ya se gastó, no deja reintentar y lleva a pedir otro', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        jsonResponse(400, {
+          message:
+            'La contraseña nueva tiene que ser distinta de la anterior. Por seguridad, este enlace ya no sirve: pedí uno nuevo.',
+          code: 'RECOVERY_LINK_CONSUMED',
+        }),
+      );
+      renderAt(<ResetPasswordPage />, LINK);
+
+      await user.type(screen.getByLabelText('Contraseña nueva'), 'NuevaClave1');
+      await user.type(screen.getByLabelText('Confirmar contraseña'), 'NuevaClave1');
+      await user.click(screen.getByRole('button', { name: /guardar contraseña/i }));
+
+      expect(await screen.findByText('Este enlace ya se usó')).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent(/distinta de la anterior/);
+      expect(screen.queryByLabelText('Contraseña nueva')).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /pedir un enlace nuevo/i })).toHaveAttribute(
+        'href',
+        '/recuperar-contrasena',
+      );
+    });
+
+    it('borra el token de la dirección y no manda Referer mientras está abierta', () => {
+      window.history.pushState(null, '', LINK);
+      const { unmount } = renderAt(<ResetPasswordPage />, LINK);
+
+      expect(window.location.search).toBe('');
+      expect(screen.getByLabelText('Contraseña nueva')).toBeInTheDocument();
+      expect(document.querySelector('meta[name="referrer"]')).toHaveAttribute(
+        'content',
+        'no-referrer',
+      );
+
+      unmount();
+      expect(document.querySelector('meta[name="referrer"]')).toBeNull();
+      window.history.pushState(null, '', '/');
+    });
   });
 });
