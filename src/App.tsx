@@ -10,6 +10,7 @@ import { GuardiaJuegoPage } from './pages/GuardiaJuegoPage';
 import { MediPassPage } from './pages/MediPassPage';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { ModeratorDashboardPage } from './pages/ModeratorDashboardPage';
 import { MyAppointmentsPage } from './pages/MyAppointmentsPage';
 import { MyClinicalRecordPage } from './pages/MyClinicalRecordPage';
@@ -25,6 +26,7 @@ import { PatientClinicalRecordPage } from './pages/PatientClinicalRecordPage';
 import { PatientProfessionalProfilePage } from './pages/PatientProfessionalProfilePage';
 import { PatientProfilePage } from './pages/PatientProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
+import { ResetPasswordPage } from './pages/ResetPasswordPage';
 import { SpikeDailyPage } from './pages/SpikeDailyPage';
 import { VideoConsultationPage } from './pages/VideoConsultationPage';
 
@@ -44,6 +46,8 @@ function App() {
       <Route path="/profesionales/:professionalId" element={<ProfessionalPublicProfilePage />} />
       <Route path="/ingresar" element={<LoginPage />} />
       <Route path="/registro" element={<RegisterPage />} />
+      <Route path="/recuperar-contrasena" element={<ForgotPasswordPage />} />
+      <Route path="/restablecer-contrasena" element={<ResetPasswordPage />} />
       <Route path="/registro/profesional" element={<ProfessionalRegisterPage />} />
 
       {/* Privadas — un dashboard por rol (ENG-44) */}

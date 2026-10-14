@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../../shared/ui/Button';
 import { TextField } from '../../../shared/ui/TextField';
@@ -77,6 +77,12 @@ export function LoginForm() {
         onChange={(e) => setPassword(e.target.value)}
         error={errors.password}
       />
+      <Link
+        to="/recuperar-contrasena"
+        className="-mt-2 self-end text-[13px] font-semibold text-brand-hover underline-offset-2 hover:underline"
+      >
+        ¿Olvidaste tu contraseña?
+      </Link>
 
       {error && (
         <p role="alert" className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-danger">
