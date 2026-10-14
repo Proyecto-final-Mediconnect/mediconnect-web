@@ -1,5 +1,13 @@
 import { z } from 'zod';
 
+/** Reglas de la contraseña, iguales a las del backend. Las comparten el
+ *  registro y el cambio de contraseña (ENG-142). */
+export const passwordField = z
+  .string()
+  .min(8, 'La contraseña debe tener al menos 8 caracteres')
+  .regex(/[A-Z]/, 'La contraseña debe incluir al menos una mayúscula')
+  .regex(/[0-9]/, 'La contraseña debe incluir al menos un número');
+
 /**
  * Validación del registro de paciente (ENG-42).
  * Espeja las reglas del backend: email válido, contraseña de al menos
@@ -8,11 +16,7 @@ import { z } from 'zod';
 export const registerPatientSchema = z
   .object({
     email: z.email('El email no tiene un formato válido'),
-    password: z
-      .string()
-      .min(8, 'La contraseña debe tener al menos 8 caracteres')
-      .regex(/[A-Z]/, 'La contraseña debe incluir al menos una mayúscula')
-      .regex(/[0-9]/, 'La contraseña debe incluir al menos un número'),
+    password: passwordField,
     passwordConfirmation: z.string().min(1, 'Confirmá la contraseña'),
   })
   .refine((data) => data.password === data.passwordConfirmation, {
