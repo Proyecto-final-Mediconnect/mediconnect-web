@@ -31,12 +31,25 @@ export function checkoutResultOf(search: URLSearchParams): CheckoutResult | null
  *   pago (se canceló o se liberó en el medio). El webhook no lo confirma.
  * - `ESPERANDO`: todavía no llegó el webhook, o el pago quedó pendiente (por
  *   ejemplo, en efectivo).
+ *
+ * `resultado` es con lo que MercadoPago devolvió al paciente. Hace falta para
+ * leer bien un `RECHAZADO`: el backend guarda un solo estado por turno y no lo
+ * pisa hasta que llega el webhook del intento siguiente. Si el paciente pagó mal,
+ * reintentó y volvió con `exito` o `pendiente` antes de ese webhook, el
+ * `RECHAZADO` que se lee es el del intento **anterior**: mostrarlo lo invitaría a
+ * pagar de nuevo algo que ya pagó. En ese caso se sigue esperando. Solo con
+ * `resultado=fallo` (o sin resultado) el rechazo se toma como definitivo.
  */
 export type PaymentOutcome = 'CONFIRMADO' | 'RECHAZADO' | 'SIN_TURNO' | 'ESPERANDO';
 
-export function paymentOutcomeOf(view: PaymentStatusView): PaymentOutcome {
+export function paymentOutcomeOf(
+  view: PaymentStatusView,
+  resultado: CheckoutResult | null = null,
+): PaymentOutcome {
   if (view.appointmentStatus === 'CONFIRMADO') return 'CONFIRMADO';
-  if (view.status === 'RECHAZADO') return 'RECHAZADO';
+  if (view.status === 'RECHAZADO') {
+    return resultado === 'exito' || resultado === 'pendiente' ? 'ESPERANDO' : 'RECHAZADO';
+  }
   if (view.status === 'APROBADO' && view.appointmentStatus !== 'RESERVADO_SIN_PAGAR') {
     return 'SIN_TURNO';
   }

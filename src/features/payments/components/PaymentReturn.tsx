@@ -41,8 +41,8 @@ export function PaymentReturn({
     return () => clearTimeout(timer);
   }, [intento]);
 
-  const status = usePaymentStatus(appointment.id, resultado !== 'fallo' && !agotado);
-  const outcome = status.data ? paymentOutcomeOf(status.data) : null;
+  const status = usePaymentStatus(appointment.id, resultado !== 'fallo' && !agotado, resultado);
+  const outcome = status.data ? paymentOutcomeOf(status.data, resultado) : null;
 
   useEffect(() => {
     if (outcome !== 'CONFIRMADO') return;

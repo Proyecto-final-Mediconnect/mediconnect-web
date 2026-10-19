@@ -131,4 +131,12 @@ describe('paymentOutcomeOf', () => {
     expect(paymentOutcomeOf(vista('PENDIENTE', 'RESERVADO_SIN_PAGAR'))).toBe('ESPERANDO');
     expect(paymentOutcomeOf(vista('SIN_INICIAR', 'RESERVADO_SIN_PAGAR'))).toBe('ESPERANDO');
   });
+
+  it('un RECHAZADO al volver con exito o pendiente es del intento anterior: sigue esperando', () => {
+    const rechazado = vista('RECHAZADO', 'RESERVADO_SIN_PAGAR');
+    expect(paymentOutcomeOf(rechazado, 'exito')).toBe('ESPERANDO');
+    expect(paymentOutcomeOf(rechazado, 'pendiente')).toBe('ESPERANDO');
+    expect(paymentOutcomeOf(rechazado, 'fallo')).toBe('RECHAZADO');
+    expect(paymentOutcomeOf(rechazado, null)).toBe('RECHAZADO');
+  });
 });

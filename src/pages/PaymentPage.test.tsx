@@ -164,12 +164,29 @@ describe('PaymentPage (ENG-63)', () => {
 
     it('si el pago se rechazó, lo dice y ofrece reintentar', async () => {
       renderPage([turno()], 'a1', {
-        query: '?resultado=exito',
+        query: '?resultado=fallo',
         pagos: [{ status: 'RECHAZADO', appointmentStatus: 'RESERVADO_SIN_PAGAR' }],
       });
 
       expect(await screen.findByRole('alert')).toHaveTextContent(/rechazó el pago/i);
       expect(screen.getByRole('button', { name: /reintentar el pago/i })).toBeVisible();
+    });
+
+    // Rechazado, reintentó y pagó bien: vuelve con "exito" antes del webhook del
+    // pago nuevo, así que el backend todavía muestra el RECHAZADO del intento
+    // anterior. Mostrarlo lo invitaría a pagar dos veces.
+    it('con resultado=exito un RECHAZADO del intento anterior no se muestra: sigue esperando', async () => {
+      renderPage([turno()], 'a1', {
+        query: '?resultado=exito',
+        pagos: [{ status: 'RECHAZADO', appointmentStatus: 'RESERVADO_SIN_PAGAR' }, CONFIRMADO],
+      });
+
+      expect(await screen.findByText(/esperando la confirmación de mercadopago/i)).toBeVisible();
+      expect(screen.queryByRole('button', { name: /reintentar el pago/i })).not.toBeInTheDocument();
+
+      await vi.advanceTimersByTimeAsync(2_500);
+
+      expect(await screen.findByText(/pantalla de confirmación/i)).toBeVisible();
     });
 
     it('con resultado=fallo vuelve a ofrecer el pago sin quedarse esperando', async () => {
