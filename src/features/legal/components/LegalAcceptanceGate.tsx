@@ -24,7 +24,13 @@ export function LegalAcceptanceGate() {
   const aceptar = useMutation({
     mutationFn: acceptLegal,
     // Responde el perfil actualizado: se escribe en la sesión y la app aparece.
-    onSuccess: (user) => queryClient.setQueryData(SESSION_QUERY_KEY, user),
+    onSuccess: (user) => {
+      queryClient.setQueryData(SESSION_QUERY_KEY, user);
+      // Lo que falló con 403 mientras no había aceptado se vuelve a pedir.
+      void queryClient.invalidateQueries({
+        predicate: (query) => query.queryKey[0] !== SESSION_QUERY_KEY[0],
+      });
+    },
   });
 
   function continuar() {

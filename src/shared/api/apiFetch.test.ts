@@ -1,8 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { apiFetch } from './apiFetch';
+import { apiFetch, onLegalNotAccepted } from './apiFetch';
 
-const json = (status: number) =>
-  new Response(status === 200 ? '{"ok":true}' : null, { status });
+const json = (status: number) => new Response(status === 200 ? '{"ok":true}' : null, { status });
 
 function urlOf(call: unknown[]): string {
   return String(call[0]);
@@ -57,5 +56,43 @@ describe('apiFetch (ENG-44 · refresh token rotativo)', () => {
 
     const init = spy.mock.calls[0][1] as RequestInit;
     expect(init.credentials).toBe('include');
+  });
+});
+
+describe('apiFetch · 403 LEGAL_NOT_ACCEPTED (ENG-140)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const legal403 = () =>
+    new Response(JSON.stringify({ code: 'LEGAL_NOT_ACCEPTED', message: 'Tenés que aceptar…' }), {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+  it('avisa al handler y le deja la respuesta entera al llamador', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(legal403());
+    const handler = vi.fn();
+    const off = onLegalNotAccepted(handler);
+
+    const res = await apiFetch('/appointments/me');
+
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe(403);
+    expect(await res.json()).toMatchObject({ code: 'LEGAL_NOT_ACCEPTED' });
+    off();
+  });
+
+  it('un 403 por otro motivo no lo dispara', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ message: 'No es tu turno' }), { status: 403 }),
+    );
+    const handler = vi.fn();
+    const off = onLegalNotAccepted(handler);
+
+    await apiFetch('/appointments/x');
+
+    expect(handler).not.toHaveBeenCalled();
+    off();
   });
 });
