@@ -9,6 +9,7 @@ import {
 import { VitalBlockCard } from '../features/medipass/components/VitalBlockCard';
 import { cuentaRegresiva, formatCodigo } from '../features/medipass/lib/medipass';
 import type { EmergencySession } from '../features/medipass/types/medipass';
+import type { ApiError } from '../shared/api/apiError';
 import { useNow } from '../shared/hooks/useNow';
 import { Logo } from '../shared/ui/Logo';
 
@@ -50,7 +51,16 @@ function guardarSesion(id: string | null): void {
 export function EmergencyViewPage() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
-  const [sesionId, setSesionId] = useState<string | null>(sesionGuardada);
+  // Con un código en la URL es un escaneo nuevo: el acceso que hubiera quedado
+  // guardado en la pestaña puede ser de **otro paciente**, y mostrarlo sería
+  // darle al médico las alergias y la medicación equivocadas.
+  const [sesionId, setSesionId] = useState<string | null>(() => {
+    if (params.get('codigo')) {
+      guardarSesion(null);
+      return null;
+    }
+    return sesionGuardada();
+  });
   const [aviso, setAviso] = useState<string | null>(null);
 
   function cerrar(mensaje: string | null): void {
@@ -228,14 +238,21 @@ function AccesoAbierto({
     queryKey: ['medipass', 'session', sesionId],
     queryFn: () => getEmergencySession(sesionId),
     // Cada minuto: si el paciente lo revocó o venció, la pantalla se entera.
-    refetchInterval: 60_000,
+    // Después de un error se reintenta antes, para salir rápido del aviso.
+    refetchInterval: (query) => (query.state.status === 'error' ? 15_000 : 60_000),
     retry: false,
   });
 
   const expiraEl = sesion.data?.expiraEl;
   const vital = sesion.data?.vital;
   const restante = expiraEl ? new Date(expiraEl).getTime() - now.getTime() : null;
-  const vencio = sesion.isError || (restante !== null && restante <= 0);
+  // Solo el 410 (vencido o revocado) o la cuenta regresiva en cero cierran el
+  // acceso. Un corte de red, un 500 o un 429 en el refetch de cada minuto no: en
+  // una guardia con mala señal, cerrar haría perder la información vital y el
+  // código ya no serviría para reabrirla.
+  const vencio =
+    (sesion.isError && (sesion.error as Partial<ApiError>).status === 410) ||
+    (restante !== null && restante <= 0);
 
   // Vencido o revocado: vuelve al formulario con el motivo.
   useEffect(() => {
@@ -244,6 +261,23 @@ function AccesoAbierto({
   }, [vencio, onVencido, sesion.isError, sesion.error]);
 
   if (vencio) return null;
+
+  // Falló la primera carga, sin nada que mostrar: se ofrece reintentar en vez
+  // de descartar un acceso que puede seguir vigente.
+  if (sesion.isError && !vital) {
+    return (
+      <div role="alert" className="grid gap-3 rounded-[14px] bg-white px-6 py-6 text-center">
+        <p className="text-[14px] font-semibold text-danger">{sesion.error.message}</p>
+        <button
+          type="button"
+          onClick={() => void sesion.refetch()}
+          className="justify-self-center rounded-[9px] bg-brand-deep px-5 py-2.5 text-[14px] font-bold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
 
   if (!vital || restante === null) {
     return (
@@ -255,6 +289,15 @@ function AccesoAbierto({
 
   return (
     <div className="grid gap-4">
+      {sesion.isError && (
+        // react-query conserva el último dato bueno: se sigue mostrando, con aviso.
+        <p
+          role="status"
+          className="rounded-[10px] border border-white/15 bg-white/5 px-4 py-2.5 text-center text-[13px] text-on-night"
+        >
+          No pudimos actualizar el acceso. Reintentando…
+        </p>
+      )}
       <VitalBlockCard
         vital={vital}
         footer={

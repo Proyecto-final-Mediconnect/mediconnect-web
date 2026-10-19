@@ -115,7 +115,7 @@ describe('EmergencyViewPage (ENG-135)', () => {
   });
 
   // Distinguir "no existe" de "venció" le diría a quien prueba códigos cuáles existieron.
-  it.each([404, 410, 400])(
+  it.each([404, 410, 403])(
     'un código rechazado (%i) da siempre el mismo mensaje',
     async (status) => {
       renderPage('/medipass/emergencia?codigo=ZZZZ9999', {
@@ -128,6 +128,48 @@ describe('EmergencyViewPage (ENG-135)', () => {
       expect(screen.queryByText(/venció hace/)).not.toBeInTheDocument();
     },
   );
+
+  // Un 400 es de validación de los datos del médico, no del código: decir
+  // "código inválido" lo haría pedirle otro al paciente sin motivo.
+  it('un 400 de validación muestra el mensaje del backend', async () => {
+    renderPage('/medipass/emergencia?codigo=AB12CD34', {
+      abrir: () =>
+        json({ message: ['nombre must be shorter than or equal to 120 characters'] }, 400),
+    });
+
+    completar('Dra. Laura Pérez');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/shorter than or equal to 120/);
+  });
+
+  // Reescanear el QR de otro paciente en la misma pestaña: el acceso guardado es
+  // del anterior y mostrarlo daría alergias y medicación equivocadas.
+  it('con un código nuevo en la URL descarta el acceso guardado de la pestaña', async () => {
+    sessionStorage.setItem('medipass.sesion', 's-del-paciente-anterior');
+    const enviados = renderPage('/medipass/emergencia?codigo=AB12CD34');
+
+    expect(screen.getByLabelText('Código MediPass')).toBeVisible();
+    expect(sessionStorage.getItem('medipass.sesion')).toBeNull();
+    const consultas = vi
+      .mocked(globalThis.fetch)
+      .mock.calls.filter(([ruta]) => String(ruta).includes('/medipass/sessions/'));
+    expect(consultas).toEqual([]);
+
+    completar('Dra. Laura Pérez');
+    await screen.findByText(MOCK_VITAL_BLOCK.nombre);
+    expect(enviados).toHaveLength(1);
+  });
+
+  it('un error que no es 410 en la primera carga ofrece reintentar y no cierra el acceso', async () => {
+    sessionStorage.setItem('medipass.sesion', 's-1');
+    renderPage('/medipass/emergencia', {
+      consultar: () => json({ message: 'No pudimos cargar el MediPass.' }, 500),
+    });
+
+    expect(await screen.findByRole('button', { name: 'Reintentar' })).toBeVisible();
+    expect(screen.queryByLabelText('Código MediPass')).not.toBeInTheDocument();
+    expect(sessionStorage.getItem('medipass.sesion')).toBe('s-1');
+  });
 
   it('pide el nombre antes de abrir', () => {
     const enviados = renderPage('/medipass/emergencia?codigo=AB12CD34');

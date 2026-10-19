@@ -10,9 +10,15 @@ export function useMyMediPassCode() {
     queryKey: ['medipass', 'me'],
     queryFn: getMyMediPassCode,
     refetchInterval: (query) => {
+      // Con el backend caído no se insiste cada segundo sobre algo que ya falla.
+      if (query.state.status === 'error') return 30_000;
       const expira = query.state.data?.expiraEl;
       if (!expira) return false;
-      return Math.max(1000, new Date(expira).getTime() - Date.now() + 500);
+      const restante = new Date(expira).getTime() - Date.now();
+      // Si llega un código ya vencido (reloj del dispositivo adelantado, o el
+      // servidor devolvió el mismo un instante más), no se pide cada segundo
+      // para siempre: se espera un poco y se vuelve a probar.
+      return restante > 0 ? Math.max(5_000, restante + 500) : 15_000;
     },
     refetchOnWindowFocus: true,
   });

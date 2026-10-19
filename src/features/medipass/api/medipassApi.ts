@@ -61,6 +61,14 @@ export async function openEmergencySession(
   });
 
   if (response.status === 429) throw apiError(429, DEMASIADOS_INTENTOS);
+  // Un 400 es de validación (el nombre o la matrícula): se muestra lo que dice
+  // el backend. Decirle "código inválido" al médico lo haría pedirle otro código
+  // al paciente sin motivo.
+  if (response.status === 400) {
+    throw await toApiError(response, 'Revisá los datos e intentá de nuevo.');
+  }
+  // El resto de los rechazos del código (no existe, venció, se revocó) dan el
+  // mismo mensaje.
   if (response.status >= 400 && response.status < 500)
     throw apiError(response.status, CODIGO_INVALIDO);
   if (!response.ok)
