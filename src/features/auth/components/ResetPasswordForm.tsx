@@ -58,8 +58,8 @@ export function ResetPasswordForm({ tokenHash }: ResetPasswordFormProps) {
           Cambiaste tu contraseña
         </h2>
         <p className="mt-2.5 text-sm leading-[1.7] text-ink">
-          Por seguridad cerramos tu sesión en todos los dispositivos. Ingresá con la contraseña
-          nueva.
+          Ingresá con la contraseña nueva. Por seguridad, en los próximos minutos se cierra tu
+          sesión en los demás dispositivos.
         </p>
         <Link
           to="/ingresar"
@@ -123,14 +123,17 @@ export function ResetPasswordForm({ tokenHash }: ResetPasswordFormProps) {
       {error && (
         <div role="alert" className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-danger">
           <p>{error.message}</p>
-          {/* El error más común es el enlace vencido o ya usado: la salida es
-              pedir otro, así que va acá mismo. */}
-          <Link
-            to="/recuperar-contrasena"
-            className="mt-1.5 inline-block font-semibold underline underline-offset-2"
-          >
-            Pedir un enlace nuevo
-          </Link>
+          {/* Solo con el 400 de enlace inválido o vencido: ante un 429 o un 503
+              el enlace todavía sirve y alcanza con reintentar, y pedir otro
+              sería mandar un mail de más. */}
+          {error.status === 400 && (
+            <Link
+              to="/recuperar-contrasena"
+              className="mt-1.5 inline-block font-semibold underline underline-offset-2"
+            >
+              Pedir un enlace nuevo
+            </Link>
+          )}
         </div>
       )}
 

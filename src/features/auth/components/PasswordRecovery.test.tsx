@@ -152,6 +152,26 @@ describe('Recuperar contraseña (ENG-142)', () => {
       expect(screen.getByRole('link', { name: /pedir un enlace nuevo/i })).toBeInTheDocument();
     });
 
+    it('si el servicio no responde, deja reintentar sin ofrecer un enlace nuevo', async () => {
+      const user = userEvent.setup();
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        jsonResponse(503, {
+          message: 'No pudimos conectar con el servicio. Probá de nuevo en unos minutos.',
+        }),
+      );
+      renderAt(<ResetPasswordPage />, LINK);
+
+      await user.type(screen.getByLabelText('Contraseña nueva'), 'NuevaClave1');
+      await user.type(screen.getByLabelText('Confirmar contraseña'), 'NuevaClave1');
+      await user.click(screen.getByRole('button', { name: /guardar contraseña/i }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/no pudimos conectar/i);
+      expect(
+        screen.queryByRole('link', { name: /pedir un enlace nuevo/i }),
+      ).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /guardar contraseña/i })).toBeEnabled();
+    });
+
     it('si el enlace ya se gastó, no deja reintentar y lleva a pedir otro', async () => {
       const user = userEvent.setup();
       vi.spyOn(globalThis, 'fetch').mockResolvedValue(

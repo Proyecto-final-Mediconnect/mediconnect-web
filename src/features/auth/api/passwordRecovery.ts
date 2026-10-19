@@ -10,13 +10,15 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
  *  enlace del mail: el enlace ya se gastó y reintentar no sirve (ENG-142). */
 export const RECOVERY_LINK_CONSUMED = 'RECOVERY_LINK_CONSUMED';
 
-/** Error con el `code` estable del backend, si vino uno. */
+/** Error con el status HTTP y el `code` estable del backend, si vino uno. */
 export class PasswordRecoveryError extends Error {
+  readonly status: number;
   readonly code?: string;
 
-  constructor(message: string, code?: string) {
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.name = 'PasswordRecoveryError';
+    this.status = status;
     this.code = code;
   }
 }
@@ -43,11 +45,13 @@ async function post(
     if (response.status === 429) {
       throw new PasswordRecoveryError(
         'Hiciste muchos pedidos seguidos. Esperá un minuto y probá de nuevo.',
+        429,
       );
     }
     const message = data?.message;
     throw new PasswordRecoveryError(
       Array.isArray(message) ? message.join(' ') : (message ?? fallback),
+      response.status,
       data?.code,
     );
   }
