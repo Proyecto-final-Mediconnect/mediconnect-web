@@ -154,6 +154,13 @@ describe('paymentOutcomeOf', () => {
     expect(paymentOutcomeOf(rechazado, 'fallo')).toBe('RECHAZADO');
     expect(paymentOutcomeOf(rechazado, null)).toBe('RECHAZADO');
   });
+
+  it('un rechazo sobre un turno que ya se liberó es TURNO_VENCIDO, aunque vuelva con exito', () => {
+    const rechazadoLiberado = vista('RECHAZADO', 'LIBERADO');
+    expect(paymentOutcomeOf(rechazadoLiberado, 'exito')).toBe('TURNO_VENCIDO');
+    expect(paymentOutcomeOf(rechazadoLiberado, 'fallo')).toBe('TURNO_VENCIDO');
+    expect(paymentOutcomeOf(vista('RECHAZADO', 'CANCELADO'), null)).toBe('TURNO_VENCIDO');
+  });
 });
 
 describe('PAYMENT_METHODS', () => {

@@ -54,17 +54,15 @@ export function paymentOutcomeOf(
   resultado: CheckoutResult | null = null,
 ): PaymentOutcome {
   if (view.appointmentStatus === 'CONFIRMADO') return 'CONFIRMADO';
+  // El turno ya no espera pago (lo liberó el job de ENG-101 o se canceló): eso
+  // se decide antes que el rechazo. Si no, un `RECHAZADO` con la vuelta en
+  // `exito` caía en "seguir esperando" algo que no puede terminar bien.
+  if (view.appointmentStatus !== 'RESERVADO_SIN_PAGAR') {
+    return view.status === 'APROBADO' ? 'SIN_TURNO' : 'TURNO_VENCIDO';
+  }
   if (view.status === 'RECHAZADO') {
     return resultado === 'exito' || resultado === 'pendiente' ? 'ESPERANDO' : 'RECHAZADO';
   }
-  if (view.status === 'APROBADO' && view.appointmentStatus !== 'RESERVADO_SIN_PAGAR') {
-    return 'SIN_TURNO';
-  }
-  // Llegado acá el pago no está aprobado ni rechazado, así que está pendiente.
-  // Si además el turno ya no espera pago, la espera no puede terminar bien:
-  // sin este caso la pantalla decía "Esperando la confirmación…" por un minuto
-  // y después prometía que el turno se confirma solo, que ya no va a pasar.
-  if (view.appointmentStatus !== 'RESERVADO_SIN_PAGAR') return 'TURNO_VENCIDO';
   return 'ESPERANDO';
 }
 
