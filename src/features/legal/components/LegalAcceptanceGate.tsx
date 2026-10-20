@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../../shared/ui/Button';
-import { SESSION_QUERY_KEY, useLogout } from '../../auth/hooks/useSession';
+import { SESSION_QUERY_KEY, useLogout, useSession } from '../../auth/hooks/useSession';
 import { acceptLegal } from '../api/acceptLegal';
-import { LEGAL_REQUIRED_MESSAGE, LEGAL_VERSION_LABEL } from '../legal';
+import { LEGAL_REQUIRED_MESSAGE, LEGAL_VERSION, LEGAL_VERSION_LABEL } from '../legal';
 import { LegalConsentField } from './LegalConsentField';
 
 /**
@@ -18,8 +18,19 @@ import { LegalConsentField } from './LegalConsentField';
 export function LegalAcceptanceGate() {
   const queryClient = useQueryClient();
   const logout = useLogout();
+  const { user } = useSession();
   const [checked, setChecked] = useState(false);
   const [intentado, setIntentado] = useState(false);
+
+  // El backend ya publicó textos más nuevos que los que tiene este bundle: pasa
+  // si Render deployó el backend antes que la web, o si la pestaña quedó abierta
+  // desde antes del cambio. Aceptar desde acá mandaría la versión vieja y el
+  // backend la rechazaría con 400 en cada intento, con el gate pidiendo lo
+  // mismo para siempre y sin más salida que cerrar sesión.
+  //
+  // Mandar `user.legalVersion` en lugar de la nuestra NO sirve: registraría como
+  // aceptada una versión que el usuario no tuvo en pantalla.
+  const desfasado = Boolean(user?.legalVersion) && user?.legalVersion !== LEGAL_VERSION;
 
   const aceptar = useMutation({
     mutationFn: acceptLegal,
@@ -36,6 +47,46 @@ export function LegalAcceptanceGate() {
   function continuar() {
     setIntentado(true);
     if (checked) aceptar.mutate();
+  }
+
+  if (desfasado) {
+    return (
+      <main className="flex min-h-svh items-center justify-center bg-surface px-4 py-10">
+        <section
+          aria-labelledby="legal-gate-titulo"
+          className="w-full max-w-[560px] rounded-[14px] border border-line bg-white p-7 lg:p-9"
+        >
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
+            Antes de seguir
+          </p>
+          <h1
+            id="legal-gate-titulo"
+            className="font-display mt-2.5 text-[28px] leading-[1.15] text-brand-deep [text-wrap:balance]"
+          >
+            Actualizamos los términos
+          </h1>
+          <p className="mt-3 text-sm leading-[1.7] text-muted">
+            Publicamos una versión más nueva de los términos, la política de privacidad y el
+            consentimiento. Recargá la página para leerla y aceptarla: no queremos que aceptes unos
+            textos distintos de los que te mostramos.
+          </p>
+
+          <div className="mt-6 grid gap-3">
+            <Button type="button" fullWidth onClick={() => window.location.reload()}>
+              Recargar la página
+            </Button>
+            <button
+              type="button"
+              onClick={() => logout.mutate()}
+              disabled={logout.isPending}
+              className="text-center text-[13px] font-semibold text-muted underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60"
+            >
+              Cerrar sesión
+            </button>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (
