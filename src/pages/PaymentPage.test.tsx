@@ -202,6 +202,23 @@ describe('PaymentPage (ENG-63)', () => {
       expect(await screen.findByText(/tu pago quedó pendiente/i)).toBeVisible();
     });
 
+    // El job de ENG-101 liberó el turno mientras el paciente estaba en
+    // MercadoPago. "Mis turnos" todavía lo tiene cacheado como reservado, pero
+    // el estado del pago dice la verdad. Antes esto caía en "Esperando la
+    // confirmación…" durante un minuto y después prometía que el turno se
+    // confirmaba solo.
+    it('si el turno se liberó por falta de pago, lo dice en vez de esperar', async () => {
+      renderPage([turno()], 'a1', {
+        query: '?resultado=exito',
+        pagos: [{ status: 'PENDIENTE', appointmentStatus: 'LIBERADO' }],
+      });
+
+      expect(await screen.findByText(/se liberó porque no se pagó a tiempo/i)).toBeVisible();
+      expect(
+        screen.queryByText(/esperando la confirmación de mercadopago/i),
+      ).not.toBeInTheDocument();
+    });
+
     it('deja de preguntar al minuto y ofrece volver a consultar', async () => {
       renderPage([turno()], 'a1', { query: '?resultado=exito', pagos: [PENDIENTE] });
       await screen.findByText(/esperando la confirmación de mercadopago/i);

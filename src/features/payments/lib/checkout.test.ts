@@ -5,6 +5,7 @@ import {
   checkoutResultOf,
   findAppointment,
   payabilityOf,
+  PAYMENT_METHODS,
   paymentOutcomeOf,
 } from './checkout';
 import type { Appointment } from '../../appointments/types/appointment';
@@ -126,6 +127,20 @@ describe('paymentOutcomeOf', () => {
     expect(paymentOutcomeOf(vista('APROBADO', 'LIBERADO'))).toBe('SIN_TURNO');
   });
 
+  it('un turno que ya no espera pago, sin pago aprobado, no sigue esperando', () => {
+    // Es lo que deja el job de ENG-101 a los 15 minutos. Antes caía en
+    // ESPERANDO y la pantalla prometía que el turno se confirmaba solo.
+    expect(paymentOutcomeOf(vista('PENDIENTE', 'LIBERADO'))).toBe('TURNO_VENCIDO');
+    expect(paymentOutcomeOf(vista('PENDIENTE', 'CANCELADO'))).toBe('TURNO_VENCIDO');
+    expect(paymentOutcomeOf(vista('SIN_INICIAR', 'LIBERADO'))).toBe('TURNO_VENCIDO');
+  });
+
+  it('el turno vencido no se tapa con el resultado de la URL', () => {
+    // Volver con `exito` no resucita un turno que ya se liberó.
+    expect(paymentOutcomeOf(vista('PENDIENTE', 'LIBERADO'), 'exito')).toBe('TURNO_VENCIDO');
+    expect(paymentOutcomeOf(vista('PENDIENTE', 'LIBERADO'), 'pendiente')).toBe('TURNO_VENCIDO');
+  });
+
   it('distingue el rechazo de la espera', () => {
     expect(paymentOutcomeOf(vista('RECHAZADO', 'RESERVADO_SIN_PAGAR'))).toBe('RECHAZADO');
     expect(paymentOutcomeOf(vista('PENDIENTE', 'RESERVADO_SIN_PAGAR'))).toBe('ESPERANDO');
@@ -138,5 +153,20 @@ describe('paymentOutcomeOf', () => {
     expect(paymentOutcomeOf(rechazado, 'pendiente')).toBe('ESPERANDO');
     expect(paymentOutcomeOf(rechazado, 'fallo')).toBe('RECHAZADO');
     expect(paymentOutcomeOf(rechazado, null)).toBe('RECHAZADO');
+  });
+});
+
+describe('PAYMENT_METHODS', () => {
+  it('no ofrece efectivo: no se acredita dentro de los 15 minutos de ENG-101', () => {
+    const texto = PAYMENT_METHODS.join(' ').toLowerCase();
+    expect(texto).not.toContain('efectivo');
+    expect(texto).not.toContain('rapipago');
+    expect(texto).not.toContain('pago fácil');
+  });
+
+  it('sigue ofreciendo los medios que se acreditan al instante', () => {
+    expect(PAYMENT_METHODS).toContain('Tarjeta de crédito');
+    expect(PAYMENT_METHODS).toContain('Tarjeta de débito');
+    expect(PAYMENT_METHODS).toContain('Dinero en cuenta de MercadoPago');
   });
 });

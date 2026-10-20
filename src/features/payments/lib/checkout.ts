@@ -29,8 +29,10 @@ export function checkoutResultOf(search: URLSearchParams): CheckoutResult | null
  *   puede reintentar.
  * - `SIN_TURNO`: el pago se acreditó, pero el turno ya no estaba esperando
  *   pago (se canceló o se liberó en el medio). El webhook no lo confirma.
- * - `ESPERANDO`: todavía no llegó el webhook, o el pago quedó pendiente (por
- *   ejemplo, en efectivo).
+ * - `TURNO_VENCIDO`: el turno dejó de esperar el pago —lo liberó el job de
+ *   ENG-101 a los 15 minutos, o se canceló— y no hay ningún pago aprobado. No
+ *   queda nada que esperar: el horario volvió a estar disponible.
+ * - `ESPERANDO`: todavía no llegó el webhook.
  *
  * `resultado` es con lo que MercadoPago devolvió al paciente. Hace falta para
  * leer bien un `RECHAZADO`: el backend guarda un solo estado por turno y no lo
@@ -40,7 +42,12 @@ export function checkoutResultOf(search: URLSearchParams): CheckoutResult | null
  * pagar de nuevo algo que ya pagó. En ese caso se sigue esperando. Solo con
  * `resultado=fallo` (o sin resultado) el rechazo se toma como definitivo.
  */
-export type PaymentOutcome = 'CONFIRMADO' | 'RECHAZADO' | 'SIN_TURNO' | 'ESPERANDO';
+export type PaymentOutcome =
+  | 'CONFIRMADO'
+  | 'RECHAZADO'
+  | 'SIN_TURNO'
+  | 'TURNO_VENCIDO'
+  | 'ESPERANDO';
 
 export function paymentOutcomeOf(
   view: PaymentStatusView,
@@ -53,6 +60,11 @@ export function paymentOutcomeOf(
   if (view.status === 'APROBADO' && view.appointmentStatus !== 'RESERVADO_SIN_PAGAR') {
     return 'SIN_TURNO';
   }
+  // Llegado acá el pago no está aprobado ni rechazado, así que está pendiente.
+  // Si además el turno ya no espera pago, la espera no puede terminar bien:
+  // sin este caso la pantalla decía "Esperando la confirmación…" por un minuto
+  // y después prometía que el turno se confirma solo, que ya no va a pasar.
+  if (view.appointmentStatus !== 'RESERVADO_SIN_PAGAR') return 'TURNO_VENCIDO';
   return 'ESPERANDO';
 }
 
@@ -150,10 +162,15 @@ export function findAppointment(
  * MediConnect. **Ninguno se completa acá**: los datos de tarjeta se cargan del
  * lado de MercadoPago, que es lo que mantiene a MediConnect fuera del alcance
  * PCI.
+ *
+ * **Sin efectivo**, a propósito. Un pago en Rapipago o Pago Fácil se acredita en
+ * horas o días, y ENG-101 libera el turno a los 15 minutos de reservado: cuando
+ * el dinero llega, el horario ya se lo dio a otro y el reembolso queda a mano.
+ * Ofrecerlo sería prometer un turno que no se va a poder confirmar. El backend
+ * también lo excluye en la preferencia, así que MercadoPago ni lo muestra.
  */
 export const PAYMENT_METHODS = [
   'Dinero en cuenta de MercadoPago',
   'Tarjeta de crédito',
   'Tarjeta de débito',
-  'Efectivo (Rapipago, Pago Fácil)',
 ] as const;
