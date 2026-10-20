@@ -1,15 +1,70 @@
 import { formatPrice } from '../../appointments/lib/weeks';
 import type { Appointment } from '../../appointments/types/appointment';
-import type { PaymentStatus } from '../types/payment';
+import type { CheckoutResult, PaymentStatus, PaymentStatusView } from '../types/payment';
 
 /**
  * Reglas del pago de un turno (ENG-63).
  *
  * Son puras y viven acá por el mismo motivo que `myAppointments.ts`: se pueden
- * testear sin montar React, y cuando exista el endpoint el backend va a
- * revalidar exactamente esto. **Nada de lo que decide este archivo autoriza un
- * cobro**: decide qué se dibuja.
+ * testear sin montar React, y el backend revalida exactamente esto. **Nada de lo
+ * que decide este archivo autoriza un cobro**: decide qué se dibuja.
  */
+
+/**
+ * El `resultado` con el que MercadoPago devolvió al paciente, o `null` si entró
+ * a la pantalla de pago por primera vez. Cualquier otro valor se ignora: viene
+ * en la URL y la puede escribir cualquiera.
+ */
+export function checkoutResultOf(search: URLSearchParams): CheckoutResult | null {
+  const valor = search.get('resultado');
+  return valor === 'exito' || valor === 'pendiente' || valor === 'fallo' ? valor : null;
+}
+
+/**
+ * Qué pasó con el pago, según el backend.
+ *
+ * - `CONFIRMADO`: el webhook confirmó el turno. Es lo único que cuenta como
+ *   éxito: la vuelta de MercadoPago con `resultado=exito` no confirma nada.
+ * - `RECHAZADO`: MercadoPago rechazó el pago. El turno sigue reservado y se
+ *   puede reintentar.
+ * - `SIN_TURNO`: el pago se acreditó, pero el turno ya no estaba esperando
+ *   pago (se canceló o se liberó en el medio). El webhook no lo confirma.
+ * - `TURNO_VENCIDO`: el turno dejó de esperar el pago —lo liberó el job de
+ *   ENG-101 a los 15 minutos, o se canceló— y no hay ningún pago aprobado. No
+ *   queda nada que esperar: el horario volvió a estar disponible.
+ * - `ESPERANDO`: todavía no llegó el webhook.
+ *
+ * `resultado` es con lo que MercadoPago devolvió al paciente. Hace falta para
+ * leer bien un `RECHAZADO`: el backend guarda un solo estado por turno y no lo
+ * pisa hasta que llega el webhook del intento siguiente. Si el paciente pagó mal,
+ * reintentó y volvió con `exito` o `pendiente` antes de ese webhook, el
+ * `RECHAZADO` que se lee es el del intento **anterior**: mostrarlo lo invitaría a
+ * pagar de nuevo algo que ya pagó. En ese caso se sigue esperando. Solo con
+ * `resultado=fallo` (o sin resultado) el rechazo se toma como definitivo.
+ */
+export type PaymentOutcome =
+  | 'CONFIRMADO'
+  | 'RECHAZADO'
+  | 'SIN_TURNO'
+  | 'TURNO_VENCIDO'
+  | 'ESPERANDO';
+
+export function paymentOutcomeOf(
+  view: PaymentStatusView,
+  resultado: CheckoutResult | null = null,
+): PaymentOutcome {
+  if (view.appointmentStatus === 'CONFIRMADO') return 'CONFIRMADO';
+  // El turno ya no espera pago (lo liberó el job de ENG-101 o se canceló): eso
+  // se decide antes que el rechazo. Si no, un `RECHAZADO` con la vuelta en
+  // `exito` caía en "seguir esperando" algo que no puede terminar bien.
+  if (view.appointmentStatus !== 'RESERVADO_SIN_PAGAR') {
+    return view.status === 'APROBADO' ? 'SIN_TURNO' : 'TURNO_VENCIDO';
+  }
+  if (view.status === 'RECHAZADO') {
+    return resultado === 'exito' || resultado === 'pendiente' ? 'ESPERANDO' : 'RECHAZADO';
+  }
+  return 'ESPERANDO';
+}
 
 /** Nombre visible de cada estado de pago. */
 const STATUS_LABELS: Record<PaymentStatus, string> = {
@@ -36,10 +91,7 @@ export type Payability =
   | { kind: 'ALREADY_PAID' }
   | { kind: 'NOT_PAYABLE'; reason: string };
 
-export function payabilityOf(
-  appointment: Appointment,
-  now: Date = new Date(),
-): Payability {
+export function payabilityOf(appointment: Appointment, now: Date = new Date()): Payability {
   if (appointment.status === 'CONFIRMADO') return { kind: 'ALREADY_PAID' };
 
   if (appointment.status !== 'RESERVADO_SIN_PAGAR') {
@@ -71,8 +123,7 @@ export function canPay(appointment: Appointment, now: Date = new Date()): boolea
  *
  * Hoy es una sola línea: **MediConnect no agrega ningún cargo propio**. Se
  * devuelve como lista igual porque el checkout de MercadoPago puede sumar costos
- * de financiación, y cuando ENG-63 traiga la preferencia real esos renglones van
- * a llegar del backend en vez de calcularse acá.
+ * de financiación; esos los muestra MercadoPago en su pantalla.
  */
 export interface AmountLine {
   label: string;
@@ -109,10 +160,15 @@ export function findAppointment(
  * MediConnect. **Ninguno se completa acá**: los datos de tarjeta se cargan del
  * lado de MercadoPago, que es lo que mantiene a MediConnect fuera del alcance
  * PCI.
+ *
+ * **Sin efectivo**, a propósito. Un pago en Rapipago o Pago Fácil se acredita en
+ * horas o días, y ENG-101 libera el turno a los 15 minutos de reservado: cuando
+ * el dinero llega, el horario ya se lo dio a otro y el reembolso queda a mano.
+ * Ofrecerlo sería prometer un turno que no se va a poder confirmar. El backend
+ * también lo excluye en la preferencia, así que MercadoPago ni lo muestra.
  */
 export const PAYMENT_METHODS = [
   'Dinero en cuenta de MercadoPago',
   'Tarjeta de crédito',
   'Tarjeta de débito',
-  'Efectivo (Rapipago, Pago Fácil)',
 ] as const;

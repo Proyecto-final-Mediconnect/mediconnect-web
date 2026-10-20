@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { Checkout } from './Checkout';
+import { Checkout, type CheckoutNotice } from './Checkout';
 import type { Appointment } from '../../appointments/types/appointment';
 
 const PATIENT_ID = '11111111-1111-4111-8111-111111111111';
@@ -29,32 +29,56 @@ function turno(overrides: Partial<Appointment> = {}): Appointment {
   };
 }
 
-function renderCheckout(appointment: Appointment) {
-  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-    new Response(
-      JSON.stringify({
-        id: PATIENT_ID,
-        email: 'paciente@test.com',
-        role: 'PACIENTE',
-        firstName: 'Juan',
-        lastName: 'Paciente',
-      }),
-      { status: 200, headers: { 'Content-Type': 'application/json' } },
-    ),
+const SESION = {
+  id: PATIENT_ID,
+  email: 'paciente@test.com',
+  role: 'PACIENTE',
+  firstName: 'Juan',
+  lastName: 'Paciente',
+};
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+  });
+}
+
+const LINK = {
+  appointmentId: 'a1',
+  checkoutUrl: 'https://www.mercadopago.com.ar/checkout/v1/redirect?pref_id=123',
+  sandbox: true,
+  amount: 12000,
+  currency: 'ARS',
+  status: 'PENDIENTE',
+};
+
+/** Responde por URL: la sesión y el pago son requests distintos. */
+function renderCheckout(
+  appointment: Appointment,
+  { pago = json(LINK), aviso }: { pago?: Response; aviso?: CheckoutNotice } = {},
+) {
+  vi.spyOn(globalThis, 'fetch').mockImplementation((input) =>
+    Promise.resolve(String(input).includes('/payment') ? pago : json(SESION)),
   );
+  const redirigir = vi.fn();
 
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
-  return render(
+  render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={['/turnos/a1/pago']}>
         <Routes>
-          <Route path="/turnos/:id/pago" element={<Checkout appointment={appointment} />} />
-          <Route path="/turnos/:id/confirmado" element={<p>Tu consulta quedó agendada.</p>} />
+          <Route
+            path="/turnos/:id/pago"
+            element={<Checkout appointment={appointment} aviso={aviso} redirigir={redirigir} />}
+          />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   );
+
+  return { redirigir };
 }
 
 beforeEach(() => {
@@ -68,41 +92,43 @@ afterEach(() => {
   cleanup();
 });
 
-describe('Checkout (ENG-63, pago simulado)', () => {
+describe('Checkout (ENG-63)', () => {
   it('muestra el importe del turno en el botón de pago', async () => {
     renderCheckout(turno());
 
-    expect(
-      await screen.findByRole('button', { name: /pagar \$\s?12\.000/i }),
-    ).toBeVisible();
+    expect(await screen.findByRole('button', { name: /pagar \$\s?12\.000/i })).toBeVisible();
   });
 
-  /**
-   * El cartel que decía "el pago todavía está simulado" se sacó de la pantalla.
-   * Lo que el cartel describía sigue siendo cierto y ahora se fija como
-   * comportamiento: apretar "Pagar" no manda NADA al backend, así que el turno
-   * queda igual que antes — sigue en RESERVADO_SIN_PAGAR.
-   *
-   * Este test es lo que va a fallar el día que ENG-63 conecte MercadoPago, que
-   * es exactamente cuando alguien tiene que venir a mirar esta pantalla.
-   */
-  it('pagar no manda ningún request: el cobro no existe todavía', async () => {
+  it('pagar pide el link al backend y manda al paciente a MercadoPago', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    renderCheckout(turno());
-    const fetchSpy = vi.mocked(globalThis.fetch);
-    const antes = fetchSpy.mock.calls.length;
+    const { redirigir } = renderCheckout(turno());
 
     await user.click(screen.getByRole('button', { name: /pagar/i }));
-    await vi.advanceTimersByTimeAsync(2000);
 
-    const nuevos = fetchSpy.mock.calls
-      .slice(antes)
-      .map(([input]) => String(input))
-      // La sesión se puede refrescar en cualquier momento; lo que importa es que
-      // no haya ningún request de pago ni de turnos.
-      .filter((url) => !url.endsWith('/me'));
+    await waitFor(() => expect(redirigir).toHaveBeenCalledWith(LINK.checkoutUrl));
+    const pedido = vi
+      .mocked(globalThis.fetch)
+      .mock.calls.find(([input]) => String(input).includes('/payment'));
+    expect(String(pedido?.[0])).toMatch(/\/appointments\/a1\/payment$/);
+    expect(pedido?.[1]?.method).toBe('POST');
+    // Mientras el navegador se va, no se puede pedir otro checkout.
+    expect(screen.getByRole('button', { name: /te llevamos a mercadopago/i })).toBeDisabled();
+  });
 
-    expect(nuevos).toEqual([]);
+  it('si el backend no puede iniciar el pago, muestra su mensaje y deja reintentar', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const { redirigir } = renderCheckout(turno(), {
+      pago: json(
+        { message: 'Los pagos no están disponibles en este momento. Probá de nuevo más tarde.' },
+        503,
+      ),
+    });
+
+    await user.click(screen.getByRole('button', { name: /pagar/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/no están disponibles/i);
+    expect(screen.getByRole('button', { name: /reintentar el pago/i })).toBeEnabled();
+    expect(redirigir).not.toHaveBeenCalled();
   });
 
   it('no pide datos de tarjeta: el PCI queda del lado de MercadoPago (ADR-013)', () => {
@@ -113,24 +139,10 @@ describe('Checkout (ENG-63, pago simulado)', () => {
     expect(screen.queryByRole('spinbutton')).not.toBeInTheDocument();
   });
 
-  it('al pagar lleva a la confirmación', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    renderCheckout(turno());
+  it('después de un rechazo lo dice y ofrece reintentar', async () => {
+    renderCheckout(turno(), { aviso: 'RECHAZADO' });
 
-    await user.click(screen.getByRole('button', { name: /pagar/i }));
-    await vi.advanceTimersByTimeAsync(2000);
-
-    expect(await screen.findByText(/tu consulta quedó agendada/i)).toBeVisible();
-  });
-
-  it('el rechazo simulado deja el turno reservado y ofrece reintentar', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    renderCheckout(turno());
-
-    await user.click(screen.getByRole('button', { name: /simular un pago rechazado/i }));
-    await vi.advanceTimersByTimeAsync(2000);
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(/rechazado/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/rechazó el pago/i);
     expect(screen.getByRole('button', { name: /reintentar el pago/i })).toBeVisible();
   });
 
