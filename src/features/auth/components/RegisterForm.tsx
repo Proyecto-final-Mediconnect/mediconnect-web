@@ -5,13 +5,17 @@ import { TextField } from '../../../shared/ui/TextField';
 import { PasswordRules } from './PasswordRules';
 import { useRegisterPatient } from '../hooks/useRegisterPatient';
 import { registerPatientSchema } from '../types/register';
+import { LegalConsentField } from '../../legal/components/LegalConsentField';
 
-type FieldErrors = Partial<Record<'email' | 'password' | 'passwordConfirmation', string>>;
+type FieldErrors = Partial<
+  Record<'email' | 'password' | 'passwordConfirmation' | 'acceptedLegal', string>
+>;
 
 export function RegisterForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const [acceptedLegal, setAcceptedLegal] = useState(false);
   const [showPasswords, setShowPasswords] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
 
@@ -28,6 +32,7 @@ export function RegisterForm() {
       email,
       password,
       passwordConfirmation,
+      acceptedLegal,
     });
 
     if (!result.success) {
@@ -46,10 +51,7 @@ export function RegisterForm() {
 
   if (isSuccess) {
     return (
-      <div
-        role="status"
-        className="rounded-[14px] border border-brand/30 bg-surface-teal p-7"
-      >
+      <div role="status" className="rounded-[14px] border border-brand/30 bg-surface-teal p-7">
         {/* El tilde va en azul profundo y no en teal: el blanco sobre #14b8a6 da
             2,2:1, por debajo del mínimo de WCAG AA. */}
         <div
@@ -62,8 +64,7 @@ export function RegisterForm() {
           Revisá tu correo
         </h2>
         <p className="mt-2.5 text-sm leading-[1.7] text-ink">
-          Si tu email todavía no estaba registrado, te enviamos un enlace para confirmar tu
-          cuenta.
+          Si tu email todavía no estaba registrado, te enviamos un enlace para confirmar tu cuenta.
         </p>
         {/* El mensaje es deliberadamente ambiguo sobre si el email existía: decir
             "ya tenés cuenta" convertiría este formulario en un detector de
@@ -120,6 +121,12 @@ export function RegisterForm() {
         onChange={(e) => setPasswordConfirmation(e.target.value)}
         error={errors.passwordConfirmation}
         {...passwordToggle}
+      />
+
+      <LegalConsentField
+        checked={acceptedLegal}
+        onChange={setAcceptedLegal}
+        error={errors.acceptedLegal}
       />
 
       {error && (

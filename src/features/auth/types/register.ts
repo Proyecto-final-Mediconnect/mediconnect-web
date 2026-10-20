@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LEGAL_REQUIRED_MESSAGE } from '../../legal/legal';
 
 /** Reglas de la contraseña, iguales a las del backend. Las comparten el
  *  registro y el cambio de contraseña (ENG-142). */
@@ -18,6 +19,7 @@ export const registerPatientSchema = z
     email: z.email('El email no tiene un formato válido'),
     password: passwordField,
     passwordConfirmation: z.string().min(1, 'Confirmá la contraseña'),
+    acceptedLegal: z.boolean().refine((v) => v, LEGAL_REQUIRED_MESSAGE),
   })
   .refine((data) => data.password === data.passwordConfirmation, {
     message: 'Las contraseñas no coinciden',

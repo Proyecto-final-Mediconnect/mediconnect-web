@@ -28,6 +28,7 @@ async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Email'), 'pro@test.com');
   await user.type(screen.getByLabelText('Contraseña'), 'Password1');
   await user.type(screen.getByLabelText('Confirmar contraseña'), 'Password1');
+  await user.click(screen.getByRole('checkbox', { name: /leí y acepto/i }));
 }
 
 describe('ProfessionalRegisterForm', () => {

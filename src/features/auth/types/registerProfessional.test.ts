@@ -9,6 +9,7 @@ const valid = {
   lastName: 'García',
   specialty: 'Cardiología',
   licenseNumber: 'MP-12345',
+  acceptedLegal: true,
 };
 
 describe('registerProfessionalSchema', () => {
@@ -47,6 +48,14 @@ describe('registerProfessionalSchema', () => {
     expect(res.success).toBe(false);
     if (!res.success) {
       expect(res.error.issues[0]?.path).toContain('passwordConfirmation');
+    }
+  });
+
+  it('rechaza el registro sin aceptar los textos legales (ENG-140)', () => {
+    const res = registerProfessionalSchema.safeParse({ ...valid, acceptedLegal: false });
+    expect(res.success).toBe(false);
+    if (!res.success) {
+      expect(res.error.issues[0]?.path).toContain('acceptedLegal');
     }
   });
 });

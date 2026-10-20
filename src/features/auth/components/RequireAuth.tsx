@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import { LegalAcceptanceGate } from '../../legal/components/LegalAcceptanceGate';
 import { useSession } from '../hooks/useSession';
 import { dashboardPathFor, type UserRole } from '../types/session';
 
@@ -33,6 +34,13 @@ export function RequireAuth({ children, allow }: RequireAuthProps) {
 
   if (allow && !allow.includes(user.role)) {
     return <Navigate to={dashboardPathFor(user.role)} replace />;
+  }
+
+  // Sin consentimiento no se tratan sus datos de salud (ENG-140): antes que
+  // cualquier pantalla de la app, los textos legales. `=== false` y no `!`: un
+  // backend que todavía no informa el campo no bloquea a nadie.
+  if (user.legalAccepted === false) {
+    return <LegalAcceptanceGate />;
   }
 
   return <>{children}</>;

@@ -5,6 +5,7 @@ const valid = {
   email: 'user@test.com',
   password: 'Password1',
   passwordConfirmation: 'Password1',
+  acceptedLegal: true,
 };
 
 describe('registerPatientSchema', () => {
@@ -36,6 +37,14 @@ describe('registerPatientSchema', () => {
     expect(res.success).toBe(false);
     if (!res.success) {
       expect(res.error.issues[0]?.path).toContain('passwordConfirmation');
+    }
+  });
+
+  it('rechaza el registro sin aceptar los textos legales (ENG-140)', () => {
+    const res = registerPatientSchema.safeParse({ ...valid, acceptedLegal: false });
+    expect(res.success).toBe(false);
+    if (!res.success) {
+      expect(res.error.issues[0]?.path).toContain('acceptedLegal');
     }
   });
 });
