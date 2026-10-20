@@ -1,265 +1,136 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useSession } from '../features/auth/hooks/useSession';
-import {
-  EMERGENCY_SCOPES,
-  MEDIPASS_EMITIDO,
-  MEDIPASS_PREFIJO,
-  mockAccesses,
-} from '../features/medipass/lib/mockMediPass';
-import {
-  ROTACION_MS,
-  accesosVigentes,
-  cuentaRegresiva,
-  estadoDeAcceso,
-  msHastaRotacion,
-} from '../features/medipass/lib/medipass';
-import type { EmergencyScope, MediPassAccess } from '../features/medipass/types/medipass';
+import { VitalBlockCard } from '../features/medipass/components/VitalBlockCard';
+import { useMyMediPassCode, useMyVitalBlock } from '../features/medipass/hooks/useMediPass';
+import { cuentaRegresiva, emergencyUrl, formatCodigo } from '../features/medipass/lib/medipass';
 import { useNow } from '../shared/hooks/useNow';
 import { MediPassQr } from '../shared/ui/MediPassQr';
 import { DashboardLayout } from './DashboardLayout';
 
 /**
- * MediPass — gestión de accesos (EP-05, Release 3).
+ * MediPass del paciente (EP-05, ENG-135).
  *
- * ⚠️ **El MediPass no existe en el backend.** Ni tabla, ni servicio, ni endpoint;
- * y buena parte del bloque vital ni siquiera tiene dónde guardarse: el perfil de
- * paciente son cinco campos y no incluye grupo sanguíneo, alergias ni contacto de
- * emergencia. Todo está en `lib/mockMediPass`, con la lista de lo que falta.
+ * El código sale de `GET /medipass/me` y rota (ENG-72): el QR y la cuenta
+ * regresiva muestran el vigente y se piden de nuevo justo cuando vence. Un código
+ * fijo sería una credencial permanente —quien lo vio una vez entraría para
+ * siempre—.
  *
- * **El código rota, y eso no sale del canvas sino de ENG-72.** El canvas dibuja
- * un código fijo; el ticket pide uno que rote cada 5 minutos. Es una diferencia de
- * seguridad, no de estilo: un código fijo es una credencial permanente —quien lo
- * vio una vez entra para siempre— y por eso acá se muestra con su cuenta
- * regresiva. Los 30 minutos de cada acceso son los de ENG-104.
+ * **El QR codifica la URL de la vista de emergencia con el código**, así un
+ * médico lo abre con la cámara del celular sin instalar nada.
+ *
+ * Al lado, el bloque vital tal como lo va a leer quien escanee
+ * (`GET /medipass/me/vital`): el paciente sabe exactamente qué muestra.
  */
 export function MediPassPage() {
   const { user } = useSession();
   const now = useNow(1000);
-  const [scopes, setScopes] = useState<EmergencyScope[]>(['VITAL', 'CONDICIONES']);
-  const [accesos, setAccesos] = useState<MediPassAccess[]>(() => mockAccesses());
+  const codigo = useMyMediPassCode();
+  const vital = useMyVitalBlock();
 
-  const nombre = user?.firstName ? `${user.firstName} ${user.lastName ?? ''}`.trim() : 'Tu';
-  const vigentes = accesosVigentes(accesos, now);
-
-  // El sufijo cambia con la ventana de rotación: es teatro, pero teatro del
-  // comportamiento correcto — se ve que el código de recién ya no sirve.
-  const ventana = Math.floor(now.getTime() / ROTACION_MS);
-  const codigo = `${MEDIPASS_PREFIJO}-${String(ventana % 10000).padStart(4, '0')}-${String(
-    (ventana * 7) % 10000,
-  ).padStart(4, '0')}`;
+  const nombre = user?.firstName ? `${user.firstName} ${user.lastName ?? ''}`.trim() : '';
+  const restante = codigo.data ? new Date(codigo.data.expiraEl).getTime() - now.getTime() : 0;
 
   return (
     <DashboardLayout
       barTitle="MediPass"
-      subtitle="Tu pasaporte médico. Vos decidís quién ve tu historia, qué parte y por cuánto tiempo — y podés cortar cualquier acceso en el momento."
+      subtitle="Tu pasaporte médico. Mostrale este código a un médico de guardia: lo escanea con la cámara y ve tu información vital durante 30 minutos."
     >
-      <div className="grid gap-5">
-        <div className="grid items-start gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
-          <section
-            aria-labelledby="codigo"
-            className="overflow-hidden rounded-[14px] border border-night bg-night text-white"
-          >
-            <div className="grid justify-items-center gap-4 px-6 py-7">
-              <h2
-                id="codigo"
-                className="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-bright"
-              >
-                Tu MediPass
-              </h2>
+      <div className="grid items-start gap-5 lg:grid-cols-[340px_minmax(0,1fr)]">
+        <section
+          aria-labelledby="codigo"
+          className="overflow-hidden rounded-[14px] border border-night bg-night text-white"
+        >
+          <div className="grid justify-items-center gap-4 px-6 py-7">
+            <h2
+              id="codigo"
+              className="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-bright"
+            >
+              Tu MediPass
+            </h2>
 
-              <div className="rounded-[10px] bg-white p-2.5">
-                <MediPassQr size={148} />
+            {codigo.isPending ? (
+              <div className="grid size-[168px] place-items-center rounded-[10px] bg-white/10">
+                <p role="status" className="text-[13px] text-on-night">
+                  Generando tu código…
+                </p>
               </div>
-
-              <p className="text-center font-mono text-[15px] font-bold tracking-[0.06em] text-white">
-                {codigo}
-              </p>
-
-              {/* El contador es la explicación de por qué el código cambia: sin
-                  él, alguien que vuelve a mirar cree que se rompió algo. */}
-              <p
-                role="timer"
-                aria-label={`El código se renueva en ${cuentaRegresiva(msHastaRotacion(now))}`}
-                className="text-[12px] text-on-night"
-              >
-                Se renueva en{' '}
-                <span className="font-bold tabular-nums text-brand-bright">
-                  {cuentaRegresiva(msHastaRotacion(now))}
-                </span>
-              </p>
-
-              <p className="text-center text-[12px] text-on-night-soft">
-                {nombre} · emitido en {MEDIPASS_EMITIDO}
-              </p>
-            </div>
-
-            <div className="grid gap-3 border-t border-white/10 px-6 py-5">
-              <button
-                type="button"
-                disabled
-                title="Compartir accesos llega con el MediPass (ENG-73)"
-                className="rounded-[9px] bg-brand py-3 text-sm font-bold text-ink-deep disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Compartir acceso temporal
-              </button>
-              <Link
-                to="/medipass/emergencia"
-                className="text-center text-[13px] font-semibold text-brand-bright underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-bright"
-              >
-                Ver cómo lo lee un médico en el exterior →
-              </Link>
-            </div>
-          </section>
-
-          <div className="grid gap-5">
-            <QuienTieneAcceso
-              accesos={accesos}
-              vigentes={vigentes.length}
-              now={now}
-              onRevocar={(id) => setAccesos((prev) => prev.filter((a) => a.id !== id))}
-            />
-
-            <QueSeVe scopes={scopes} onChange={setScopes} />
-          </div>
-        </div>
-      </div>
-    </DashboardLayout>
-  );
-}
-
-function QuienTieneAcceso({
-  accesos,
-  vigentes,
-  now,
-  onRevocar,
-}: {
-  accesos: MediPassAccess[];
-  vigentes: number;
-  now: Date;
-  onRevocar: (id: string) => void;
-}) {
-  return (
-    <section
-      aria-labelledby="accesos"
-      className="overflow-hidden rounded-[14px] border border-line bg-white"
-    >
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft px-6 py-[18px]">
-        <h2 id="accesos" className="text-[17px] font-bold text-brand-deep">
-          Quién tiene acceso hoy
-        </h2>
-        <p className="text-[13px] font-semibold text-muted">
-          {vigentes} acceso{vigentes === 1 ? '' : 's'} vigente{vigentes === 1 ? '' : 's'}
-        </p>
-      </header>
-
-      {accesos.length === 0 ? (
-        <p className="px-6 py-8 text-center text-sm text-muted">
-          Nadie está mirando tu historia.
-        </p>
-      ) : (
-        <ul className="divide-y divide-line-soft">
-          {accesos.map((acceso) => {
-            const estado = estadoDeAcceso(acceso, now);
-
-            return (
-              <li
-                key={acceso.id}
-                className="flex flex-wrap items-center justify-between gap-4 px-6 py-4"
-              >
-                <div className="min-w-0">
-                  <p className="text-[15px] font-bold text-brand-deep">{acceso.quien}</p>
-                  <p className="mt-1 text-[13px] text-muted">{acceso.contexto}</p>
-                  <p className="mt-1.5 text-[12px] text-muted-soft">
-                    {estado.estado === 'VIGENTE' ? (
-                      <>
-                        Se corta solo en{' '}
-                        <span className="font-semibold tabular-nums text-brand-hover">
-                          {cuentaRegresiva(estado.msRestantes)}
-                        </span>
-                      </>
-                    ) : (
-                      'Ya expiró'
-                    )}
-                  </p>
+            ) : codigo.isError ? (
+              <div role="alert" className="grid gap-3 text-center">
+                <p className="text-[14px] text-on-night">{codigo.error.message}</p>
+                <button
+                  type="button"
+                  onClick={() => void codigo.refetch()}
+                  className="rounded-[9px] bg-brand px-4 py-2.5 text-sm font-bold text-ink-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-bright"
+                >
+                  Probá de nuevo
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="rounded-[10px] bg-white p-2.5">
+                  <MediPassQr
+                    value={emergencyUrl(window.location.origin, codigo.data.codigo)}
+                    size={148}
+                  />
                 </div>
 
-                {estado.estado === 'VIGENTE' && (
-                  <button
-                    type="button"
-                    onClick={() => onRevocar(acceso.id)}
-                    aria-label={`Revocar el acceso de ${acceso.quien}`}
-                    className="rounded-[8px] border border-line-strong bg-white px-4 py-2 text-[13px] font-bold text-brand-deep transition-colors hover:border-danger hover:text-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                  >
-                    Revocar
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
+                <p className="text-center font-mono text-[18px] font-bold tracking-[0.12em] text-white">
+                  {formatCodigo(codigo.data.codigo)}
+                </p>
 
-    </section>
-  );
-}
+                {/* El contador explica por qué el código cambia: sin él, alguien
+                    que vuelve a mirar cree que se rompió algo. */}
+                <p
+                  role="timer"
+                  aria-label={`El código se renueva en ${cuentaRegresiva(restante)}`}
+                  className="text-[12px] text-on-night"
+                >
+                  {restante > 0 ? (
+                    <>
+                      Se renueva en{' '}
+                      <span className="font-bold tabular-nums text-brand-bright">
+                        {cuentaRegresiva(restante)}
+                      </span>
+                    </>
+                  ) : (
+                    'Renovando…'
+                  )}
+                </p>
+              </>
+            )}
 
-function QueSeVe({
-  scopes,
-  onChange,
-}: {
-  scopes: EmergencyScope[];
-  onChange: (scopes: EmergencyScope[]) => void;
-}) {
-  function toggle(id: EmergencyScope, activo: boolean) {
-    onChange(activo ? [...scopes, id] : scopes.filter((s) => s !== id));
-  }
+            {nombre && <p className="text-center text-[12px] text-on-night-soft">{nombre}</p>}
+          </div>
 
-  return (
-    <section
-      aria-labelledby="alcance"
-      className="overflow-hidden rounded-[14px] border border-line bg-white"
-    >
-      <header className="border-b border-line-soft px-6 py-[18px]">
-        <h2 id="alcance" className="text-[17px] font-bold text-brand-deep">
-          Qué se muestra en una emergencia
-        </h2>
-        <p className="mt-1.5 max-w-[560px] text-[13px] leading-[1.6] text-muted">
-          Si alguien escanea tu código sin tu autorización expresa, solo ve lo que dejes
-          activado acá.
-        </p>
-      </header>
+          <p className="border-t border-white/10 px-6 py-4 text-[12px] leading-[1.6] text-on-night-soft">
+            Cada acceso queda registrado a nombre de quien escaneó tu código y se corta solo a los
+            30 minutos.
+          </p>
+        </section>
 
-      <ul className="divide-y divide-line-soft">
-        {EMERGENCY_SCOPES.map((scope) => (
-          <li key={scope.id} className="px-6 py-4">
-            <label className="flex cursor-pointer items-start gap-3">
-              <input
-                type="checkbox"
-                checked={scope.fijo || scopes.includes(scope.id)}
-                disabled={scope.fijo}
-                onChange={(e) => toggle(scope.id, e.target.checked)}
-                className="mt-0.5 size-[17px] accent-brand disabled:opacity-60"
-              />
-              <span className="min-w-0">
-                <span className="block text-[14px] font-bold text-brand-deep">
-                  {scope.label}
-                </span>
-                <span className="mt-1 block text-[13px] leading-[1.6] text-muted">
-                  {scope.detalle}
-                </span>
-                {/* Que esté fijo necesita explicación: si no, se lee como un
-                    control roto en vez de una decisión. */}
-                {scope.fijo && (
-                  <span className="mt-1.5 block text-[12px] font-semibold text-brand-hover">
-                    Siempre visible: sin esto el MediPass no sirve en una guardia.
-                  </span>
-                )}
-              </span>
-            </label>
-          </li>
-        ))}
-      </ul>
-    </section>
+        <section aria-labelledby="vista" className="grid gap-3">
+          <div>
+            <h2 id="vista" className="text-[17px] font-bold text-brand-deep">
+              Lo que ve quien escanea tu código
+            </h2>
+            <p className="mt-1 text-[13px] leading-[1.6] text-muted">
+              Solo tu información vital, en inglés por si la guardia es en el exterior. Tus
+              consultas y estudios no se muestran.
+            </p>
+          </div>
+
+          {vital.isPending ? (
+            <p role="status" className="text-[14px] text-muted">
+              Cargando tu información vital…
+            </p>
+          ) : vital.isError ? (
+            <p role="alert" className="text-[14px] font-semibold text-danger">
+              {vital.error.message}
+            </p>
+          ) : (
+            <VitalBlockCard vital={vital.data} />
+          )}
+        </section>
+      </div>
+    </DashboardLayout>
   );
 }

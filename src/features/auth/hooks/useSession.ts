@@ -22,8 +22,7 @@ export function useSession() {
       }
     },
     // Un 401 no se reintenta; los errores de red sí, una vez.
-    retry: (failureCount, err) =>
-      !(err instanceof UnauthenticatedError) && failureCount < 1,
+    retry: (failureCount, err) => !(err instanceof UnauthenticatedError) && failureCount < 1,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -42,8 +41,14 @@ export function useLogout() {
     mutationFn: logoutRequest,
     onSuccess: () => {
       queryClient.setQueryData(SESSION_QUERY_KEY, null);
-      // Cualquier dato del usuario anterior deja de ser válido.
-      void queryClient.invalidateQueries();
+      // Cualquier dato del usuario anterior deja de ser válido, y no alcanza con
+      // invalidarlo: `invalidateQueries` conserva el `data`, y en un equipo
+      // compartido el próximo que ingrese vería por un instante el código
+      // MediPass, las alergias o los turnos del anterior. Se borra todo menos la
+      // sesión, que ya quedó en null.
+      queryClient.removeQueries({
+        predicate: (query) => query.queryKey[0] !== SESSION_QUERY_KEY[0],
+      });
     },
   });
 }
