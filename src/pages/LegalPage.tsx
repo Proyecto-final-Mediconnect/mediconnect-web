@@ -1,6 +1,26 @@
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
+import { useLocation } from 'react-router-dom';
 import { LEGAL_VERSION_LABEL } from '../features/legal/legal';
 import { PUBLIC_SHELL, PublicHeader } from '../shared/ui/PublicHeader';
+
+/**
+ * Lleva a la sección del fragmento cuando se entra directo con `#privacidad` o
+ * `#consentimiento`, que es como la abren los enlaces de la casilla del
+ * registro.
+ *
+ * Hace falta porque la pestaña nueva carga la SPA: cuando el navegador intenta
+ * ir al fragmento, React todavía no renderizó las secciones, así que queda
+ * arriba de todo. React Router tampoco hace scroll al hash por su cuenta. Los
+ * enlaces del índice sí funcionan sin esto, porque la página ya está dibujada.
+ */
+function useScrollAlHash(): void {
+  const { hash } = useLocation();
+
+  useEffect(() => {
+    if (!hash) return;
+    document.getElementById(hash.slice(1))?.scrollIntoView();
+  }, [hash]);
+}
 
 /**
  * Términos y condiciones, política de privacidad y consentimiento para el
@@ -13,6 +33,8 @@ import { PUBLIC_SHELL, PublicHeader } from '../shared/ui/PublicHeader';
  * es lo que hace que a quien ya aceptó se le vuelvan a pedir los textos nuevos.
  */
 export function LegalPage() {
+  useScrollAlHash();
+
   return (
     <div className="min-h-svh bg-surface">
       <PublicHeader />

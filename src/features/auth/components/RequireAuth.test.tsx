@@ -93,6 +93,40 @@ describe('RequireAuth (ENG-44)', () => {
       expect(await screen.findByText('CONTENIDO PRIVADO')).toBeInTheDocument();
     });
 
+    // Si el backend publicó textos más nuevos que los de este bundle, aceptar
+    // mandaría la versión vieja y el backend la rechazaría en cada intento: el
+    // gate pediría lo mismo para siempre y la única salida sería cerrar sesión.
+    it('si el backend tiene una versión más nueva, ofrece recargar en vez de aceptar', async () => {
+      renderGuarded({
+        status: 200,
+        body: { ...PACIENTE, legalAccepted: false, legalVersion: '2099-01-01' },
+      });
+
+      expect(
+        await screen.findByRole('heading', { name: /actualizamos los términos/i }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /recargar la página/i })).toBeVisible();
+      // No se ofrece aceptar unos textos distintos de los que se muestran.
+      expect(
+        screen.queryByRole('button', { name: /aceptar y continuar/i }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText('CONTENIDO PRIVADO')).not.toBeInTheDocument();
+    });
+
+    it('con la misma versión que el backend, pide el consentimiento normal', async () => {
+      renderGuarded({
+        status: 200,
+        body: { ...PACIENTE, legalAccepted: false, legalVersion: LEGAL_VERSION },
+      });
+
+      expect(
+        await screen.findByRole('heading', { name: /necesitamos tu consentimiento/i }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('heading', { name: /actualizamos los términos/i }),
+      ).not.toBeInTheDocument();
+    });
+
     it('al aceptar registra la versión y muestra la app', async () => {
       const user = userEvent.setup();
       const fetchSpy = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
