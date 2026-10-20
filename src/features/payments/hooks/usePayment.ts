@@ -37,7 +37,10 @@ export function usePaymentStatus(
   return useQuery({
     queryKey: ['payment', appointmentId] as const,
     queryFn: () => getPaymentStatus(appointmentId),
-    retry: false,
+    // A diferencia del resto de las queries de la app, esta sí reintenta: corre
+    // en el momento más sensible del flujo y un corte de red de un segundo no
+    // tiene que terminar en "No pudimos consultar tu pago".
+    retry: 2,
     refetchInterval: (query) => {
       if (!poll) return false;
       const data = query.state.data;

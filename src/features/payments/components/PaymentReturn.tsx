@@ -9,8 +9,8 @@ import { Checkout } from './Checkout';
 
 /**
  * Cuánto se espera el webhook antes de dejar de preguntar. MercadoPago suele
- * notificar en segundos; pasado esto lo más probable es un pago que tarda en
- * acreditarse (efectivo) y no tiene sentido seguir consultando cada 2 segundos.
+ * notificar en segundos; pasado esto lo más probable es una tarjeta en revisión
+ * y no tiene sentido seguir consultando cada 2 segundos.
  */
 export const ESPERA_MAXIMA_MS = 60_000;
 
@@ -60,7 +60,11 @@ export function PaymentReturn({
     );
   }
 
-  if (status.isError) {
+  // Solo si nunca se pudo leer el estado. react-query conserva el `data` de un
+  // refetch fallido, así que con un corte de red de un segundo había que seguir
+  // mostrando la espera en lugar de reemplazarla por un error alarmante justo
+  // en el momento más sensible.
+  if (status.isError && !status.data) {
     return (
       <Aviso titulo="No pudimos consultar tu pago.">
         {status.error.message} Si pagaste, el turno se confirma igual cuando MercadoPago nos avise:
@@ -82,6 +86,16 @@ export function PaymentReturn({
     );
   }
 
+  if (outcome === 'TURNO_VENCIDO') {
+    return (
+      <Aviso titulo="El turno se liberó porque no se pagó a tiempo.">
+        El horario volvió a estar disponible y no pudimos confirmarlo. Si llegaste a pagar, guardá
+        el comprobante de MercadoPago y avisanos: los reembolsos de estos casos todavía se gestionan
+        a mano. Podés reservar otro horario cuando quieras.
+      </Aviso>
+    );
+  }
+
   if (resultado === 'fallo') {
     return <Checkout appointment={appointment} aviso="NO_COMPLETADO" />;
   }
@@ -98,7 +112,7 @@ export function PaymentReturn({
       </h2>
       <p className="mt-2.5 text-sm leading-[1.6] text-muted">
         {resultado === 'pendiente'
-          ? 'Pasa con los medios que se acreditan más tarde, como el efectivo. El turno queda confirmado solo cuando MercadoPago nos avise que se acreditó.'
+          ? 'Pasa cuando MercadoPago deja la tarjeta en revisión. El turno queda confirmado solo cuando nos avise que se acreditó, y tenés 15 minutos desde que lo reservaste antes de que el horario se libere.'
           : 'Volviste de MercadoPago y en unos segundos nos llega el aviso del pago. No cierres esta pantalla.'}
       </p>
 

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { counterpartOf, formatLongDate } from '../../appointments/lib/myAppointments';
 import { formatPrice } from '../../appointments/lib/weeks';
@@ -49,6 +50,19 @@ export function Checkout({
   // Con el link en mano el navegador ya se está yendo: el botón no vuelve a
   // habilitarse, para que no se pida otro checkout en el medio.
   const yendo = checkout.isPending || checkout.isSuccess;
+
+  // Salvo que el paciente vuelva con "atrás". Chrome y Safari restauran la
+  // página del bfcache con el estado de React tal cual, así que el botón se
+  // quedaba trabado en "Te llevamos a MercadoPago…" hasta recargar. Pedir el
+  // link de nuevo es seguro: el backend es idempotente y no genera un segundo
+  // cobro.
+  useEffect(() => {
+    function alVolver(event: PageTransitionEvent) {
+      if (event.persisted) checkout.reset();
+    }
+    window.addEventListener('pageshow', alVolver);
+    return () => window.removeEventListener('pageshow', alVolver);
+  }, [checkout]);
 
   function pagar() {
     checkout.mutate(appointment.id, { onSuccess: (link) => redirigir(link.checkoutUrl) });
@@ -223,7 +237,9 @@ export function Checkout({
           </Link>
 
           <p className="text-xs leading-[1.6] text-muted-soft">
-            Vas a poder cancelarlo desde “Mis turnos”. El plazo y el reembolso los define cada
+            Tenés <strong className="font-semibold">15 minutos</strong> desde que reservaste para
+            pagarlo: después el horario se libera y vuelve a estar disponible para otra persona. Vas
+            a poder cancelarlo desde “Mis turnos”. El plazo y el reembolso los define cada
             profesional.
           </p>
         </div>
