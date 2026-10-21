@@ -47,12 +47,19 @@ function entry(overrides: Record<string, unknown> = {}) {
 }
 
 function renderPage(entries: unknown[]) {
-  vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-    new Response(JSON.stringify(entries), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    }),
-  );
+  // Una respuesta nueva por request: un `Response` se lee una sola vez, y el
+  // shell también pide la bandeja de avisos (ENG-69).
+  vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
+    const body = String(input).includes('/notifications/me')
+      ? { unreadCount: 0, notifications: [] }
+      : entries;
+    return Promise.resolve(
+      new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    );
+  });
 
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
@@ -78,8 +85,10 @@ describe('MyClinicalRecordPage (ENG-59)', () => {
 
     await screen.findByText(/dolor lumbar/i);
 
-    const url = vi.mocked(globalThis.fetch).mock.calls[0][0] as string;
-    expect(url).toContain(`/patients/${PATIENT}/clinical-record`);
+    const urls = vi.mocked(globalThis.fetch).mock.calls.map(([input]) => String(input));
+    expect(urls.filter((u) => u.includes('/clinical-record'))).toEqual([
+      expect.stringContaining(`/patients/${PATIENT}/clinical-record`),
+    ]);
   });
 
   it('muestra fecha, profesional, tipo y contenido de cada entrada', async () => {
