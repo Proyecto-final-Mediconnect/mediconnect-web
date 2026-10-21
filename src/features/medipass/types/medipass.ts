@@ -50,3 +50,25 @@ export interface EmergencySessionStatus {
   expiraEl: string;
   vital: VitalBlock;
 }
+
+/** Estado de un acceso visto desde hoy (ENG-76). */
+export type MediPassAccessStatus = 'ACTIVO' | 'VENCIDO' | 'REVOCADO';
+
+/** Un acceso de un consultante al MediPass, con lo que miró. */
+export interface MediPassAccess {
+  sesionId: string;
+  consultante: { nombre: string | null; matricula: string | null };
+  /** ISO-8601. */
+  inicio: string;
+  vence: string;
+  revocadoEl: string | null;
+  estado: MediPassAccessStatus;
+  vistas: { recurso: string | null; etiqueta: string; el: string }[];
+}
+
+/** `GET /medipass/me/historial?pagina=N`: una página, del más reciente al más viejo. */
+export interface MediPassHistory {
+  accesos: MediPassAccess[];
+  pagina: number;
+  hayMas: boolean;
+}

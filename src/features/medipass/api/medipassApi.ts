@@ -4,6 +4,7 @@ import type {
   EmergencySession,
   EmergencySessionStatus,
   MediPassCode,
+  MediPassHistory,
   OpenEmergencySessionInput,
   VitalBlock,
 } from '../types/medipass';
@@ -31,6 +32,13 @@ export async function getMyVitalBlock(): Promise<VitalBlock> {
   const response = await apiFetch('/medipass/me/vital');
   if (!response.ok) throw await toApiError(response, 'No pudimos cargar tu información vital.');
   return (await response.json()) as VitalBlock;
+}
+
+/** `GET /medipass/me/historial`: quién abrió el MediPass, cuándo y qué miró (ENG-76). */
+export async function getMyMediPassHistory(pagina = 1): Promise<MediPassHistory> {
+  const response = await apiFetch(`/medipass/me/historial?pagina=${pagina}`);
+  if (!response.ok) throw await toApiError(response, 'No pudimos cargar el historial de accesos.');
+  return (await response.json()) as MediPassHistory;
 }
 
 /** Fetch público: quien escanea no tiene cuenta, así que no hay sesión que renovar. */

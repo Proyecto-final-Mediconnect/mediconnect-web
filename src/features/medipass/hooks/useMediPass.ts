@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { getMyMediPassCode, getMyVitalBlock } from '../api/medipassApi';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { getMyMediPassCode, getMyMediPassHistory, getMyVitalBlock } from '../api/medipassApi';
 
 /**
  * El código vigente. Se vuelve a pedir justo cuando vence (ENG-72 lo rota cada
@@ -26,4 +26,16 @@ export function useMyMediPassCode() {
 
 export function useMyVitalBlock() {
   return useQuery({ queryKey: ['medipass', 'me', 'vital'], queryFn: getMyVitalBlock });
+}
+
+/**
+ * Historial de accesos (ENG-76), de a una página. Al cambiar de página se queda
+ * la anterior a la vista hasta que llega la nueva, en vez de vaciar la lista.
+ */
+export function useMyMediPassHistory(pagina: number) {
+  return useQuery({
+    queryKey: ['medipass', 'me', 'historial', pagina],
+    queryFn: () => getMyMediPassHistory(pagina),
+    placeholderData: keepPreviousData,
+  });
 }
