@@ -44,14 +44,13 @@ function json(body: unknown, status = 200): Response {
  * respuesta para todo: el ítem de videoconsulta depende de que
  * `/appointments/me` devuelva una lista de verdad.
  */
-function renderShell(
-  user: SessionUser | null,
-  ruta = '/paciente',
-  appointments: unknown[] = [],
-) {
+function renderShell(user: SessionUser | null, ruta = '/paciente', appointments: unknown[] = []) {
   vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
     const url = String(input);
     if (url.includes('/appointments/me')) return Promise.resolve(json(appointments));
+    if (url.includes('/notifications/me')) {
+      return Promise.resolve(json({ unreadCount: 2, notifications: [] }));
+    }
     return Promise.resolve(user ? json(user) : json(null, 401));
   });
 
@@ -167,6 +166,21 @@ describe('AppShell', () => {
     expect(await screen.findByRole('heading', { name: 'Panel' })).toBeVisible();
     expect(menu().getByRole('link', { name: 'Panel' })).toBeVisible();
   });
+
+  it('muestra la campanita con los avisos sin leer (ENG-69)', async () => {
+    renderShell(PROFESIONAL, '/profesional');
+
+    expect(await screen.findByRole('button', { name: 'Avisos, 2 sin leer' })).toBeVisible();
+  });
+
+  it('sin sesión no pide la bandeja de avisos de nadie', async () => {
+    renderShell(null);
+
+    await screen.findByRole('heading', { name: 'Panel' });
+    expect(screen.queryByRole('button', { name: /^Avisos/ })).not.toBeInTheDocument();
+    const pedidos = vi.mocked(globalThis.fetch).mock.calls.map(([input]) => String(input));
+    expect(pedidos.some((url) => url.includes('/notifications/me'))).toBe(false);
+  });
   describe('acceso a la videoconsulta', () => {
     /** Turno de las 10:00 (13:00 UTC) del 20/08/2026. */
     const TURNO = {
@@ -260,9 +274,7 @@ describe('AppShell', () => {
 
       expect(menu().getByRole('link', { name: 'Moderación' })).toBeVisible();
       expect(menu().queryByRole('link', { name: 'Mis turnos' })).not.toBeInTheDocument();
-      expect(
-        menu().queryByRole('link', { name: 'Mi historia clínica' }),
-      ).not.toBeInTheDocument();
+      expect(menu().queryByRole('link', { name: 'Mi historia clínica' })).not.toBeInTheDocument();
       expect(menu().queryByRole('link', { name: 'Panel' })).not.toBeInTheDocument();
     });
 

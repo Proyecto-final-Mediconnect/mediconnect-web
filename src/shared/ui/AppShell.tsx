@@ -2,12 +2,9 @@ import { useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useMyAppointments } from '../../features/appointments/hooks/useAppointments';
 import { useLogout, useSession } from '../../features/auth/hooks/useSession';
-import {
-  displayNameOf,
-  initialsOf,
-  ROLE_LABEL,
-} from '../../features/auth/types/session';
+import { displayNameOf, initialsOf, ROLE_LABEL } from '../../features/auth/types/session';
 import { nextAppointment } from '../../features/dashboard/lib/dashboard';
+import { NotificationsBell } from '../../features/notifications/components/NotificationsBell';
 import { firstJoinable } from '../../features/video/lib/joinWindow';
 import { useNow } from '../hooks/useNow';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -253,7 +250,10 @@ export function AppShell({ title, children }: AppShellProps) {
         >
           {/* Plegada se ve el corazón; abierta, el logo entero. Son dos imágenes
               del mismo original, así que la transición no cambia de marca. */}
-          <Logo variant="mark" className="hidden h-[26px] lg:block lg:group-hover/rail:hidden lg:group-focus-within/rail:hidden" />
+          <Logo
+            variant="mark"
+            className="hidden h-[26px] lg:block lg:group-hover/rail:hidden lg:group-focus-within/rail:hidden"
+          />
           {/* El lockup va un punto más bajo que el isotipo: mide 7,8 veces su
               alto, así que a 26 px se comía casi todo el ancho de la barra
               abierta y quedaba pegado al borde. */}
@@ -296,10 +296,7 @@ export function AppShell({ title, children }: AppShellProps) {
                   atiende ni se atiende, y apagada le diría "cuando tengas un
                   turno agendado", que nunca pasa. */}
               {i === 0 && !esModerador && (
-                <VideoconsultaLink
-                  appointmentId={proxima?.id ?? null}
-                  enVivo={enCurso !== null}
-                />
+                <VideoconsultaLink appointmentId={proxima?.id ?? null} enVivo={enCurso !== null} />
               )}
             </div>
           ))}
@@ -344,8 +341,12 @@ export function AppShell({ title, children }: AppShellProps) {
           {/* El título usa el MISMO contenedor que el contenido: si la barra
               arrancara en el borde y el contenido fuera centrado, en un monitor
               ancho el título quedaría a medio metro de la pantalla que titula. */}
-          <div className={CONTENIDO}>
+          <div className={`${CONTENIDO} flex items-center justify-between gap-4`}>
             <h1 className="text-[22px] font-bold text-brand-deep">{title}</h1>
+            {/* Los avisos (ENG-69) van en la barra de arriba y no en el menú:
+                se ven en toda pantalla privada sin abrir la barra plegada. Se
+                montan con la sesión resuelta, para no pedir la bandeja de nadie. */}
+            {user != null && <NotificationsBell />}
           </div>
         </div>
 
