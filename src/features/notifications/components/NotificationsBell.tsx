@@ -80,7 +80,7 @@ export function NotificationsBell() {
             <p role="status" className="px-5 py-6 text-sm text-muted">
               Cargando avisos…
             </p>
-          ) : inbox.isError ? (
+          ) : inbox.isError && !inbox.data ? (
             <p role="alert" className="px-5 py-6 text-sm text-danger">
               {inbox.error.message}
             </p>
