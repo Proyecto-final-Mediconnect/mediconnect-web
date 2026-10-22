@@ -1,3 +1,5 @@
+import type { CancellationPolicy } from '../../cancellation-policy/types/cancellationPolicy';
+
 export type Specialty = {
   id: string;
   name: string;
@@ -45,6 +47,12 @@ export type PublicProfessionalProfile = {
   /** `null` si no cargó su precio de consulta. */
   price: number | null;
   currency: string;
+  /**
+   * Política de cancelación (ENG-67). El backend la manda siempre, con el
+   * default si el profesional no la configuró; es opcional solo para tolerar un
+   * backend anterior.
+   */
+  cancellationPolicy?: CancellationPolicy;
 };
 
 export type PaginationMeta = {

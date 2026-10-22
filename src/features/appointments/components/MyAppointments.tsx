@@ -16,6 +16,7 @@ import {
 } from '../lib/myAppointments';
 import { formatPrice } from '../lib/weeks';
 import type { Appointment } from '../types/appointment';
+import { RefundEstimate } from '../../cancellation-policy/components/RefundEstimate';
 
 /**
  * Mis turnos (ENG-55).
@@ -333,6 +334,17 @@ function AppointmentRow({
             ¿Cancelás el turno del {formatLongDate(appointment.date)} a las {appointment.startTime}?
             El horario vuelve a quedar libre para otra persona.
           </p>
+          {/* Solo un turno pagado tiene algo que devolver. */}
+          {appointment.status === 'CONFIRMADO' && appointment.professional && (
+            <RefundEstimate
+              professionalId={appointment.professional.id}
+              scheduledAt={appointment.scheduledAt}
+              price={appointment.price}
+              currency={appointment.currency}
+              now={now}
+              className={`mt-2 ${isNext ? 'text-on-night-strong' : 'text-ink'}`}
+            />
+          )}
           <div className="mt-3 flex flex-wrap gap-3">
             <Button
               type="button"

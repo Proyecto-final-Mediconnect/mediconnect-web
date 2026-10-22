@@ -18,6 +18,9 @@ import type { Appointment, AvailabilitySlot } from '../types/appointment';
 import { PASO_HORARIO, PASO_LISTO, PASO_REVISION } from '../lib/bookingSteps';
 import { BookingStepper } from './BookingStepper';
 import { WeeklyAvailabilityCalendar } from './WeeklyAvailabilityCalendar';
+import { usePublicProfile } from '../../catalog/hooks/usePublicProfile';
+import { PolicyNotice } from '../../cancellation-policy/components/PolicyNotice';
+import type { CancellationPolicy } from '../../cancellation-policy/types/cancellationPolicy';
 
 /**
  * Ver la disponibilidad de un profesional y reservar un turno (ENG-54), con el
@@ -105,6 +108,9 @@ export function BookAppointment({ professionalId }: BookAppointmentProps) {
 
   const professional = availability.data?.professional;
   const price = professional?.consultationPrice ?? null;
+  // La disponibilidad no trae la política: sale del perfil público, que casi
+  // siempre ya está en caché porque el paciente llegó desde ahí.
+  const policy = usePublicProfile(professionalId).data?.cancellationPolicy;
 
   /** Turnos ya reservados con ESTE profesional, que es lo que el paciente quiere
    *  ver acá. La lista completa es "Mis turnos" (ENG-55). */
@@ -246,6 +252,7 @@ export function BookAppointment({ professionalId }: BookAppointmentProps) {
       <PanelRevision
         professional={professional}
         price={price}
+        policy={policy}
         selected={selected}
         booked={booked}
         isPending={book.isPending}
@@ -260,6 +267,7 @@ export function BookAppointment({ professionalId }: BookAppointmentProps) {
 function PanelRevision({
   professional,
   price,
+  policy,
   selected,
   booked,
   isPending,
@@ -269,6 +277,7 @@ function PanelRevision({
 }: {
   professional: { firstName: string; lastName: string; currency: string } | undefined;
   price: number | null;
+  policy: CancellationPolicy | undefined;
   selected: SelectedSlot | null;
   booked: Appointment | null;
   isPending: boolean;
@@ -369,10 +378,7 @@ function PanelRevision({
           </>
         )}
 
-        <p className="text-xs leading-[1.6] text-muted-soft">
-          Vas a poder cancelarlo desde “Mis turnos”. El plazo y el reembolso los define cada
-          profesional.
-        </p>
+        <PolicyNotice policy={policy} />
       </div>
     </aside>
   );
