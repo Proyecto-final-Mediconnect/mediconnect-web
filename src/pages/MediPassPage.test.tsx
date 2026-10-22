@@ -39,6 +39,9 @@ function renderPage(
     pedidos.push(url);
     if (url.endsWith('/medipass/me')) return Promise.resolve(codigo.clone());
     if (url.endsWith('/medipass/me/vital')) return Promise.resolve(json(MOCK_VITAL_BLOCK));
+    if (url.includes('/medipass/me/historial')) {
+      return Promise.resolve(json({ accesos: [], pagina: 1, hayMas: false }));
+    }
     return Promise.resolve(json(SESION));
   });
 
@@ -82,6 +85,13 @@ describe('MediPassPage (ENG-135)', () => {
 
     expect(await screen.findByText(MOCK_VITAL_BLOCK.nombre)).toBeVisible();
     expect(screen.getByText('Allergies')).toBeVisible();
+  });
+
+  it('muestra el historial de accesos debajo (ENG-76)', async () => {
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'Quién abrió tu MediPass' })).toBeVisible();
+    expect(await screen.findByText('Nadie abrió tu MediPass todavía.')).toBeVisible();
   });
 
   it('si no puede generar el código lo dice y ofrece reintentar', async () => {

@@ -1,4 +1,5 @@
 import { useSession } from '../features/auth/hooks/useSession';
+import { AccessHistory } from '../features/medipass/components/AccessHistory';
 import { VitalBlockCard } from '../features/medipass/components/VitalBlockCard';
 import { useMyMediPassCode, useMyVitalBlock } from '../features/medipass/hooks/useMediPass';
 import { cuentaRegresiva, emergencyUrl, formatCodigo } from '../features/medipass/lib/medipass';
@@ -130,6 +131,11 @@ export function MediPassPage() {
             <VitalBlockCard vital={vital.data} />
           )}
         </section>
+      </div>
+
+      {/* A lo ancho y debajo: es lo que pasó con el código, no el código. */}
+      <div className="mt-8">
+        <AccessHistory />
       </div>
     </DashboardLayout>
   );
