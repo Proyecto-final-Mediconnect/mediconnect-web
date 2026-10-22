@@ -100,6 +100,24 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
     );
   }
 
+  if (appointment && ventana?.kind === 'UNPAID') {
+    return esPaciente ? (
+      <Aviso titulo="Pagá el turno para entrar a la consulta.">
+        La sala se abre cuando el pago está confirmado.{' '}
+        <Link
+          to={`/turnos/${appointment.id}/pago`}
+          className="font-semibold text-brand-hover underline-offset-2 hover:underline"
+        >
+          Pagar la consulta
+        </Link>
+      </Aviso>
+    ) : (
+      <Aviso titulo="El paciente todavía no pagó este turno.">
+        La sala se abre cuando el pago está confirmado.
+      </Aviso>
+    );
+  }
+
   if (appointment && ventana?.kind === 'NOT_APPLICABLE') {
     return (
       <Aviso titulo="Este turno no tiene videoconsulta.">
