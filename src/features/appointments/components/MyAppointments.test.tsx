@@ -73,6 +73,7 @@ function mockApi(
     session?: () => Response;
     mine?: () => Response;
     cancel?: () => Response;
+    profile?: () => Response;
   } = {},
 ) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation((input, init): Promise<Response> => {
@@ -83,6 +84,9 @@ function mockApi(
       return Promise.resolve(
         handlers.cancel?.() ?? jsonResponse({ ...UPCOMING, status: 'CANCELADO' }),
       );
+    }
+    if (url.includes(`/professionals/${PRO_ID}`)) {
+      return Promise.resolve(handlers.profile?.() ?? jsonResponse({}, 404));
     }
     if (url.includes('/appointments/me')) {
       return Promise.resolve(handlers.mine?.() ?? jsonResponse([PAST, UPCOMING]));
@@ -186,6 +190,60 @@ describe('MyAppointments', () => {
         ([, init]) => (init as RequestInit | undefined)?.method === 'PATCH',
       );
       expect(String(patch?.[0])).toContain(`/appointments/${UPCOMING.id}/cancel`);
+    });
+  });
+
+  describe('reembolso según la política del profesional (ENG-171)', () => {
+    /** 24 h → 100 %, 6 h → 50 %, menos → nada. */
+    const PROFILE = {
+      id: PRO_ID,
+      firstName: 'Ana',
+      lastName: 'Médica',
+      photoUrl: null,
+      bio: null,
+      specialties: [],
+      education: [],
+      price: 15000,
+      currency: 'ARS',
+      cancellationPolicy: { hoursFullRefund: 24, hoursPartialRefund: 6, partialRefundPercent: 50 },
+    };
+
+    /** Pagado, mañana a las 10:00: faltan 26 h. */
+    const PAID = { ...UPCOMING, status: 'CONFIRMADO' };
+
+    async function abrirConfirmacion(turnos: unknown[]) {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      mockApi({ mine: () => jsonResponse(turnos), profile: () => jsonResponse(PROFILE) });
+      renderMyAppointments();
+      await user.click(await screen.findByRole('button', { name: /cancelar turno/i }));
+    }
+
+    it('con 26 h de anticipación le corresponde la devolución total', async () => {
+      await abrirConfirmacion([PAID]);
+
+      expect(await screen.findByText(/te corresponde la devolución total/)).toHaveTextContent(
+        /15\.000/,
+      );
+    });
+
+    it('con 10 h de anticipación le corresponde el parcial', async () => {
+      // 11:00Z + 10 h = 21:00Z.
+      await abrirConfirmacion([{ ...PAID, scheduledAt: '2026-08-17T21:00:00.000Z' }]);
+
+      expect(await screen.findByText(/te corresponde el 50 %/)).toHaveTextContent(/7\.500/);
+    });
+
+    it('con menos de 6 h no le corresponde nada', async () => {
+      await abrirConfirmacion([{ ...PAID, scheduledAt: '2026-08-17T13:00:00.000Z' }]);
+
+      expect(await screen.findByText(/no te corresponde devolución/)).toBeInTheDocument();
+    });
+
+    it('un turno sin pagar no habla de devolución', async () => {
+      await abrirConfirmacion([UPCOMING]);
+
+      expect(screen.getByText(/¿Cancelás el turno/)).toBeInTheDocument();
+      expect(screen.queryByText(/devolución/)).not.toBeInTheDocument();
     });
   });
 

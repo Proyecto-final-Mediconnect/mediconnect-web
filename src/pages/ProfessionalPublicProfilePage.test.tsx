@@ -125,6 +125,25 @@ describe('ProfessionalPublicProfilePage', () => {
     expect(screen.queryByRole('button', { name: 'Reintentar' })).not.toBeInTheDocument();
   });
 
+  it('muestra la política de cancelación del profesional (ENG-171)', async () => {
+    mockFetch(200, {
+      ...PROFILE,
+      cancellationPolicy: { hoursFullRefund: 48, hoursPartialRefund: 12, partialRefundPercent: 30 },
+    });
+    renderPage();
+
+    expect(await screen.findByText(/Entre 48 horas y 12 horas antes, el 30 %/)).toBeInTheDocument();
+  });
+
+  it('sin política en la respuesta cae al texto genérico', async () => {
+    mockFetch(200, PROFILE);
+    renderPage();
+
+    expect(
+      await screen.findByText(/El plazo y el reembolso los define cada profesional/),
+    ).toBeInTheDocument();
+  });
+
   it('no oculta el precio a consultar cuando el profesional no cargó precio', async () => {
     mockFetch(200, { ...PROFILE, price: null });
     renderPage();

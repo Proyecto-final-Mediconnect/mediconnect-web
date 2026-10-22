@@ -10,6 +10,7 @@ import {
 } from '../lib/mockProfessionalDetails';
 import type { PublicProfessionalProfile } from '../types/catalog';
 import { ReservarTurnoCta } from './ReservarTurnoCta';
+import { PolicyNotice } from '../../cancellation-policy/components/PolicyNotice';
 
 type Props = {
   /** Raíz del catálogo del que se vino, para el enlace de volver. Público por
@@ -412,10 +413,7 @@ function PanelReserva({
           botonClassName="rounded-[10px] bg-brand py-[15px] text-center text-[15px] font-bold text-ink-deep transition-colors hover:bg-brand-hover hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
         />
 
-        <p className="text-xs leading-[1.6] text-muted-soft">
-          Vas a poder cancelarlo desde “Mis turnos”. El plazo y el reembolso los
-          define cada profesional.
-        </p>
+        <PolicyNotice policy={profile.cancellationPolicy} />
       </div>
     </aside>
   );
