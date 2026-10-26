@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getMe, UnauthenticatedError } from '../api/getMe';
 import { logout as logoutRequest } from '../api/logout';
+import { recordarSesion } from '../lib/sessionHint';
 import type { SessionUser } from '../types/session';
 
 export const SESSION_QUERY_KEY = ['session'] as const;
@@ -25,6 +27,11 @@ export function useSession() {
     retry: (failureCount, err) => !(err instanceof UnauthenticatedError) && failureCount < 1,
     staleTime: 5 * 60 * 1000,
   });
+
+  // Cubre también el login y el logout, que escriben la caché sin pasar por `/me`.
+  useEffect(() => {
+    if (query.data !== undefined) recordarSesion(query.data !== null);
+  }, [query.data]);
 
   return {
     user: query.data ?? null,
