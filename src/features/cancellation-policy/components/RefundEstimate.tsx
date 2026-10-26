@@ -1,18 +1,21 @@
-import { usePublicProfile } from '../../catalog/hooks/usePublicProfile';
+import { useQuery } from '@tanstack/react-query';
+import { getCancellationQuote } from '../../appointments/api/appointmentsApi';
 import { formatPrice } from '../../appointments/lib/weeks';
-import { refundPercentFor } from '../lib/policy';
+import { usePublicProfile } from '../../catalog/hooks/usePublicProfile';
+import { refundPercentFor, refundQuoteText } from '../lib/policy';
 
 /**
- * Cuánto le devolverían al paciente si cancela ahora un turno pagado (ENG-171).
+ * Cuánto le devolverían al paciente si cancela ahora un turno pagado (ENG-171,
+ * ENG-65).
  *
- * La política sale del perfil público del profesional, que casi siempre ya está
- * en caché porque el paciente pasó por ahí para reservar. Si no se puede leer,
- * no se muestra nada: es preferible no decir un porcentaje que decir uno falso.
- *
- * Mientras no esté ENG-65 el reembolso no se pide solo a MercadoPago, y el texto
- * no lo promete.
+ * Lo calcula el backend (`cancellation-quote`) con la política que quedó guardada
+ * en el turno al reservarlo, que es la que vale. Si el backend todavía no la
+ * tiene, se cuenta acá con la política actual del perfil público, avisando que la
+ * devolución no es automática. Si tampoco se puede leer el perfil, no se muestra
+ * nada: es preferible no decir un porcentaje que decir uno falso.
  */
 export function RefundEstimate({
+  appointmentId,
   professionalId,
   scheduledAt,
   price,
@@ -20,6 +23,7 @@ export function RefundEstimate({
   now,
   className = '',
 }: {
+  appointmentId: string;
   professionalId: string;
   scheduledAt: string;
   price: number;
@@ -27,21 +31,25 @@ export function RefundEstimate({
   now: Date;
   className?: string;
 }) {
+  const quote = useQuery({
+    queryKey: ['appointments', appointmentId, 'cancellation-quote'],
+    queryFn: () => getCancellationQuote(appointmentId),
+    retry: false,
+    // Depende de la hora: con el tiempo el porcentaje baja.
+    staleTime: 0,
+    gcTime: 0,
+  });
   const profile = usePublicProfile(professionalId);
-  const policy = profile.data?.cancellationPolicy;
 
-  if (!policy) return null;
+  let texto: string | null = null;
+  if (quote.data) {
+    texto = refundQuoteText(quote.data.percent, formatPrice(quote.data.amount, currency), true);
+  } else if (quote.isError && profile.data?.cancellationPolicy) {
+    const pct = refundPercentFor(profile.data.cancellationPolicy, new Date(scheduledAt), now);
+    texto = refundQuoteText(pct, formatPrice((price * pct) / 100, currency), false);
+  }
 
-  const pct = refundPercentFor(policy, new Date(scheduledAt), now);
-  const monto = formatPrice((price * pct) / 100, currency);
+  if (!texto) return null;
 
-  return (
-    <p className={`text-sm ${className}`}>
-      {pct === 0
-        ? 'Según la política del profesional, si cancelás ahora no te corresponde devolución.'
-        : `Según la política del profesional, te corresponde ${
-            pct === 100 ? 'la devolución total' : `el ${pct} %`
-          } (${monto}). Por ahora la devolución no se hace sola: se gestiona aparte.`}
-    </p>
-  );
+  return <p className={`text-sm ${className}`}>{texto}</p>;
 }

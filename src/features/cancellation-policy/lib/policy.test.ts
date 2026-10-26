@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { describePolicy, refundPercentFor, validatePolicy } from './policy';
+import {
+  describePolicy,
+  refundOutcomeText,
+  refundPercentFor,
+  refundQuoteText,
+  validatePolicy,
+} from './policy';
 
 const DEFAULT = { hoursFullRefund: 24, hoursPartialRefund: 6, partialRefundPercent: 50 };
 const NOW = new Date('2026-10-22T12:00:00.000Z');
@@ -83,5 +89,43 @@ describe('describePolicy', () => {
     expect(
       describePolicy({ hoursFullRefund: 1, hoursPartialRefund: 0, partialRefundPercent: 0 }),
     ).toContain('con 1 hora o más');
+  });
+});
+
+describe('refundQuoteText (ENG-65)', () => {
+  it('con el reembolso automático dice que se devuelve por MercadoPago', () => {
+    expect(refundQuoteText(50, '$ 7.500', true)).toBe(
+      'Según la política del profesional, te corresponde el 50 % ($ 7.500). ' +
+        'Te lo devolvemos por MercadoPago, al mismo medio con el que pagaste.',
+    );
+  });
+
+  it('sin el reembolso automático no lo promete', () => {
+    expect(refundQuoteText(100, '$ 15.000', false)).toMatch(
+      /la devolución total.*se gestiona aparte/,
+    );
+  });
+
+  it('con 0 % no habla de devolución', () => {
+    expect(refundQuoteText(0, '$ 0', true)).toBe(
+      'Según la política del profesional, si cancelás ahora no te corresponde devolución.',
+    );
+  });
+});
+
+describe('refundOutcomeText (ENG-65)', () => {
+  const monto = (n: number) => `$${n}`;
+
+  it.each([
+    ['PROCESADO', /Te devolvemos \$7500 por MercadoPago/],
+    ['PENDIENTE', /todavía no la confirmó/],
+    ['RECHAZADO', /no aceptó la devolución de \$7500/],
+  ] as const)('%s', (status, texto) => {
+    expect(refundOutcomeText({ amount: 7500, status }, monto)).toMatch(texto);
+  });
+
+  it('sin nada que devolver, o con un backend sin ENG-65, no dice nada', () => {
+    expect(refundOutcomeText({ amount: 0, status: null }, monto)).toBeNull();
+    expect(refundOutcomeText(undefined, monto)).toBeNull();
   });
 });

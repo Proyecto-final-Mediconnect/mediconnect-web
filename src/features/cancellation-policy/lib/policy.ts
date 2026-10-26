@@ -90,3 +90,39 @@ export function describePolicy(policy: CancellationPolicy): string {
 
   return partes.join(' ');
 }
+
+/**
+ * Lo que se le dice al paciente antes de cancelar un turno pagado.
+ *
+ * `automatico` dice si el backend pide la devolución solo (ENG-65). Con un
+ * backend anterior no lo hace, y el texto no lo promete.
+ */
+export function refundQuoteText(percent: number, monto: string, automatico: boolean): string {
+  if (percent === 0) {
+    return 'Según la política del profesional, si cancelás ahora no te corresponde devolución.';
+  }
+
+  const cuanto = percent === MAX_REFUND_PERCENT ? 'la devolución total' : `el ${percent} %`;
+  return `Según la política del profesional, te corresponde ${cuanto} (${monto}). ${
+    automatico
+      ? 'Te lo devolvemos por MercadoPago, al mismo medio con el que pagaste.'
+      : 'Por ahora la devolución no se hace sola: se gestiona aparte.'
+  }`;
+}
+
+/** Qué pasó con la devolución, después de cancelar (ENG-65). `null` si no había nada que devolver. */
+export function refundOutcomeText(
+  refund: { amount: number; status: 'PROCESADO' | 'PENDIENTE' | 'RECHAZADO' | null } | undefined,
+  monto: (amount: number) => string,
+): string | null {
+  if (!refund || refund.status === null) return null;
+
+  switch (refund.status) {
+    case 'PROCESADO':
+      return `Te devolvemos ${monto(refund.amount)} por MercadoPago, al mismo medio con el que pagaste. Puede tardar unos días en verse.`;
+    case 'PENDIENTE':
+      return `Pedimos la devolución de ${monto(refund.amount)}, pero MercadoPago todavía no la confirmó. La seguimos nosotros.`;
+    case 'RECHAZADO':
+      return `MercadoPago no aceptó la devolución de ${monto(refund.amount)}. La vamos a resolver a mano.`;
+  }
+}

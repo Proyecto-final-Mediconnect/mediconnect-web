@@ -74,6 +74,7 @@ function mockApi(
     mine?: () => Response;
     cancel?: () => Response;
     profile?: () => Response;
+    quote?: () => Response;
   } = {},
 ) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation((input, init): Promise<Response> => {
@@ -84,6 +85,10 @@ function mockApi(
       return Promise.resolve(
         handlers.cancel?.() ?? jsonResponse({ ...UPCOMING, status: 'CANCELADO' }),
       );
+    }
+    // Antes que el PATCH: la URL de la cotización también contiene "/cancel".
+    if (url.includes('/cancellation-quote')) {
+      return Promise.resolve(handlers.quote?.() ?? jsonResponse({}, 404));
     }
     if (url.includes(`/professionals/${PRO_ID}`)) {
       return Promise.resolve(handlers.profile?.() ?? jsonResponse({}, 404));
@@ -211,11 +216,12 @@ describe('MyAppointments', () => {
     /** Pagado, mañana a las 10:00: faltan 26 h. */
     const PAID = { ...UPCOMING, status: 'CONFIRMADO' };
 
-    async function abrirConfirmacion(turnos: unknown[]) {
+    async function abrirConfirmacion(turnos: unknown[], extra: Parameters<typeof mockApi>[0] = {}) {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      mockApi({ mine: () => jsonResponse(turnos), profile: () => jsonResponse(PROFILE) });
+      mockApi({ mine: () => jsonResponse(turnos), profile: () => jsonResponse(PROFILE), ...extra });
       renderMyAppointments();
       await user.click(await screen.findByRole('button', { name: /cancelar turno/i }));
+      return user;
     }
 
     it('con 26 h de anticipación le corresponde la devolución total', async () => {
@@ -244,6 +250,84 @@ describe('MyAppointments', () => {
 
       expect(screen.getByText(/¿Cancelás el turno/)).toBeInTheDocument();
       expect(screen.queryByText(/devolución/)).not.toBeInTheDocument();
+    });
+
+    it('sin la cotización de ENG-65 no promete devolución automática', async () => {
+      await abrirConfirmacion([PAID]);
+
+      expect(await screen.findByText(/te corresponde la devolución total/)).toHaveTextContent(
+        /se gestiona aparte/,
+      );
+    });
+
+    describe('con el reembolso de ENG-65', () => {
+      it('usa la cotización del backend, con la política guardada en el turno', async () => {
+        // El perfil dice 100 % a 26 h, pero el turno se reservó con otra política:
+        // manda la del turno.
+        await abrirConfirmacion([PAID], {
+          quote: () => jsonResponse({ percent: 30, amount: 4500, status: null }),
+        });
+
+        expect(await screen.findByText(/te corresponde el 30 %/)).toHaveTextContent(
+          /4\.500.*Te lo devolvemos por MercadoPago/,
+        );
+      });
+
+      it('después de cancelar dice cómo salió la devolución, hasta que se cierra', async () => {
+        const user = await abrirConfirmacion([PAID], {
+          quote: () => jsonResponse({ percent: 100, amount: 15000, status: null }),
+          cancel: () =>
+            jsonResponse({
+              ...PAID,
+              status: 'CANCELADO',
+              refund: { percent: 100, amount: 15000, status: 'PROCESADO' },
+            }),
+        });
+
+        await user.click(screen.getByRole('button', { name: /sí, cancelar/i }));
+
+        expect(
+          await screen.findByText(/Te devolvemos .*15\.000 por MercadoPago/),
+        ).toBeInTheDocument();
+        await user.click(screen.getByRole('button', { name: 'Entendido' }));
+        expect(screen.queryByText(/Te devolvemos/)).not.toBeInTheDocument();
+      });
+
+      it('si MercadoPago rechazó la devolución, lo dice', async () => {
+        const user = await abrirConfirmacion([PAID], {
+          quote: () => jsonResponse({ percent: 100, amount: 15000, status: null }),
+          cancel: () =>
+            jsonResponse({
+              ...PAID,
+              status: 'CANCELADO',
+              refund: { percent: 100, amount: 15000, status: 'RECHAZADO' },
+            }),
+        });
+
+        await user.click(screen.getByRole('button', { name: /sí, cancelar/i }));
+
+        expect(
+          await screen.findByText(/MercadoPago no aceptó la devolución .*15\.000/),
+        ).toBeInTheDocument();
+      });
+
+      it('sin nada que devolver no muestra ningún aviso después de cancelar', async () => {
+        const user = await abrirConfirmacion([UPCOMING], {
+          cancel: () =>
+            jsonResponse({
+              ...UPCOMING,
+              status: 'CANCELADO',
+              refund: { percent: 0, amount: 0, status: null },
+            }),
+        });
+
+        await user.click(screen.getByRole('button', { name: /sí, cancelar/i }));
+
+        await waitFor(() =>
+          expect(screen.queryByText(/¿Cancelás el turno/)).not.toBeInTheDocument(),
+        );
+        expect(screen.queryByRole('button', { name: 'Entendido' })).not.toBeInTheDocument();
+      });
     });
   });
 

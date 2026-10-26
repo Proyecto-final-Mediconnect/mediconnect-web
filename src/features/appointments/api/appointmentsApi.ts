@@ -1,6 +1,12 @@
 import { apiFetch } from '../../../shared/api/apiFetch';
 import { toApiError } from '../../../shared/api/apiError';
-import type { Appointment, Availability, BookAppointmentPayload } from '../types/appointment';
+import type {
+  Appointment,
+  Availability,
+  BookAppointmentPayload,
+  CancellationRefund,
+  CancelledAppointment,
+} from '../types/appointment';
 
 /** Grilla de horarios de un profesional entre dos fechas (ambas inclusive). */
 export async function getAvailability(
@@ -54,13 +60,14 @@ export async function getMyAppointments(): Promise<Appointment[]> {
 }
 
 /**
- * Cancela un turno futuro propio (ENG-55). Devuelve el turno ya en `CANCELADO`.
+ * Cancela un turno futuro propio (ENG-55). Devuelve el turno ya en `CANCELADO`
+ * y, desde ENG-65, lo que se devolvió.
  *
  * `PATCH` sin body: el turno no se borra, cambia de estado, y lo único que se
  * puede pedir es la cancelación. Mandar un cuerpo daría 400 — el backend corre
  * con `forbidNonWhitelisted`.
  */
-export async function cancelAppointment(appointmentId: string): Promise<Appointment> {
+export async function cancelAppointment(appointmentId: string): Promise<CancelledAppointment> {
   const response = await apiFetch(`/appointments/${appointmentId}/cancel`, {
     method: 'PATCH',
   });
@@ -69,5 +76,19 @@ export async function cancelAppointment(appointmentId: string): Promise<Appointm
     throw await toApiError(response, 'No se pudo cancelar el turno.');
   }
 
-  return (await response.json()) as Appointment;
+  return (await response.json()) as CancelledAppointment;
+}
+
+/**
+ * Cuánto se devolvería si se cancela ahora (ENG-65), con la política que quedó
+ * guardada en el turno al reservarlo. No cancela nada.
+ */
+export async function getCancellationQuote(appointmentId: string): Promise<CancellationRefund> {
+  const response = await apiFetch(`/appointments/${appointmentId}/cancellation-quote`);
+
+  if (!response.ok) {
+    throw await toApiError(response, 'No pudimos calcular la devolución.');
+  }
+
+  return (await response.json()) as CancellationRefund;
 }
