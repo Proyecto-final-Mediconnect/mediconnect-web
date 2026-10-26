@@ -32,6 +32,8 @@ export interface PaymentStatusView {
   appointmentId: string;
   status: PaymentStatus | 'SIN_INICIAR';
   appointmentStatus: string;
+  /** Cuándo se acreditó el pago (backend#69). Falta con un backend anterior. */
+  confirmedAt?: string | null;
 }
 
 /**

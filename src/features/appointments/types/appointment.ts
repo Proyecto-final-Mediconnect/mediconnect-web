@@ -66,6 +66,10 @@ export interface Appointment {
   /** Cuándo se movió de horario (ENG-66). Un turno se reprograma una sola vez.
    *  Falta con un backend anterior. */
   rescheduledAt?: string | null;
+  /** Cuándo se reservó y cuándo se canceló, ISO-8601 (backend#69). Opcionales:
+   *  sin ellos el detalle del turno muestra los pasos sin hora. */
+  createdAt?: string | null;
+  cancelledAt?: string | null;
 }
 
 /** Qué pasó con el reembolso de una cancelación (ENG-65). */

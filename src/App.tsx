@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from './features/auth/components/RequireAuth';
 import { VideoConsultationPreviewPage } from './dev/VideoConsultationPreviewPage';
 import { AppointmentConfirmedPage } from './pages/AppointmentConfirmedPage';
+import { AppointmentDetailPage } from './pages/AppointmentDetailPage';
 import { BookAppointmentPage } from './pages/BookAppointmentPage';
 import { CatalogPage } from './pages/CatalogPage';
 import { EmergencyViewPage } from './pages/EmergencyViewPage';
@@ -185,6 +186,15 @@ function App() {
       {/* Pago del turno con MercadoPago (ENG-63) y confirmación (ENG-64). Solo
           PACIENTE: el que paga la consulta es quien la reservó. La ruta de pago es
           también la vuelta desde MercadoPago (`?resultado=…`). */}
+      {/* Detalle de un turno (ENG-178): datos, qué pasó y acciones. */}
+      <Route
+        path="/turnos/:appointmentId"
+        element={
+          <RequireAuth allow={['PACIENTE', 'PROFESIONAL']}>
+            <AppointmentDetailPage />
+          </RequireAuth>
+        }
+      />
       <Route
         path="/turnos/:appointmentId/pago"
         element={

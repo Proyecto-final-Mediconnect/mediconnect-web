@@ -39,6 +39,8 @@ export function usePublicProfile(id: string) {
   return useQuery({
     queryKey: ['catalog', 'professional', id],
     queryFn: () => getPublicProfile(id),
+    // Sin id todavía (el turno que lo trae no cargó) no hay nada que pedir.
+    enabled: id !== '',
     retry: shouldRetryPublicProfile,
   });
 }
