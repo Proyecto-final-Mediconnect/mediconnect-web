@@ -144,13 +144,17 @@ export function NoNextAppointment({
   accion?: { to: string; label: string };
 }) {
   return (
-    <article className="rounded-[14px] border border-dashed border-line-strong bg-white p-7">
-      <p className="font-display text-[24px] leading-[1.2] text-brand-deep">{titulo}</p>
-      <p className="mt-2 max-w-[520px] text-sm leading-[1.6] text-muted">{detalle}</p>
+    // En pantallas anchas va en una franja: texto a la izquierda, acción a la
+    // derecha. Un bloque alto con dos líneas adentro dejaba media tarjeta vacía.
+    <article className="flex flex-wrap items-center justify-between gap-5 rounded-[14px] border border-dashed border-line-strong bg-white p-6 lg:p-7">
+      <div className="min-w-0 flex-1 basis-[320px]">
+        <p className="font-display text-[24px] leading-[1.2] text-brand-deep">{titulo}</p>
+        <p className="mt-2 max-w-[560px] text-sm leading-[1.6] text-muted">{detalle}</p>
+      </div>
       {accion && (
         <Link
           to={accion.to}
-          className="mt-5 inline-flex items-center rounded-[9px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+          className="inline-flex flex-none items-center rounded-[9px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
         >
           {accion.label}
         </Link>
