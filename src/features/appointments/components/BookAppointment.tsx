@@ -188,7 +188,7 @@ export function BookAppointment({ professionalId, rescheduleId }: BookAppointmen
     return (
       <p role="alert" className="text-danger">
         No encontramos el turno que querés reprogramar.{' '}
-        <Link to="/turnos" className="font-semibold underline">
+        <Link to="/mis-turnos" className="font-semibold underline">
           Volver a mis turnos
         </Link>
       </p>
@@ -413,7 +413,7 @@ function PanelRevision({
             </p>
             {rescheduling && booked.status === 'CONFIRMADO' ? (
               <Link
-                to="/turnos"
+                to="/mis-turnos"
                 className="w-full rounded-[10px] bg-brand py-[15px] text-center text-[15px] font-bold text-ink-deep transition-colors hover:bg-brand-hover hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
               >
                 Ver mis turnos
