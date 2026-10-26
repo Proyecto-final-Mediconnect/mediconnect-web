@@ -331,6 +331,37 @@ describe('MyAppointments', () => {
     });
   });
 
+  describe('reprogramar (ENG-66)', () => {
+    it('el paciente puede reprogramar un turno futuro', async () => {
+      mockApi();
+      renderMyAppointments();
+
+      const link = await screen.findByRole('link', { name: 'Reprogramar' });
+      expect(link).toHaveAttribute(
+        'href',
+        `/profesionales/${PRO_ID}/turnos?reprogramar=${UPCOMING.id}`,
+      );
+    });
+
+    it('un turno ya reprogramado no se vuelve a reprogramar', async () => {
+      mockApi({
+        mine: () => jsonResponse([{ ...UPCOMING, rescheduledAt: '2026-08-16T12:00:00.000Z' }]),
+      });
+      renderMyAppointments();
+
+      expect(await screen.findByText(/reprogramado/)).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Reprogramar' })).not.toBeInTheDocument();
+    });
+
+    it('el profesional no reprograma el turno de su paciente', async () => {
+      mockApi({ session: () => jsonResponse(PRO_SESSION) });
+      renderMyAppointments();
+
+      await screen.findByRole('region', { name: /próximos/i });
+      expect(screen.queryByRole('link', { name: 'Reprogramar' })).not.toBeInTheDocument();
+    });
+  });
+
   it('"No, dejarlo" cierra la confirmación sin cancelar', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const fetchMock = mockApi();

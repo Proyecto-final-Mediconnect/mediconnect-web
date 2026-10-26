@@ -80,6 +80,34 @@ export async function cancelAppointment(appointmentId: string): Promise<Cancelle
 }
 
 /**
+ * Mueve un turno propio a otro horario del mismo profesional (ENG-66). Es el
+ * mismo turno: el pago sigue atado a él y no se vuelve a cobrar. Las reglas
+ * (una sola vez, la política de cancelación si está pagado) las aplica el
+ * backend, y su mensaje se muestra tal cual.
+ */
+export async function rescheduleAppointment({
+  appointmentId,
+  date,
+  startTime,
+}: {
+  appointmentId: string;
+  date: string;
+  startTime: string;
+}): Promise<Appointment> {
+  const response = await apiFetch(`/appointments/${appointmentId}/reschedule`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ date, startTime }),
+  });
+
+  if (!response.ok) {
+    throw await toApiError(response, 'No se pudo reprogramar el turno.');
+  }
+
+  return (await response.json()) as Appointment;
+}
+
+/**
  * Cuánto se devolvería si se cancela ahora (ENG-65), con la política que quedó
  * guardada en el turno al reservarlo. No cancela nada.
  */

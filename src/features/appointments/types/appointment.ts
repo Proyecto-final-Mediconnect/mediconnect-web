@@ -63,6 +63,9 @@ export interface Appointment {
   status: string;
   professional: AppointmentParty | null;
   patient: AppointmentParty | null;
+  /** Cuándo se movió de horario (ENG-66). Un turno se reprograma una sola vez.
+   *  Falta con un backend anterior. */
+  rescheduledAt?: string | null;
 }
 
 /** Qué pasó con el reembolso de una cancelación (ENG-65). */

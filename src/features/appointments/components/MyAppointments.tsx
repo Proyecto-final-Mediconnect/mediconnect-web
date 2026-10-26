@@ -204,6 +204,10 @@ function AppointmentRow({
   const counterpart = counterpartOf(appointment, userId);
   const isPatient = appointment.patient?.id === userId;
   const cancellable = canCancel(appointment, userId);
+  // Se reprograma lo mismo que se puede cancelar, una sola vez (ENG-66). Si es un
+  // turno pagado sin la anticipación que pide la política, el backend lo rechaza
+  // y la pantalla de reprogramar muestra por qué.
+  const reschedulable = cancellable && !appointment.rescheduledAt && appointment.professional;
 
   // Reloj propio: el botón de la videoconsulta aparece 10 minutos antes del
   // turno, y sin un tick React no tendría motivo para volver a renderizar. El
@@ -251,6 +255,7 @@ function AppointmentRow({
           <p className={`mt-1 text-sm ${isNext ? 'text-on-night' : 'text-muted'}`}>
             {appointment.durationMinutes} min ·{' '}
             {formatPrice(appointment.price, appointment.currency)}
+            {appointment.rescheduledAt && ' · reprogramado'}
           </p>
         </div>
 
@@ -310,6 +315,19 @@ function AppointmentRow({
               }`}
             >
               Historia clínica
+            </Link>
+          )}
+
+          {reschedulable && !isConfirming && (
+            <Link
+              to={`/profesionales/${appointment.professional?.id}/turnos?reprogramar=${appointment.id}`}
+              className={`inline-flex items-center justify-center rounded-[9px] border px-5 py-3 text-sm font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${
+                isNext
+                  ? 'border-white/25 text-white hover:border-brand-bright focus-visible:ring-offset-night'
+                  : 'border-line-strong bg-white text-brand-deep hover:border-brand'
+              }`}
+            >
+              Reprogramar
             </Link>
           )}
 

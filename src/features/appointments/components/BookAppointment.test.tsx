@@ -84,12 +84,17 @@ function mockApi(
     mine?: () => Response;
     book?: (body: unknown) => Response;
     profile?: () => Response;
+    reschedule?: (body: unknown) => Response;
   } = {},
 ) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation((input, init): Promise<Response> => {
     const url = String(input);
     const method = init?.method ?? 'GET';
 
+    if (method === 'PATCH' && url.includes('/reschedule')) {
+      const body: unknown = JSON.parse(String(init?.body ?? '{}'));
+      return Promise.resolve(handlers.reschedule?.(body) ?? jsonResponse({}, 500));
+    }
     if (method === 'POST' && url.includes('/appointments')) {
       const body: unknown = JSON.parse(String(init?.body ?? '{}'));
       return Promise.resolve(handlers.book?.(body) ?? jsonResponse(BOOKED_APPOINTMENT, 201));
@@ -107,14 +112,14 @@ function mockApi(
   });
 }
 
-function renderBooking() {
+function renderBooking(rescheduleId?: string) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter>
-        <BookAppointment professionalId={PRO_ID} />
+        <BookAppointment professionalId={PRO_ID} rescheduleId={rescheduleId} />
       </MemoryRouter>
     </QueryClientProvider>,
   );
@@ -168,14 +173,16 @@ describe('BookAppointment', () => {
       profile: () =>
         jsonResponse({
           ...PROFESSIONAL,
-          cancellationPolicy: { hoursFullRefund: 24, hoursPartialRefund: 6, partialRefundPercent: 50 },
+          cancellationPolicy: {
+            hoursFullRefund: 24,
+            hoursPartialRefund: 6,
+            partialRefundPercent: 50,
+          },
         }),
     });
     renderBooking();
 
-    expect(
-      await screen.findByText(/Entre 24 horas y 6 horas antes, el 50 %/),
-    ).toBeInTheDocument();
+    expect(await screen.findByText(/Entre 24 horas y 6 horas antes, el 50 %/)).toBeInTheDocument();
   });
 
   it('avisa que el turno queda reservado sin pagar', async () => {
@@ -185,6 +192,80 @@ describe('BookAppointment', () => {
     await userEvent.click(await screen.findByLabelText(/10:30 .* disponible/i));
 
     expect(screen.getByText(/reservado sin pagar/i)).toBeInTheDocument();
+  });
+
+  describe('reprogramar (ENG-66)', () => {
+    /** Turno pagado del lunes a las 09:30, que se quiere mover. */
+    const PAID = {
+      ...BOOKED_APPOINTMENT,
+      scheduledAt: '2026-08-17T12:30:00.000Z',
+      startTime: '09:30',
+      status: 'CONFIRMADO',
+      rescheduledAt: null,
+    };
+
+    it('muestra el turno actual y que no se vuelve a cobrar', async () => {
+      mockApi({ mine: () => jsonResponse([PAID]) });
+      renderBooking(PAID.id);
+
+      await userEvent.click(await screen.findByLabelText(/10:30 .* disponible/i));
+
+      expect(screen.getByText(/09:30/, { selector: 'dd' })).toBeInTheDocument();
+      expect(screen.getByText(/ya está pagado y no se vuelve a cobrar/)).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /confirmar nuevo horario/i })).toBeEnabled();
+    });
+
+    it('al confirmar manda solo fecha y hora al endpoint de reprogramar', async () => {
+      let sent: unknown = null;
+      mockApi({
+        mine: () => jsonResponse([PAID]),
+        reschedule: (body) => {
+          sent = body;
+          return jsonResponse({ ...PAID, startTime: '10:30', rescheduledAt: NOW.toISOString() });
+        },
+      });
+      renderBooking(PAID.id);
+
+      await userEvent.click(await screen.findByLabelText(/10:30 .* disponible/i));
+      await userEvent.click(screen.getByRole('button', { name: /confirmar nuevo horario/i }));
+
+      expect(await screen.findByText(/Movimos tu turno/)).toBeInTheDocument();
+      expect(sent).toEqual({ date: '2026-08-17', startTime: '10:30' });
+      // Ya estaba pagado: no ofrece pagar otra vez.
+      expect(screen.queryByRole('link', { name: /pagar la consulta/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /ver mis turnos/i })).toBeInTheDocument();
+    });
+
+    it('muestra el motivo del backend si no se puede reprogramar', async () => {
+      mockApi({
+        mine: () => jsonResponse([PAID]),
+        reschedule: () =>
+          jsonResponse(
+            {
+              statusCode: 409,
+              message:
+                'Un turno pagado se puede reprogramar hasta 24 horas antes. Si necesitás otro horario, cancelalo (no te corresponde devolución) y reservá uno nuevo.',
+            },
+            409,
+          ),
+      });
+      renderBooking(PAID.id);
+
+      await userEvent.click(await screen.findByLabelText(/10:30 .* disponible/i));
+      await userEvent.click(screen.getByRole('button', { name: /confirmar nuevo horario/i }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/hasta 24 horas antes/);
+    });
+
+    it('un turno que no está en la lista no se convierte en una reserva nueva', async () => {
+      mockApi({ mine: () => jsonResponse([]) });
+      renderBooking('turno-que-no-existe');
+
+      expect(
+        await screen.findByText(/No encontramos el turno que querés reprogramar/),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /confirmar/i })).not.toBeInTheDocument();
+    });
   });
 
   it('al confirmar manda solo profesional, fecha y hora', async () => {
@@ -349,20 +430,14 @@ describe('BookAppointment', () => {
         availability: () =>
           jsonResponse({
             ...AVAILABILITY,
-            days: [
-              lleno('2026-08-17', 1),
-              lleno('2026-08-18', 2),
-              conLugar('2026-08-19', 3),
-            ],
+            days: [lleno('2026-08-17', 1), lleno('2026-08-18', 2), conLugar('2026-08-19', 3)],
           }),
       });
       renderBooking();
 
       // `level: 3` porque el encabezado del rango (h2) también nombra ese día:
       // el rótulo ahora sale de los días visibles, así que dice "al 19 de agosto".
-      expect(
-        await screen.findByRole('heading', { level: 3, name: /19 de agosto/i }),
-      ).toBeVisible();
+      expect(await screen.findByRole('heading', { level: 3, name: /19 de agosto/i })).toBeVisible();
     });
 
     /** El salto también cambia de página: si el primer día con lugar cae en la
@@ -423,9 +498,7 @@ describe('BookAppointment', () => {
     const DIAS_LARGOS = Array.from({ length: 40 }, (_, i) => {
       const d = new Date(Date.UTC(2026, 7, 20 + i));
       const date = d.toISOString().slice(0, 10);
-      return date === '2026-08-25'
-        ? lleno(date, d.getUTCDay())
-        : libre(date, d.getUTCDay());
+      return date === '2026-08-25' ? lleno(date, d.getUTCDay()) : libre(date, d.getUTCDay());
     });
 
     const conAgendaLarga = () =>
@@ -465,9 +538,7 @@ describe('BookAppointment', () => {
 
       await userEvent.click(screen.getByRole('button', { name: /^28 —/ }));
 
-      expect(
-        screen.getByRole('heading', { level: 3, name: /28 de agosto/i }),
-      ).toBeVisible();
+      expect(screen.getByRole('heading', { level: 3, name: /28 de agosto/i })).toBeVisible();
       expect(screen.getByRole('button', { name: /ver calendario/i })).toHaveAttribute(
         'aria-expanded',
         'false',
@@ -484,9 +555,7 @@ describe('BookAppointment', () => {
       await userEvent.click(screen.getByRole('button', { name: /mes siguiente/i }));
       await userEvent.click(screen.getByRole('button', { name: /^15 —/ }));
 
-      expect(
-        screen.getByRole('heading', { level: 3, name: /15 de septiembre/i }),
-      ).toBeVisible();
+      expect(screen.getByRole('heading', { level: 3, name: /15 de septiembre/i })).toBeVisible();
     });
 
     it('un día sin horarios libres no se puede elegir', async () => {
@@ -504,9 +573,7 @@ describe('BookAppointment', () => {
       renderBooking();
       await abrirCalendario();
 
-      expect(
-        screen.getByRole('button', { name: /^19 — fuera del período/ }),
-      ).toBeDisabled();
+      expect(screen.getByRole('button', { name: /^19 — fuera del período/ })).toBeDisabled();
     });
 
     it('no deja retroceder antes del primer mes ni pasar el último', async () => {

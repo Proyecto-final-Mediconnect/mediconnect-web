@@ -1,6 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAvailability, useBookAppointment, useMyAppointments } from '../hooks/useAppointments';
+import {
+  useAvailability,
+  useBookAppointment,
+  useMyAppointments,
+  useRescheduleAppointment,
+} from '../hooks/useAppointments';
 import { statusLabel } from '../lib/myAppointments';
 import {
   BOOKING_HORIZON_DAYS,
@@ -40,6 +45,8 @@ import type { CancellationPolicy } from '../../cancellation-policy/types/cancell
 
 type BookAppointmentProps = {
   professionalId: string;
+  /** Turno a reprogramar (ENG-66). Sin esto, la pantalla reserva uno nuevo. */
+  rescheduleId?: string;
 };
 
 type SelectedSlot = { date: string; startTime: string; durationMinutes: number };
@@ -51,7 +58,7 @@ function pasoActual(hasSelection: boolean, booked: boolean): number {
   return hasSelection ? PASO_REVISION : PASO_HORARIO;
 }
 
-export function BookAppointment({ professionalId }: BookAppointmentProps) {
+export function BookAppointment({ professionalId, rescheduleId }: BookAppointmentProps) {
   /** Página que eligió el paciente con las flechas o el selector. `null` =
    *  todavía no tocó nada, así que manda el salto al primer día con lugar. */
   const [pageElegida, setPageElegida] = useState<number | null>(null);
@@ -104,7 +111,14 @@ export function BookAppointment({ professionalId }: BookAppointmentProps) {
   // Lo que eligió el paciente gana; si no eligió nada todavía, el salto.
   const page = pageElegida ?? paginaInicial;
   const book = useBookAppointment();
+  const reschedule = useRescheduleAppointment();
   const myAppointments = useMyAppointments();
+  /** El turno que se está moviendo (ENG-66), o `null` si se reserva uno nuevo. */
+  const rescheduling =
+    rescheduleId !== undefined
+      ? ((myAppointments.data ?? []).find((a) => a.id === rescheduleId) ?? null)
+      : null;
+  const mutation = rescheduleId !== undefined ? reschedule : book;
 
   const professional = availability.data?.professional;
   const price = professional?.consultationPrice ?? null;
@@ -120,7 +134,7 @@ export function BookAppointment({ professionalId }: BookAppointmentProps) {
 
   function selectSlot(date: string, slot: AvailabilitySlot) {
     setBooked(null);
-    book.reset();
+    mutation.reset();
     setSelected({
       date,
       startTime: slot.startTime,
@@ -130,6 +144,19 @@ export function BookAppointment({ professionalId }: BookAppointmentProps) {
 
   function confirm() {
     if (!selected) return;
+
+    if (rescheduling) {
+      reschedule.mutate(
+        { appointmentId: rescheduling.id, date: selected.date, startTime: selected.startTime },
+        {
+          onSuccess: (appointment) => {
+            setBooked(appointment);
+            setSelected(null);
+          },
+        },
+      );
+      return;
+    }
 
     book.mutate(
       {
@@ -150,6 +177,20 @@ export function BookAppointment({ professionalId }: BookAppointmentProps) {
     return (
       <p role="status" aria-live="polite" className="text-muted">
         Cargando disponibilidad…
+      </p>
+    );
+  }
+
+  // Se pidió reprogramar un turno que no está en la lista: no es del paciente, ya
+  // no existe, o la URL quedó vieja. Reservar uno nuevo en su lugar sería
+  // sorprender al paciente con un segundo turno.
+  if (rescheduleId !== undefined && myAppointments.isSuccess && !rescheduling) {
+    return (
+      <p role="alert" className="text-danger">
+        No encontramos el turno que querés reprogramar.{' '}
+        <Link to="/turnos" className="font-semibold underline">
+          Volver a mis turnos
+        </Link>
       </p>
     );
   }
@@ -253,10 +294,11 @@ export function BookAppointment({ professionalId }: BookAppointmentProps) {
         professional={professional}
         price={price}
         policy={policy}
+        rescheduling={rescheduling}
         selected={selected}
         booked={booked}
-        isPending={book.isPending}
-        errorMessage={book.isError ? book.error.message : undefined}
+        isPending={mutation.isPending}
+        errorMessage={mutation.isError ? mutation.error.message : undefined}
         onConfirm={confirm}
         onCancel={() => setSelected(null)}
       />
@@ -268,6 +310,7 @@ function PanelRevision({
   professional,
   price,
   policy,
+  rescheduling,
   selected,
   booked,
   isPending,
@@ -278,6 +321,7 @@ function PanelRevision({
   professional: { firstName: string; lastName: string; currency: string } | undefined;
   price: number | null;
   policy: CancellationPolicy | undefined;
+  rescheduling: Appointment | null;
   selected: SelectedSlot | null;
   booked: Appointment | null;
   isPending: boolean;
@@ -285,8 +329,12 @@ function PanelRevision({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const currency = professional?.currency ?? 'ARS';
+  const currency = rescheduling?.currency ?? professional?.currency ?? 'ARS';
   const fullName = professional ? `${professional.firstName} ${professional.lastName}` : '—';
+  // Al reprogramar, el precio es el que quedó congelado en el turno, no el
+  // vigente del profesional: no se vuelve a cobrar.
+  const total = rescheduling ? rescheduling.price : price;
+  const pagado = rescheduling?.status === 'CONFIRMADO';
 
   return (
     <aside className="overflow-hidden rounded-[14px] border border-line bg-white lg:sticky lg:top-24">
@@ -298,6 +346,11 @@ function PanelRevision({
 
       <dl className="grid gap-[11px] border-b border-line-soft px-[22px] py-[18px] text-sm font-medium text-ink">
         <Fila titulo="Profesional">{fullName}</Fila>
+        {rescheduling && (
+          <Fila titulo="Turno actual">
+            {formatDate(rescheduling.date)} · {rescheduling.startTime}
+          </Fila>
+        )}
         <Fila titulo="Duración">
           {selected ? `${selected.durationMinutes} min` : 'Elegí un horario'}
         </Fila>
@@ -310,21 +363,31 @@ function PanelRevision({
       <div className="grid gap-3.5 px-[22px] py-[18px]">
         {/* El estado inicial no es un detalle que se pueda ocultar: el turno
             queda reservado pero sin pagar hasta que se pague (ENG-63). */}
-        <p className="rounded-[10px] border border-brand/30 bg-surface-teal px-4 py-3 text-[13px] leading-[1.6] text-brand-deep">
-          El turno queda <strong className="font-bold">reservado sin pagar</strong>. Lo pagás en el
-          paso siguiente, con MercadoPago.
-        </p>
+        {rescheduling ? (
+          <p className="rounded-[10px] border border-brand/30 bg-surface-teal px-4 py-3 text-[13px] leading-[1.6] text-brand-deep">
+            Es el <strong className="font-bold">mismo turno</strong> en otro horario:{' '}
+            {pagado
+              ? 'ya está pagado y no se vuelve a cobrar.'
+              : 'lo seguís pagando con el mismo plazo de 15 minutos desde que lo reservaste.'}{' '}
+            Un turno se puede reprogramar una sola vez.
+          </p>
+        ) : (
+          <p className="rounded-[10px] border border-brand/30 bg-surface-teal px-4 py-3 text-[13px] leading-[1.6] text-brand-deep">
+            El turno queda <strong className="font-bold">reservado sin pagar</strong>. Lo pagás en
+            el paso siguiente, con MercadoPago.
+          </p>
+        )}
 
         <div className="flex items-baseline justify-between">
           <span className="text-[13px] font-semibold text-muted">Total</span>
           {/* Sin precio publicado no hay total que mostrar: una raya es más
               honesta que un $ 0, que se leería como una consulta gratis. */}
           <span className="text-[28px] font-bold text-brand-deep">
-            {price === null ? '—' : formatPrice(price, currency)}
+            {total === null ? '—' : formatPrice(total, currency)}
           </span>
         </div>
 
-        {price === null && (
+        {!rescheduling && price === null && (
           <p className="text-[13px] leading-[1.6] text-muted">
             El profesional todavía no publicó su precio de consulta, así que no se puede reservar.
           </p>
@@ -345,14 +408,24 @@ function PanelRevision({
               role="status"
               className="rounded-[10px] border border-brand/40 bg-surface-teal px-4 py-3 text-sm text-ink"
             >
-              Reservamos tu turno para el {formatDate(booked.date)} a las {booked.startTime}.
+              {rescheduling ? 'Movimos' : 'Reservamos'} tu turno para el {formatDate(booked.date)} a
+              las {booked.startTime}.
             </p>
-            <Link
-              to={`/turnos/${booked.id}/pago`}
-              className="w-full rounded-[10px] bg-brand py-[15px] text-center text-[15px] font-bold text-ink-deep transition-colors hover:bg-brand-hover hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-            >
-              Pagar la consulta
-            </Link>
+            {rescheduling && booked.status === 'CONFIRMADO' ? (
+              <Link
+                to="/turnos"
+                className="w-full rounded-[10px] bg-brand py-[15px] text-center text-[15px] font-bold text-ink-deep transition-colors hover:bg-brand-hover hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              >
+                Ver mis turnos
+              </Link>
+            ) : (
+              <Link
+                to={`/turnos/${booked.id}/pago`}
+                className="w-full rounded-[10px] bg-brand py-[15px] text-center text-[15px] font-bold text-ink-deep transition-colors hover:bg-brand-hover hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              >
+                Pagar la consulta
+              </Link>
+            )}
           </>
         ) : (
           <>
@@ -360,10 +433,16 @@ function PanelRevision({
             <button
               type="button"
               onClick={onConfirm}
-              disabled={isPending || price === null || selected === null}
+              disabled={isPending || total === null || selected === null}
               className="w-full rounded-[10px] bg-brand py-[15px] text-[15px] font-bold text-ink-deep transition-colors hover:bg-brand-hover hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isPending ? 'Reservando…' : 'Confirmar reserva'}
+              {rescheduling
+                ? isPending
+                  ? 'Reprogramando…'
+                  : 'Confirmar nuevo horario'
+                : isPending
+                  ? 'Reservando…'
+                  : 'Confirmar reserva'}
             </button>
             {selected && (
               <button
