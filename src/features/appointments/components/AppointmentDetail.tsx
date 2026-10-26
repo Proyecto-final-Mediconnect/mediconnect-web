@@ -34,7 +34,16 @@ function longDay(date: string): string {
  * consulta aparte, solo del lado del paciente, y si falla la historia se arma
  * igual sin ese dato.
  */
-export function AppointmentDetail({ appointmentId }: { appointmentId: string }) {
+export function AppointmentDetail({
+  appointmentId,
+  variant = 'page',
+}: {
+  appointmentId: string;
+  /** `page`: pantalla propia, en dos columnas. `panel`: al costado de la lista
+   *  de "Mis turnos" en pantallas anchas, todo en una columna. */
+  variant?: 'page' | 'panel';
+}) {
+  const panel = variant === 'panel';
   const { user } = useSession();
   const userId = user?.id ?? null;
   const appointments = useMyAppointments();
@@ -91,13 +100,15 @@ export function AppointmentDetail({ appointmentId }: { appointmentId: string }) 
   const professionalId = appointment.professional?.id;
 
   return (
-    <div className="grid gap-6">
-      <Link
-        to="/mis-turnos"
-        className="text-xs font-semibold tracking-[0.08em] text-muted transition-colors hover:text-brand-deep"
-      >
-        ← MIS TURNOS
-      </Link>
+    <div className={`grid ${panel ? 'gap-4' : 'gap-6'}`}>
+      {!panel && (
+        <Link
+          to="/mis-turnos"
+          className="text-xs font-semibold tracking-[0.08em] text-muted transition-colors hover:text-brand-deep"
+        >
+          ← MIS TURNOS
+        </Link>
+      )}
 
       {refundOutcome && (
         <RefundOutcomeBanner text={refundOutcome} onClose={() => setRefundOutcome(null)} />
@@ -125,7 +136,7 @@ export function AppointmentDetail({ appointmentId }: { appointmentId: string }) 
           <StatusChip status={appointment.status} />
         </div>
 
-        <dl className="grid gap-x-8 gap-y-4 border-t border-line-soft pt-5 text-sm sm:grid-cols-2">
+        <dl className="grid grid-cols-2 gap-x-8 gap-y-4 border-t border-line-soft pt-5 text-sm">
           <Dato titulo="Día">{longDay(appointment.date)}</Dato>
           <Dato titulo="Hora">
             {appointment.startTime} hs · {appointment.durationMinutes} min
@@ -166,7 +177,9 @@ export function AppointmentDetail({ appointmentId }: { appointmentId: string }) 
         )}
       </section>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+      <div
+        className={`grid items-start gap-6 ${panel ? '' : 'lg:grid-cols-[minmax(0,1fr)_320px]'}`}
+      >
         <section
           aria-labelledby="que-paso"
           className="rounded-[16px] border border-line bg-white p-6"

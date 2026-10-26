@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useMediaQuery, WIDE_QUERY } from '../../../shared/hooks/useMediaQuery';
 import { useNow } from '../../../shared/hooks/useNow';
 import { useSession } from '../../auth/hooks/useSession';
 import { canPay } from '../../payments/lib/checkout';
@@ -14,6 +15,7 @@ import {
 import { canCancel, counterpartOf, formatLongDate, isActive } from '../lib/myAppointments';
 import { formatPrice } from '../lib/weeks';
 import type { Appointment } from '../types/appointment';
+import { AppointmentDetail } from './AppointmentDetail';
 import { AgendaToolbar } from './agenda/AgendaToolbar';
 import { CancelAppointmentDialog } from './agenda/CancelAppointmentDialog';
 import { DateBadge } from './agenda/DateBadge';
@@ -37,6 +39,8 @@ export function MyAppointments() {
   const userId = user?.id ?? null;
   const appointments = useMyAppointments();
   const now = useNow();
+  const wide = useMediaQuery(WIDE_QUERY);
+  const [searchParams, setSearchParams] = useSearchParams();
   const [filters, setFilters] = useState<AgendaFilters>(EMPTY_AGENDA_FILTERS);
   const [toCancel, setToCancel] = useState<Appointment | null>(null);
   const [refundOutcome, setRefundOutcome] = useState<string | null>(null);
@@ -61,35 +65,41 @@ export function MyAppointments() {
   const counterpart = (a: Appointment) => counterpartOf(a, userId);
   const visible = filterAgenda(appointments.data, filters, counterpart, now);
   const sections = agendaSections(visible, now);
-  const [upcoming, ...history] = sections[0]?.kind === 'upcoming' ? sections : [null, ...sections];
+  const upcoming = sections[0]?.kind === 'upcoming' ? sections[0] : null;
+  const history = sections.filter((s) => s.kind === 'history');
   const [next, ...restUpcoming] = upcoming?.data ?? [];
   const filtering =
     filters.search.trim() !== '' || filters.period !== 'todos' || filters.status !== 'todos';
 
-  return (
-    <div className="grid gap-6">
-      {refundOutcome && (
-        <RefundOutcomeBanner text={refundOutcome} onClose={() => setRefundOutcome(null)} />
-      )}
+  // En pantalla ancha el detalle va al costado: el elegido, o el próximo turno
+  // si todavía no se eligió ninguno. En angosta cada turno abre su pantalla.
+  const selectedId = searchParams.get('turno') ?? next?.id ?? sections[0]?.data[0]?.id ?? null;
+  const select = (id: string) => setSearchParams({ turno: id }, { replace: true });
+  const listProps = { userId, now, wide, selectedId, onSelect: select, onCancel: setToCancel };
 
+  const list = (
+    <div className="grid min-w-0 content-start gap-6">
       {appointments.data.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="min-w-0 flex-1">
-            <AgendaToolbar
-              filters={filters}
-              onChange={setFilters}
-              searchLabel={isPatient ? 'Buscar por profesional' : 'Buscar por paciente'}
-            />
+        <>
+          <Summary appointments={appointments.data} now={now} />
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <AgendaToolbar
+                filters={filters}
+                onChange={setFilters}
+                searchLabel={isPatient ? 'Buscar por profesional' : 'Buscar por paciente'}
+              />
+            </div>
+            {isPatient && (
+              <Link
+                to="/buscar"
+                className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              >
+                <span aria-hidden="true">+</span> Nuevo turno
+              </Link>
+            )}
           </div>
-          {isPatient && (
-            <Link
-              to="/buscar"
-              className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-            >
-              <span aria-hidden="true">+</span> Nuevo turno
-            </Link>
-          )}
-        </div>
+        </>
       )}
 
       {sections.length === 0 &&
@@ -128,7 +138,9 @@ export function MyAppointments() {
           />
         ))}
 
-      {next && (
+      {/* En angosta, el próximo turno va destacado arriba; en ancha ese lugar lo
+          ocupa el detalle del costado, y el próximo es la primera tarjeta. */}
+      {next && !wide && (
         <section aria-labelledby="proximo-turno" className="grid gap-3">
           <h2 id="proximo-turno" className="sr-only">
             Próximo turno
@@ -137,42 +149,56 @@ export function MyAppointments() {
         </section>
       )}
 
-      {restUpcoming.length > 0 && (
+      {(wide ? (upcoming?.data ?? []) : restUpcoming).length > 0 && (
         <section aria-labelledby="proximos" className="grid gap-3">
           <SectionTitle id="proximos">Próximos</SectionTitle>
           <ul className="grid gap-3">
-            {restUpcoming.map((appointment) => (
+            {(wide ? (upcoming?.data ?? []) : restUpcoming).map((appointment) => (
               <li key={appointment.id}>
-                <UpcomingCard
-                  appointment={appointment}
-                  userId={userId}
-                  now={now}
-                  onCancel={setToCancel}
-                />
+                <UpcomingCard appointment={appointment} {...listProps} />
               </li>
             ))}
           </ul>
         </section>
       )}
 
-      {history.map(
-        (section) =>
-          section && (
-            <section
-              key={section.key}
-              aria-labelledby={`mes-${section.key}`}
-              className="grid gap-3"
-            >
-              <SectionTitle id={`mes-${section.key}`}>{section.title}</SectionTitle>
-              <ul className="divide-y divide-line-soft overflow-hidden rounded-[14px] border border-line bg-white">
-                {section.data.map((appointment) => (
-                  <li key={appointment.id}>
-                    <HistoryRow appointment={appointment} userId={userId} />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ),
+      {history.map((section) => (
+        <section key={section.key} aria-labelledby={`mes-${section.key}`} className="grid gap-3">
+          <SectionTitle id={`mes-${section.key}`}>{section.title}</SectionTitle>
+          <ul className="divide-y divide-line-soft overflow-hidden rounded-[14px] border border-line bg-white">
+            {section.data.map((appointment) => (
+              <li key={appointment.id}>
+                <HistoryRow appointment={appointment} {...listProps} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+
+  return (
+    <div className="grid gap-6">
+      {refundOutcome && (
+        <RefundOutcomeBanner text={refundOutcome} onClose={() => setRefundOutcome(null)} />
+      )}
+
+      {wide && appointments.data.length > 0 ? (
+        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(380px,440px)]">
+          {list}
+          <aside
+            aria-label="Detalle del turno"
+            className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto rounded-[18px] bg-surface p-1"
+          >
+            {selectedId ? (
+              <AppointmentDetail appointmentId={selectedId} variant="panel" />
+            ) : (
+              <p className="p-6 text-sm text-muted">Elegí un turno para ver el detalle.</p>
+            )}
+          </aside>
+        </div>
+      ) : (
+        list
       )}
 
       <CancelAppointmentDialog
@@ -182,6 +208,91 @@ export function MyAppointments() {
         onCancelled={setRefundOutcome}
       />
     </div>
+  );
+}
+
+/** Un vistazo antes de la lista: cuántos vienen, cuántos falta pagar y cuántos se hicieron. */
+function Summary({ appointments, now }: { appointments: Appointment[]; now: Date }) {
+  const upcoming = appointments.filter(
+    (a) => isActive(a) && Date.parse(a.scheduledAt) > now.getTime(),
+  );
+  const unpaid = upcoming.filter((a) => a.status === 'RESERVADO_SIN_PAGAR').length;
+  const done = appointments.filter((a) => a.status === 'COMPLETADO').length;
+
+  const items = [
+    { value: upcoming.length, label: upcoming.length === 1 ? 'próximo' : 'próximos', warn: false },
+    { value: unpaid, label: 'sin pagar', warn: unpaid > 0 },
+    { value: done, label: done === 1 ? 'consulta hecha' : 'consultas hechas', warn: false },
+  ];
+
+  return (
+    <dl className="grid grid-cols-3 gap-3">
+      {items.map((item) => (
+        <div
+          key={item.label}
+          className={`flex flex-col-reverse gap-1 rounded-[12px] border px-4 py-3 ${
+            item.warn ? 'border-tag-warm-dot/40 bg-tag-warm' : 'border-line bg-white'
+          }`}
+        >
+          <dt className={`text-xs font-semibold ${item.warn ? 'text-tag-warm-ink' : 'text-muted'}`}>
+            {item.label}
+          </dt>
+          <dd
+            className={`font-display text-[28px] leading-none ${
+              item.warn ? 'text-tag-warm-ink' : 'text-brand-deep'
+            }`}
+          >
+            {item.value}
+          </dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** Props comunes de las tarjetas y filas: a dónde lleva tocarlas y cuál está elegida. */
+interface ListItemProps {
+  appointment: Appointment;
+  userId: string | null;
+  now: Date;
+  wide: boolean;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onCancel: (a: Appointment) => void;
+}
+
+/** En ancha, elegir el turno lo muestra al costado; en angosta abre su pantalla. */
+function OpenLink({
+  appointment,
+  wide,
+  selected,
+  onSelect,
+  label,
+  className,
+  children,
+}: {
+  appointment: Appointment;
+  wide: boolean;
+  selected: boolean;
+  onSelect: (id: string) => void;
+  label: string;
+  className: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link
+      to={wide ? `?turno=${appointment.id}` : `/turnos/${appointment.id}`}
+      onClick={(e) => {
+        if (!wide) return;
+        e.preventDefault();
+        onSelect(appointment.id);
+      }}
+      aria-label={label}
+      aria-current={wide && selected ? 'true' : undefined}
+      className={className}
+    >
+      {children}
+    </Link>
   );
 }
 
@@ -321,20 +432,26 @@ function UpcomingCard({
   appointment,
   userId,
   now,
+  wide,
+  selectedId,
+  onSelect,
   onCancel,
-}: {
-  appointment: Appointment;
-  userId: string | null;
-  now: Date;
-  onCancel: (a: Appointment) => void;
-}) {
+}: ListItemProps) {
   const name = personName(appointment, userId);
+  const selected = wide && selectedId === appointment.id;
 
   return (
-    <article className="flex flex-wrap items-center gap-4 rounded-[14px] border border-line bg-white p-4 transition-colors hover:border-line-strong">
-      <Link
-        to={`/turnos/${appointment.id}`}
-        aria-label={`Ver el turno con ${name}`}
+    <article
+      className={`flex flex-wrap items-center gap-4 rounded-[14px] border bg-white p-4 transition-colors ${
+        selected ? 'border-brand ring-1 ring-brand' : 'border-line hover:border-line-strong'
+      }`}
+    >
+      <OpenLink
+        appointment={appointment}
+        wide={wide}
+        selected={selected}
+        onSelect={onSelect}
+        label={`Ver el turno con ${name}`}
         className="flex min-w-0 flex-1 items-center gap-4 rounded-[10px] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
       >
         <DateBadge date={appointment.date} />
@@ -344,11 +461,11 @@ function UpcomingCard({
             {appointment.startTime} · {appointment.durationMinutes} min · Videoconsulta
           </span>
         </span>
-      </Link>
+      </OpenLink>
       <StatusChip status={appointment.status} />
       <div className="flex items-center gap-3">
         <PrimaryAction appointment={appointment} userId={userId} now={now} />
-        {canCancel(appointment, userId, now) && (
+        {!wide && canCancel(appointment, userId, now) && (
           <button
             type="button"
             onClick={() => onCancel(appointment)}
@@ -363,15 +480,21 @@ function UpcomingCard({
   );
 }
 
-function HistoryRow({ appointment, userId }: { appointment: Appointment; userId: string | null }) {
+function HistoryRow({ appointment, userId, wide, selectedId, onSelect }: ListItemProps) {
   const name = personName(appointment, userId);
   const muted = !isActive(appointment);
+  const selected = wide && selectedId === appointment.id;
 
   return (
-    <Link
-      to={`/turnos/${appointment.id}`}
-      aria-label={`Ver el turno con ${name}`}
-      className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-surface focus:outline-none focus-visible:bg-surface"
+    <OpenLink
+      appointment={appointment}
+      wide={wide}
+      selected={selected}
+      onSelect={onSelect}
+      label={`Ver el turno con ${name}`}
+      className={`flex items-center gap-4 px-4 py-3 transition-colors focus:outline-none focus-visible:bg-surface ${
+        selected ? 'bg-surface-teal' : 'hover:bg-surface'
+      }`}
     >
       <DateBadge date={appointment.date} muted={muted} />
       <span className="min-w-0 flex-1">
@@ -388,6 +511,6 @@ function HistoryRow({ appointment, userId }: { appointment: Appointment; userId:
       <span aria-hidden="true" className="text-muted-soft">
         ›
       </span>
-    </Link>
+    </OpenLink>
   );
 }

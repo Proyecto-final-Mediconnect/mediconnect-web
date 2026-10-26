@@ -1,125 +1,305 @@
+import { Link } from 'react-router-dom';
+import { DateBadge } from '../features/appointments/components/agenda/DateBadge';
+import { StatusChip } from '../features/appointments/components/agenda/StatusChip';
 import { useMyAppointments } from '../features/appointments/hooks/useAppointments';
-import { counterpartOf } from '../features/appointments/lib/myAppointments';
+import { counterpartOf, isActive } from '../features/appointments/lib/myAppointments';
+import { formatDate } from '../features/appointments/lib/weeks';
+import type { Appointment, AppointmentParty } from '../features/appointments/types/appointment';
 import { useSession } from '../features/auth/hooks/useSession';
 import {
   NextAppointmentCard,
   NoNextAppointment,
-  PanelSection,
   PendingTaskList,
-  QuickLink,
-  StatTile,
 } from '../features/dashboard/components/PanelPieces';
-import {
-  completedCount,
-  nextAppointment,
-  patientTasks,
-  upcomingCount,
-} from '../features/dashboard/lib/dashboard';
+import { nextAppointment, patientTasks } from '../features/dashboard/lib/dashboard';
 import { useMyProfile } from '../features/patient-profile/hooks/usePatientProfile';
+import { useNow } from '../shared/hooks/useNow';
 import { DashboardLayout } from './DashboardLayout';
 
+const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+/** "Tu próxima consulta es el lunes 27 de octubre a las 10:00", como en la app. */
+function nextPhrase(appointment: Appointment | null): string {
+  if (!appointment) return 'No tenés consultas agendadas.';
+  const [y, m, d] = appointment.date.split('-').map(Number);
+  const weekday = WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  return `Tu próxima consulta es el ${weekday} ${formatDate(appointment.date)} a las ${appointment.startTime}.`;
+}
+
+/** Profesionales con los que ya hubo una consulta, del más reciente al más viejo, sin repetir. */
+function pastProfessionals(
+  appointments: Appointment[],
+  now: Date,
+): { professional: AppointmentParty; lastDate: string }[] {
+  const seen = new Map<string, { professional: AppointmentParty; lastDate: string }>();
+  [...appointments]
+    .filter((a) => a.status === 'COMPLETADO' && Date.parse(a.scheduledAt) < now.getTime())
+    .sort((a, b) => Date.parse(b.scheduledAt) - Date.parse(a.scheduledAt))
+    .forEach((a) => {
+      if (a.professional && !seen.has(a.professional.id)) {
+        seen.set(a.professional.id, { professional: a.professional, lastDate: a.date });
+      }
+    });
+  return [...seen.values()].slice(0, 3);
+}
+
 /**
- * Panel del paciente (ENG-44).
+ * Panel del paciente (ENG-44, rediseñado en ENG-178 como el inicio de la app).
  *
- * Dejó de ser una grilla de accesos directos. Ese menú ya lo da la barra
- * lateral; repetirlo acá gastaba la pantalla entera en decir dos veces lo mismo.
- * Ahora el panel responde tres preguntas en orden: **qué me falta**, **cuál es
- * mi próximo turno** y **cómo vengo**.
- *
- * El perfil incompleto va arriba de todo porque no es un consejo: hasta que se
- * guarda, `POST /appointments` responde 409 y reservar es imposible. Antes eso
- * estaba escondido en una tarjeta igual a las demás.
+ * Responde, en orden: qué me falta (el perfil, que bloquea reservar), cuál es mi
+ * próxima consulta y qué viene después, con quién puedo volver a consultar, y a
+ * un clic lo de mi salud (MediPass, historia clínica, perfil). En pantalla ancha
+ * la salud va en una columna al costado en vez de una grilla que repetía el
+ * menú lateral.
  */
 export function PatientDashboardPage() {
   const { user } = useSession();
   const perfil = useMyProfile();
   const turnos = useMyAppointments();
+  const now = useNow();
 
   const lista = turnos.data ?? [];
-  const proximo = nextAppointment(lista);
+  const proximo = nextAppointment(lista, now);
+  const despues = lista
+    .filter((a) => isActive(a) && Date.parse(a.scheduledAt) > now.getTime() && a.id !== proximo?.id)
+    .sort((a, b) => Date.parse(a.scheduledAt) - Date.parse(b.scheduledAt))
+    .slice(0, 3);
+  const volver = pastProfessionals(lista, now);
   const tareas = patientTasks(perfil.data);
-
   const saludo = user?.firstName ? `Hola, ${user.firstName}.` : 'Hola.';
 
   return (
     <DashboardLayout
       barTitle="Panel"
       greeting={saludo}
-      subtitle="Este es tu espacio en MediConnect."
+      subtitle={turnos.isPending ? ' ' : nextPhrase(proximo)}
     >
-      <div className="grid gap-9">
-        {tareas.length > 0 && (
-          <PanelSection numero="01" titulo="Para empezar">
-            <PendingTaskList tasks={tareas} />
-          </PanelSection>
-        )}
+      <div className="grid gap-8">
+        {tareas.length > 0 && <PendingTaskList tasks={tareas} />}
 
-        <PanelSection
-          numero={tareas.length > 0 ? '02' : '01'}
-          titulo="Tu próxima consulta"
-        >
-          {turnos.isPending ? (
-            <p role="status" aria-live="polite" className="text-sm text-muted">
-              Cargando tus turnos…
-            </p>
-          ) : proximo ? (
-            <NextAppointmentCard
-              appointment={proximo}
-              counterpartLabel="Profesional"
-              counterpartName={(() => {
-                const c = counterpartOf(proximo, user?.id ?? null);
-                return c ? `${c.firstName} ${c.lastName}` : null;
-              })()}
-            />
-          ) : (
-            <NoNextAppointment
-              titulo="No tenés turnos agendados."
-              detalle="Buscá un profesional por especialidad, mirá su disponibilidad y reservá en el horario que te sirva."
-              accion={{ to: '/profesionales', label: 'Buscar profesionales' }}
-            />
-          )}
-        </PanelSection>
+        <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+          <div className="grid min-w-0 gap-8">
+            <Section title="Tu próxima consulta">
+              {turnos.isPending ? (
+                <p role="status" aria-live="polite" className="text-sm text-muted">
+                  Cargando tus turnos…
+                </p>
+              ) : proximo ? (
+                <NextAppointmentCard
+                  appointment={proximo}
+                  counterpartLabel="Profesional"
+                  counterpartName={(() => {
+                    const c = counterpartOf(proximo, user?.id ?? null);
+                    return c ? `${c.firstName} ${c.lastName}` : null;
+                  })()}
+                />
+              ) : (
+                <NoNextAppointment
+                  titulo="No tenés turnos agendados."
+                  detalle="Buscá un profesional por especialidad, mirá su disponibilidad y reservá en el horario que te sirva."
+                  accion={{ to: '/buscar', label: 'Buscar profesionales' }}
+                />
+              )}
+            </Section>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          <StatTile
-            valor={upcomingCount(lista)}
-            etiqueta="Turnos próximos"
-            to="/mis-turnos"
-          />
-          <StatTile valor={completedCount(lista)} etiqueta="Consultas hechas" />
-          {/* Texto y no un número: "—" no decía nada, y el perfil no se cuenta. */}
-          <StatTile
-            valor={perfil.data?.completed ? 'Listo' : 'Falta'}
-            etiqueta="Mi perfil"
-            to="/perfil/paciente"
-          />
-        </div>
+            {despues.length > 0 && (
+              <Section
+                title="Después"
+                action={
+                  <Link
+                    to="/mis-turnos"
+                    className="text-sm font-semibold text-brand-hover hover:underline"
+                  >
+                    Ver todos
+                  </Link>
+                }
+              >
+                <ul className="divide-y divide-line-soft overflow-hidden rounded-[14px] border border-line bg-white">
+                  {despues.map((a) => (
+                    <li key={a.id}>
+                      <Link
+                        to={`/turnos/${a.id}`}
+                        className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-surface focus:outline-none focus-visible:bg-surface"
+                      >
+                        <DateBadge date={a.date} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-[15px] font-semibold text-brand-deep">
+                            {a.professional
+                              ? `${a.professional.firstName} ${a.professional.lastName}`
+                              : 'Profesional'}
+                          </span>
+                          <span className="block text-sm text-muted">
+                            {a.startTime} · {a.durationMinutes} min · Videoconsulta
+                          </span>
+                        </span>
+                        <StatusChip status={a.status} />
+                        <span aria-hidden="true" className="text-muted-soft">
+                          ›
+                        </span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+            )}
 
-        <PanelSection numero={tareas.length > 0 ? '03' : '02'} titulo="Tu cuenta">
-          <div className="grid gap-3 md:grid-cols-2">
-            <QuickLink
-              title="Buscar profesionales"
-              description="El catálogo de especialistas con matrícula verificada."
-              to="/profesionales"
-            />
-            <QuickLink
-              title="Mis turnos"
-              description="Tus consultas agendadas, su estado y las que ya pasaron."
-              to="/mis-turnos"
-            />
-            <QuickLink
-              title="Mi perfil"
-              description="Tus datos personales y de contacto."
-              to="/perfil/paciente"
-            />
-            <QuickLink
-              title="Mi historia clínica"
-              description="Todo lo que registraron tus profesionales, en orden."
-              to="/mi-historia-clinica"
-            />
+            {volver.length > 0 && (
+              <Section title="Volver a consultar">
+                <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {volver.map(({ professional, lastDate }) => (
+                    <li
+                      key={professional.id}
+                      className="grid gap-3 rounded-[14px] border border-line bg-white p-4"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          aria-hidden="true"
+                          className="flex size-11 flex-none items-center justify-center rounded-full bg-surface-teal text-sm font-bold text-brand-deep"
+                        >
+                          {professional.firstName.charAt(0)}
+                          {professional.lastName.charAt(0)}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate text-[15px] font-bold text-brand-deep">
+                            {professional.firstName} {professional.lastName}
+                          </span>
+                          <span className="block text-xs text-muted">
+                            Última consulta: {formatDate(lastDate)}
+                          </span>
+                        </span>
+                      </div>
+                      <Link
+                        to={`/profesionales/${professional.id}/turnos`}
+                        className="inline-flex items-center justify-center rounded-[9px] border border-line-strong px-3 py-2 text-sm font-bold text-brand-deep transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                        aria-label={`Reservar con ${professional.firstName} ${professional.lastName}`}
+                      >
+                        Reservar
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </Section>
+            )}
           </div>
-        </PanelSection>
+
+          <aside className="grid gap-8 lg:sticky lg:top-24">
+            <Section title="Tu salud">
+              <div className="grid gap-3">
+                <HealthTile
+                  to="/medipass"
+                  title="MediPass"
+                  detail="Tu código para que te atiendan en una emergencia."
+                  icon="qr"
+                />
+                <HealthTile
+                  to="/mi-historia-clinica"
+                  title="Historia clínica"
+                  detail="Todo lo que registraron tus profesionales."
+                  icon="doc"
+                />
+                <HealthTile
+                  to="/perfil/paciente"
+                  title="Mi perfil"
+                  detail={
+                    perfil.data?.completed
+                      ? 'Tus datos están completos.'
+                      : 'Te faltan datos para poder reservar.'
+                  }
+                  icon="user"
+                  warn={perfil.data !== undefined && !perfil.data.completed}
+                />
+              </div>
+            </Section>
+
+            <Link
+              to="/buscar"
+              className="grid gap-1 rounded-[14px] bg-brand-deep p-5 text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+            >
+              <span className="text-[15px] font-bold">Buscar profesionales</span>
+              <span className="text-sm text-on-night">
+                Por especialidad, precio y disponibilidad. →
+              </span>
+            </Link>
+          </aside>
+        </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+function Section({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="grid gap-3" aria-label={title}>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+          {title}
+        </h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+const ICONS = {
+  qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2',
+  doc: 'M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6',
+  user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM5 21a7 7 0 0 1 14 0',
+} as const;
+
+function HealthTile({
+  to,
+  title,
+  detail,
+  icon,
+  warn = false,
+}: {
+  to: string;
+  title: string;
+  detail: string;
+  icon: keyof typeof ICONS;
+  warn?: boolean;
+}) {
+  return (
+    <Link
+      to={to}
+      className="flex items-center gap-4 rounded-[14px] border border-line bg-white p-4 transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+    >
+      <span
+        aria-hidden="true"
+        className={`flex size-11 flex-none items-center justify-center rounded-[12px] ${
+          warn ? 'bg-tag-warm text-tag-warm-ink' : 'bg-surface-teal text-brand-deep'
+        }`}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          className="size-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d={ICONS[icon]} />
+        </svg>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-bold text-brand-deep">{title}</span>
+        <span className={`block text-sm ${warn ? 'text-tag-warm-ink' : 'text-muted'}`}>
+          {detail}
+        </span>
+      </span>
+      <span aria-hidden="true" className="text-muted-soft">
+        ›
+      </span>
+    </Link>
   );
 }
