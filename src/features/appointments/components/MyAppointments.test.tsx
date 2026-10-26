@@ -183,6 +183,47 @@ describe('MyAppointments (ENG-178)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('No tenés permiso.');
   });
 
+  describe('en pantalla ancha', () => {
+    beforeEach(() => {
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn().mockImplementation((query: string) => ({
+          matches: true,
+          media: query,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        })),
+      );
+    });
+
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('tocar un turno abre su detalle en un panel lateral, que se cierra con la ✕', async () => {
+      const u = user();
+      mockApi({ mine: () => jsonResponse([PAST, UPCOMING]) });
+      renderWithRouter(<MyAppointments />, '/mis-turnos', '/mis-turnos');
+
+      const fila = (
+        await screen.findAllByRole('link', { name: 'Ver el turno con Ana Médica' })
+      ).find((l) => l.getAttribute('href') === `/mis-turnos?turno=${PAST.id}`);
+      await u.click(fila!);
+
+      const panel = await screen.findByRole('dialog', { name: 'Detalle del turno' });
+      expect(within(panel).getByText('Tuviste la consulta')).toBeInTheDocument();
+
+      await u.click(within(panel).getByRole('button', { name: 'Cerrar' }));
+      expect(screen.queryByRole('dialog', { name: 'Detalle del turno' })).not.toBeInTheDocument();
+    });
+
+    it('sin un turno elegido no abre nada: la lista ocupa todo', async () => {
+      mockApi({ mine: () => jsonResponse([PAST, UPCOMING]) });
+      renderWithRouter(<MyAppointments />, '/mis-turnos', '/mis-turnos');
+
+      await screen.findByRole('region', { name: 'Próximo turno' });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
   describe('reembolso al cancelar (ENG-171, ENG-65)', () => {
     const PROFILE = {
       id: UPCOMING.professional.id,

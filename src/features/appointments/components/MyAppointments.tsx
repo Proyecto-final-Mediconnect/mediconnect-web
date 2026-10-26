@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useMediaQuery, WIDE_QUERY } from '../../../shared/hooks/useMediaQuery';
+import { SideDrawer } from '../../../shared/ui/SideDrawer';
 import { useNow } from '../../../shared/hooks/useNow';
 import { useSession } from '../../auth/hooks/useSession';
 import { canPay } from '../../payments/lib/checkout';
@@ -71,17 +72,20 @@ export function MyAppointments() {
   const filtering =
     filters.search.trim() !== '' || filters.period !== 'todos' || filters.status !== 'todos';
 
-  // En pantalla ancha el detalle va al costado: el elegido, o el próximo turno
-  // si todavía no se eligió ninguno. En angosta cada turno abre su pantalla.
-  const selectedId = searchParams.get('turno') ?? next?.id ?? sections[0]?.data[0]?.id ?? null;
-  const select = (id: string) => setSearchParams({ turno: id }, { replace: true });
+  // En pantalla ancha, tocar un turno abre su detalle en un panel lateral sin
+  // perder la lista; queda en la URL (`?turno=`) para recargar o compartir. En
+  // angosta cada turno abre su pantalla.
+  const requested = searchParams.get('turno');
+  const selectedId =
+    wide && requested && appointments.data.some((a) => a.id === requested) ? requested : null;
+  const select = (id: string) => setSearchParams({ turno: id });
+  const closeDetail = () => setSearchParams({}, { replace: true });
   const listProps = { userId, now, wide, selectedId, onSelect: select, onCancel: setToCancel };
 
   const list = (
     <div className="grid min-w-0 content-start gap-6">
       {appointments.data.length > 0 && (
         <>
-          <Summary appointments={appointments.data} now={now} />
           <div className="flex flex-wrap items-center gap-3">
             <div className="min-w-0 flex-1">
               <AgendaToolbar
@@ -138,22 +142,20 @@ export function MyAppointments() {
           />
         ))}
 
-      {/* En angosta, el próximo turno va destacado arriba; en ancha ese lugar lo
-          ocupa el detalle del costado, y el próximo es la primera tarjeta. */}
-      {next && !wide && (
+      {next && (
         <section aria-labelledby="proximo-turno" className="grid gap-3">
           <h2 id="proximo-turno" className="sr-only">
             Próximo turno
           </h2>
-          <NextAppointment appointment={next} userId={userId} now={now} onCancel={setToCancel} />
+          <NextAppointment appointment={next} {...listProps} />
         </section>
       )}
 
-      {(wide ? (upcoming?.data ?? []) : restUpcoming).length > 0 && (
+      {restUpcoming.length > 0 && (
         <section aria-labelledby="proximos" className="grid gap-3">
           <SectionTitle id="proximos">Próximos</SectionTitle>
           <ul className="grid gap-3">
-            {(wide ? (upcoming?.data ?? []) : restUpcoming).map((appointment) => (
+            {restUpcoming.map((appointment) => (
               <li key={appointment.id}>
                 <UpcomingCard appointment={appointment} {...listProps} />
               </li>
@@ -183,23 +185,11 @@ export function MyAppointments() {
         <RefundOutcomeBanner text={refundOutcome} onClose={() => setRefundOutcome(null)} />
       )}
 
-      {wide && appointments.data.length > 0 ? (
-        <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(380px,440px)]">
-          {list}
-          <aside
-            aria-label="Detalle del turno"
-            className="sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto rounded-[18px] bg-surface p-1"
-          >
-            {selectedId ? (
-              <AppointmentDetail appointmentId={selectedId} variant="panel" />
-            ) : (
-              <p className="p-6 text-sm text-muted">Elegí un turno para ver el detalle.</p>
-            )}
-          </aside>
-        </div>
-      ) : (
-        list
-      )}
+      {list}
+
+      <SideDrawer open={selectedId !== null} title="Detalle del turno" onClose={closeDetail}>
+        {selectedId && <AppointmentDetail appointmentId={selectedId} variant="panel" />}
+      </SideDrawer>
 
       <CancelAppointmentDialog
         appointment={toCancel}
@@ -208,45 +198,6 @@ export function MyAppointments() {
         onCancelled={setRefundOutcome}
       />
     </div>
-  );
-}
-
-/** Un vistazo antes de la lista: cuántos vienen, cuántos falta pagar y cuántos se hicieron. */
-function Summary({ appointments, now }: { appointments: Appointment[]; now: Date }) {
-  const upcoming = appointments.filter(
-    (a) => isActive(a) && Date.parse(a.scheduledAt) > now.getTime(),
-  );
-  const unpaid = upcoming.filter((a) => a.status === 'RESERVADO_SIN_PAGAR').length;
-  const done = appointments.filter((a) => a.status === 'COMPLETADO').length;
-
-  const items = [
-    { value: upcoming.length, label: upcoming.length === 1 ? 'próximo' : 'próximos', warn: false },
-    { value: unpaid, label: 'sin pagar', warn: unpaid > 0 },
-    { value: done, label: done === 1 ? 'consulta hecha' : 'consultas hechas', warn: false },
-  ];
-
-  return (
-    <dl className="grid grid-cols-3 gap-3">
-      {items.map((item) => (
-        <div
-          key={item.label}
-          className={`flex flex-col-reverse gap-1 rounded-[12px] border px-4 py-3 ${
-            item.warn ? 'border-tag-warm-dot/40 bg-tag-warm' : 'border-line bg-white'
-          }`}
-        >
-          <dt className={`text-xs font-semibold ${item.warn ? 'text-tag-warm-ink' : 'text-muted'}`}>
-            {item.label}
-          </dt>
-          <dd
-            className={`font-display text-[28px] leading-none ${
-              item.warn ? 'text-tag-warm-ink' : 'text-brand-deep'
-            }`}
-          >
-            {item.value}
-          </dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 
@@ -370,17 +321,7 @@ function PrimaryAction({
   return null;
 }
 
-function NextAppointment({
-  appointment,
-  userId,
-  now,
-  onCancel,
-}: {
-  appointment: Appointment;
-  userId: string | null;
-  now: Date;
-  onCancel: (a: Appointment) => void;
-}) {
+function NextAppointment({ appointment, userId, now, wide, onSelect, onCancel }: ListItemProps) {
   const join = joinStateOf(appointment, now);
   const soon =
     join.kind === 'TOO_EARLY' && join.opensAt.getTime() - now.getTime() < 24 * 60 * 60_000;
@@ -407,13 +348,16 @@ function NextAppointment({
       )}
       <div className="mt-5 flex flex-wrap items-center gap-3">
         <PrimaryAction appointment={appointment} userId={userId} now={now} onDark />
-        <Link
-          to={`/turnos/${appointment.id}`}
+        <OpenLink
+          appointment={appointment}
+          wide={wide}
+          selected={false}
+          onSelect={onSelect}
+          label={`Ver el turno con ${personName(appointment, userId)}`}
           className="inline-flex items-center rounded-[9px] border border-white/25 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:border-brand-bright focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-          aria-label={`Ver el turno con ${personName(appointment, userId)}`}
         >
           Ver detalle
-        </Link>
+        </OpenLink>
         {canCancel(appointment, userId, now) && (
           <button
             type="button"
@@ -465,7 +409,7 @@ function UpcomingCard({
       <StatusChip status={appointment.status} />
       <div className="flex items-center gap-3">
         <PrimaryAction appointment={appointment} userId={userId} now={now} />
-        {!wide && canCancel(appointment, userId, now) && (
+        {canCancel(appointment, userId, now) && (
           <button
             type="button"
             onClick={() => onCancel(appointment)}
