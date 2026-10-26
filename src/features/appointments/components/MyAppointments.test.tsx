@@ -260,6 +260,28 @@ describe('MyAppointments', () => {
       );
     });
 
+    it('si la cotización falla por otra cosa, no afirma si la devolución es automática', async () => {
+      await abrirConfirmacion([PAID], { quote: () => jsonResponse({}, 500) });
+
+      const aviso = await screen.findByText(/No pudimos calcular la devolución ahora/);
+      expect(aviso).toHaveTextContent(
+        /Se aplica la política del profesional: Si cancelás con 24 horas o más/,
+      );
+      expect(screen.queryByText(/se gestiona aparte/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/te corresponde/)).not.toBeInTheDocument();
+    });
+
+    it('si la cotización falla y no hay política, sólo dice que no se pudo calcular', async () => {
+      await abrirConfirmacion([PAID], {
+        quote: () => jsonResponse({}, 503),
+        profile: () => jsonResponse({}, 404),
+      });
+
+      expect(
+        await screen.findByText('No pudimos calcular la devolución ahora.'),
+      ).toBeInTheDocument();
+    });
+
     describe('con el reembolso de ENG-65', () => {
       it('usa la cotización del backend, con la política guardada en el turno', async () => {
         // El perfil dice 100 % a 26 h, pero el turno se reservó con otra política:
