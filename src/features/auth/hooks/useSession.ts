@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getMe, UnauthenticatedError } from '../api/getMe';
+import { disconnectRealtime } from '../../chat/lib/realtime';
 import { logout as logoutRequest } from '../api/logout';
 import type { SessionUser } from '../types/session';
 
@@ -41,6 +42,8 @@ export function useLogout() {
     mutationFn: logoutRequest,
     onSuccess: () => {
       queryClient.setQueryData(SESSION_QUERY_KEY, null);
+      // El socket del chat (ENG-70) tiene el token de esta sesión en memoria.
+      disconnectRealtime();
       // Cualquier dato del usuario anterior deja de ser válido, y no alcanza con
       // invalidarlo: `invalidateQueries` conserva el `data`, y en un equipo
       // compartido el próximo que ingrese vería por un instante el código

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { NotificationsBell } from './NotificationsBell';
 import type { InAppInbox } from '../types/notification';
 
@@ -59,7 +60,12 @@ function renderBell(initial: InAppInbox = INBOX) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <NotificationsBell />
+      <MemoryRouter initialEntries={['/paciente']}>
+        <Routes>
+          <Route path="/paciente" element={<NotificationsBell />} />
+          <Route path="/mensajes/:conversationId" element={<p>Pantalla del chat</p>} />
+        </Routes>
+      </MemoryRouter>
     </QueryClientProvider>,
   );
   return fetchMock;
@@ -128,6 +134,34 @@ describe('NotificationsBell', () => {
     await user.click(await screen.findByRole('button', { name: 'Avisos' }));
 
     expect(await screen.findByText('No tenés avisos todavía.')).toBeInTheDocument();
+  });
+
+  it('un aviso de mensaje nuevo (ENG-70) lo marca leído y lleva al chat', async () => {
+    const user = userEvent.setup();
+    const fetchMock = renderBell({
+      unreadCount: 1,
+      notifications: [
+        {
+          id: 'n-3',
+          type: 'NUEVO_MENSAJE',
+          appointmentId: null,
+          conversationId: 'conv-1',
+          title: 'Mensaje nuevo',
+          body: 'Ana García te escribió.',
+          createdAt: new Date().toISOString(),
+          readAt: null,
+        },
+      ],
+    });
+
+    await user.click(await screen.findByRole('button', { name: 'Avisos, 1 sin leer' }));
+    await user.click(screen.getByRole('button', { name: /Ana García te escribió/ }));
+
+    expect(await screen.findByText('Pantalla del chat')).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining('/notifications/n-3/read'),
+      expect.objectContaining({ method: 'PATCH' }),
+    );
   });
 
   it('se cierra con Escape', async () => {
