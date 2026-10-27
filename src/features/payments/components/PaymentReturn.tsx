@@ -80,9 +80,8 @@ export function PaymentReturn({
   if (outcome === 'SIN_TURNO') {
     return (
       <Aviso titulo="El pago se acreditó, pero el turno ya no estaba reservado.">
-        El turno se canceló o se liberó mientras pagabas, así que no lo pudimos confirmar. Te
-        devolvemos el pago entero por MercadoPago, al mismo medio con el que pagaste; puede tardar
-        unos días en verse.
+        El turno se canceló o se liberó mientras pagabas, así que no lo pudimos confirmar. Vamos a
+        devolverte el pago. Si no lo ves en unos días, escribinos con el comprobante de MercadoPago.
       </Aviso>
     );
   }
@@ -90,9 +89,9 @@ export function PaymentReturn({
   if (outcome === 'TURNO_VENCIDO') {
     return (
       <Aviso titulo="El turno se liberó porque no se pagó a tiempo.">
-        El horario volvió a estar disponible y no pudimos confirmarlo. Si llegaste a pagar, te
-        devolvemos el pago entero por MercadoPago, al mismo medio con el que pagaste. Podés reservar
-        otro horario cuando quieras.
+        El horario volvió a estar disponible y no pudimos confirmarlo. Si llegaste a pagar, vamos a
+        devolverte el pago; si no lo ves en unos días, escribinos con el comprobante de MercadoPago.
+        Podés reservar otro horario cuando quieras.
       </Aviso>
     );
   }
