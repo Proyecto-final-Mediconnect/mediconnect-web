@@ -353,6 +353,88 @@ describe('MyAppointments', () => {
     });
   });
 
+  describe('reprogramar (ENG-66)', () => {
+    it('el paciente puede reprogramar un turno futuro', async () => {
+      mockApi();
+      renderMyAppointments();
+
+      const link = await screen.findByRole('link', { name: 'Reprogramar' });
+      expect(link).toHaveAttribute(
+        'href',
+        `/profesionales/${PRO_ID}/turnos?reprogramar=${UPCOMING.id}`,
+      );
+    });
+
+    it('un turno ya reprogramado no se vuelve a reprogramar', async () => {
+      mockApi({
+        mine: () => jsonResponse([{ ...UPCOMING, rescheduledAt: '2026-08-16T12:00:00.000Z' }]),
+      });
+      renderMyAppointments();
+
+      expect(await screen.findByText(/reprogramado/)).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Reprogramar' })).not.toBeInTheDocument();
+    });
+
+    describe('turno pagado y política', () => {
+      const PROFILE = {
+        id: PRO_ID,
+        firstName: 'Ana',
+        lastName: 'Médica',
+        photoUrl: null,
+        bio: null,
+        specialties: [],
+        education: [],
+        price: 15000,
+        currency: 'ARS',
+        cancellationPolicy: {
+          hoursFullRefund: 24,
+          hoursPartialRefund: 6,
+          partialRefundPercent: 50,
+        },
+      };
+
+      it('con la anticipación de la política ofrece reprogramar', async () => {
+        // Faltan 26 h: devolución total.
+        mockApi({
+          mine: () => jsonResponse([{ ...UPCOMING, status: 'CONFIRMADO' }]),
+          profile: () => jsonResponse(PROFILE),
+        });
+        renderMyAppointments();
+
+        expect(await screen.findByRole('link', { name: 'Reprogramar' })).toBeInTheDocument();
+      });
+
+      it('con menos anticipación avisa en lugar de ofrecer reprogramar', async () => {
+        // Faltan 10 h: la política da sólo el parcial, así que el backend rechaza.
+        mockApi({
+          mine: () =>
+            jsonResponse([
+              {
+                ...UPCOMING,
+                status: 'CONFIRMADO',
+                scheduledAt: '2026-08-17T21:00:00.000Z',
+                date: '2026-08-17',
+                startTime: '18:00',
+              },
+            ]),
+          profile: () => jsonResponse(PROFILE),
+        });
+        renderMyAppointments();
+
+        expect(await screen.findByText(/ya no se puede reprogramar/)).toHaveTextContent(/24 horas/);
+        expect(screen.queryByRole('link', { name: 'Reprogramar' })).not.toBeInTheDocument();
+      });
+    });
+
+    it('el profesional no reprograma el turno de su paciente', async () => {
+      mockApi({ session: () => jsonResponse(PRO_SESSION) });
+      renderMyAppointments();
+
+      await screen.findByRole('region', { name: /próximos/i });
+      expect(screen.queryByRole('link', { name: 'Reprogramar' })).not.toBeInTheDocument();
+    });
+  });
+
   it('"No, dejarlo" cierra la confirmación sin cancelar', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const fetchMock = mockApi();

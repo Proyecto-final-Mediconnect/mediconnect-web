@@ -1,4 +1,4 @@
-import { Navigate, useParams } from 'react-router-dom';
+import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { BookAppointment } from '../features/appointments/components/BookAppointment';
 import { DashboardLayout } from './DashboardLayout';
 
@@ -13,6 +13,8 @@ import { DashboardLayout } from './DashboardLayout';
  */
 export function BookAppointmentPage() {
   const { professionalId } = useParams<{ professionalId: string }>();
+  // `?reprogramar=<id>`: la misma grilla, para mover un turno existente (ENG-66).
+  const rescheduleId = useSearchParams()[0].get('reprogramar') ?? undefined;
 
   // La ruta no puede matchear sin el parámetro, pero TypeScript no lo sabe y un
   // id vacío armaría una URL de API rota.
@@ -20,10 +22,14 @@ export function BookAppointmentPage() {
 
   return (
     <DashboardLayout
-      barTitle="Elegí día y horario"
-      subtitle="Elegí un horario disponible en la agenda del profesional."
+      barTitle={rescheduleId ? 'Reprogramar turno' : 'Elegí día y horario'}
+      subtitle={
+        rescheduleId
+          ? 'Elegí el nuevo horario. Es el mismo turno: no se vuelve a cobrar.'
+          : 'Elegí un horario disponible en la agenda del profesional.'
+      }
     >
-      <BookAppointment professionalId={professionalId} />
+      <BookAppointment professionalId={professionalId} rescheduleId={rescheduleId} />
     </DashboardLayout>
   );
 }

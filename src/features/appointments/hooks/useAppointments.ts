@@ -5,6 +5,7 @@ import {
   cancelAppointment,
   getAvailability,
   getMyAppointments,
+  rescheduleAppointment,
 } from '../api/appointmentsApi';
 
 const MY_APPOINTMENTS_KEY = ['appointments', 'me'] as const;
@@ -59,6 +60,20 @@ export function useBookAppointment() {
     onSuccess: () => {
       // La grilla queda desactualizada por definición: el horario que se acaba
       // de tomar tiene que pasar a "ocupado" sin recargar la página.
+      void queryClient.invalidateQueries({ queryKey: ['availability'] });
+      void queryClient.invalidateQueries({ queryKey: MY_APPOINTMENTS_KEY });
+    },
+  });
+}
+
+/** Reprograma un turno (ENG-66). Libera un horario y ocupa otro: las dos
+ *  cosas cambian la grilla y la lista. */
+export function useRescheduleAppointment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: rescheduleAppointment,
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['availability'] });
       void queryClient.invalidateQueries({ queryKey: MY_APPOINTMENTS_KEY });
     },
