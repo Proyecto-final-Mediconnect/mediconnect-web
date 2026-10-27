@@ -49,14 +49,23 @@ export function ConversationView({ conversationId, counterpart, myId }: Props) {
   const lastId = list.at(-1)?.id;
   const newestUnread = list.findLast((m) => m.autorId !== myId && m.leidoEl === null)?.id;
 
+  // Solo se marca leído con la pestaña a la vista: con Realtime el mensaje entra
+  // aunque nadie esté mirando, y la otra persona vería "Leído" sin que lo sea.
+  const [visible, setVisible] = useState(() => document.visibilityState === 'visible');
+  useEffect(() => {
+    const onChange = () => setVisible(document.visibilityState === 'visible');
+    document.addEventListener('visibilitychange', onChange);
+    return () => document.removeEventListener('visibilitychange', onChange);
+  }, []);
+
   // Lo que llega con la conversación a la vista se da por leído. Una vez por
   // mensaje: si el pedido falla, no se reintenta en loop contra el backend; se
-  // vuelve a intentar cuando llega otro mensaje.
+  // vuelve a intentar cuando llega otro mensaje o la pestaña vuelve a verse.
   useEffect(() => {
-    if (!newestUnread || markedUpTo.current === newestUnread) return;
+    if (!visible || !newestUnread || markedUpTo.current === newestUnread) return;
     markedUpTo.current = newestUnread;
     markAsRead();
-  }, [newestUnread, markAsRead]);
+  }, [visible, newestUnread, markAsRead]);
 
   // `scrollIntoView` no existe en jsdom: el `?.` evita que los tests lo necesiten.
   useEffect(() => {

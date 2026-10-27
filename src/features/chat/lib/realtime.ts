@@ -41,6 +41,8 @@ const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as string | und
 let client: Promise<SupabaseClient | null> | null = null;
 let cached: { token: string; expiresAt: number } | null = null;
 let pending: Promise<string | null> | null = null;
+/** Sube al cerrar sesión: invalida los pedidos de token que quedaron en vuelo. */
+let generation = 0;
 
 export function isRealtimeConfigured(): boolean {
   return Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
@@ -49,17 +51,22 @@ export function isRealtimeConfigured(): boolean {
 /** El token vigente, o uno nuevo si está por vencer. `null` si no hay sesión. */
 async function currentToken(): Promise<string | null> {
   if (cached && cached.expiresAt - Date.now() > RENEW_BEFORE_MS) return cached.token;
+  const gen = generation;
   pending ??= getRealtimeToken()
     .then(({ accessToken, expiraEl }) => {
-      cached = { token: accessToken, expiresAt: new Date(expiraEl).getTime() };
+      // Si se cerró sesión mientras el pedido estaba en vuelo, el token es del
+      // usuario que se fue: no se guarda.
+      if (gen === generation) {
+        cached = { token: accessToken, expiresAt: new Date(expiraEl).getTime() };
+      }
       return accessToken;
     })
     .catch(() => {
-      cached = null;
+      if (gen === generation) cached = null;
       return null;
     })
     .finally(() => {
-      pending = null;
+      if (gen === generation) pending = null;
     });
   return pending;
 }
@@ -76,6 +83,7 @@ function realtimeClient(): Promise<SupabaseClient | null> {
     .catch((err: unknown) => {
       // Una variable mal cargada (una URL que no es URL) no puede tirar abajo la
       // pantalla: el chat sigue andando con el refetch periódico.
+      client = null; // permite reintentar en la próxima suscripción
       console.warn('No se pudo iniciar Realtime; el chat sigue con refetch periódico.', err);
       return null;
     });
@@ -139,8 +147,22 @@ export function subscribeToConversation(
   };
 }
 
-/** Corta el socket y olvida el token. Se llama al cerrar sesión. */
+/**
+ * Corta el socket y olvida el token. Se llama al cerrar sesión, o cuando la
+ * sesión muere por cualquier otro motivo.
+ *
+ * Se suelta el cliente entero y no solo los canales: si no, el WebSocket seguiría
+ * abierto pidiendo token en cada heartbeat, y un pedido en vuelo podría guardar
+ * el token del usuario anterior para el próximo que entre sin recargar.
+ */
 export function disconnectRealtime(): void {
+  generation++;
   cached = null;
-  void client?.then((supabase) => supabase?.removeAllChannels());
+  pending = null;
+  const old = client;
+  client = null;
+  void old?.then(async (supabase) => {
+    await supabase?.removeAllChannels();
+    supabase?.realtime.disconnect();
+  });
 }

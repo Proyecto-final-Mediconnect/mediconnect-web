@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getMe, UnauthenticatedError } from '../api/getMe';
 import { disconnectRealtime } from '../../chat/lib/realtime';
@@ -26,6 +27,12 @@ export function useSession() {
     retry: (failureCount, err) => !(err instanceof UnauthenticatedError) && failureCount < 1,
     staleTime: 5 * 60 * 1000,
   });
+
+  // Sesión muerta por cualquier motivo (refresh fallido, no solo el logout): el
+  // socket del chat no puede seguir con el token del usuario anterior.
+  useEffect(() => {
+    if (query.data === null) disconnectRealtime();
+  }, [query.data]);
 
   return {
     user: query.data ?? null,

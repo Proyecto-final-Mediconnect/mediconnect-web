@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { MessagesPage } from './MessagesPage';
 import { SESSION_QUERY_KEY } from '../features/auth/hooks/useSession';
 import type { ChatMessage, ConversationInbox } from '../features/chat/types/chat';
+import { POLL_INTERVAL_MS } from '../features/chat/hooks/useChat';
 import type { RealtimeStatus } from '../features/chat/lib/realtime';
 
 /**
@@ -247,6 +248,43 @@ describe('MessagesPage (ENG-70)', () => {
     // Después de marcar no vuelve a pedirlo: la caché ya lo tiene leído.
     await new Promise((r) => setTimeout(r, 50));
     expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(1);
+  });
+
+  it('con la pestaña oculta no marca leído; lo hace al volver a verla', async () => {
+    let estado: DocumentVisibilityState = 'hidden';
+    vi.spyOn(document, 'visibilityState', 'get').mockImplementation(() => estado);
+    const { calls } = fakeBackend();
+    renderAt(`/mensajes/${CONV}`);
+
+    await screen.findByRole('list', { name: 'Mensajes con Ana García' });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(0);
+
+    estado = 'visible';
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    await waitFor(() => expect(calls.filter((c) => c.method === 'PATCH')).toHaveLength(1));
+  });
+
+  it('el pedido periódico trae solo la página más reciente, no todo el historial', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const { calls } = fakeBackend();
+    renderAt(`/mensajes/${CONV}`);
+    await screen.findByRole('list', { name: 'Mensajes con Ana García' });
+    const pedidos = () =>
+      calls.filter((c) => c.method === 'GET' && c.url.includes(`/conversations/${CONV}/messages`));
+    const antes = pedidos().length;
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(POLL_INTERVAL_MS + 100);
+    });
+
+    const nuevos = pedidos().slice(antes);
+    expect(nuevos).toHaveLength(1);
+    expect(nuevos[0].url).not.toContain('antesDe');
+    vi.useRealTimers();
   });
 
   it('sin Realtime dice que se actualiza cada pocos segundos', async () => {

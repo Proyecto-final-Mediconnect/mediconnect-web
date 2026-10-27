@@ -41,7 +41,12 @@ async function load(env: { url?: string; key?: string }) {
 beforeEach(() => {
   supabase.createClient.mockReset().mockImplementation((_u, _k, options) => {
     supabase.accessToken = options.accessToken;
-    return { channel: vi.fn(fakeChannel), removeChannel: vi.fn(), removeAllChannels: vi.fn() };
+    return {
+      channel: vi.fn(fakeChannel),
+      removeChannel: vi.fn(),
+      removeAllChannels: vi.fn(),
+      realtime: { disconnect: vi.fn() },
+    };
   });
   getRealtimeToken.mockReset();
 });
@@ -73,6 +78,55 @@ describe('realtime', () => {
     expect(() => subscribeToConversation('c-1', vi.fn(), onStatus)).not.toThrow();
     await settled();
     expect(onStatus).toHaveBeenCalledWith('sin-conexion');
+  });
+
+  it('si falló iniciar Realtime, la próxima suscripción lo reintenta', async () => {
+    supabase.createClient.mockImplementationOnce(() => {
+      throw new Error('chunk caído');
+    });
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { subscribeToConversation } = await load({ url: 'https://x.supabase.co', key: 'k' });
+
+    subscribeToConversation('c-1', vi.fn(), vi.fn());
+    await settled();
+    const onStatus = vi.fn();
+    subscribeToConversation('c-1', vi.fn(), onStatus);
+    await settled();
+
+    expect(supabase.createClient).toHaveBeenCalledTimes(2);
+    expect(onStatus).toHaveBeenLastCalledWith('en-vivo');
+  });
+
+  it('un token en vuelo al cerrar sesión no se guarda para el próximo usuario', async () => {
+    let resolverViejo!: (v: { accessToken: string; expiraEl: string }) => void;
+    getRealtimeToken
+      .mockReturnValueOnce(new Promise((resolve) => (resolverViejo = resolve)))
+      .mockResolvedValue({
+        accessToken: 't-nuevo',
+        expiraEl: new Date(Date.now() + 3_600_000).toISOString(),
+      });
+    const { subscribeToConversation, disconnectRealtime } = await load({
+      url: 'https://x.supabase.co',
+      key: 'k',
+    });
+    subscribeToConversation('c-1', vi.fn(), vi.fn());
+    await settled();
+    const clienteViejo = supabase.createClient.mock.results[0].value;
+    const accessTokenViejo = supabase.accessToken!;
+
+    const enVuelo = accessTokenViejo();
+    disconnectRealtime();
+    resolverViejo({
+      accessToken: 't-viejo',
+      expiraEl: new Date(Date.now() + 3_600_000).toISOString(),
+    });
+    await enVuelo;
+    await settled();
+
+    // Corta el socket, no solo los canales.
+    expect(clienteViejo.realtime.disconnect).toHaveBeenCalled();
+    // El token del usuario anterior no quedó en la caché.
+    expect(await accessTokenViejo()).toBe('t-nuevo');
   });
 
   it('pide el token una vez, lo reusa y lo renueva cuando está por vencer', async () => {

@@ -49,20 +49,40 @@ export function useConversations() {
  * Los mensajes de una conversación, de a páginas: la primera es la más
  * reciente y `fetchNextPage` trae las anteriores.
  *
- * Con Realtime en vivo, el refetch es solo una reconciliación de fondo; sin él,
- * es lo que trae los mensajes nuevos.
+ * Con Realtime en vivo, el pedido periódico es solo una reconciliación de fondo;
+ * sin él, es lo que trae los mensajes nuevos. Ese pedido trae únicamente la
+ * página más reciente: un `refetch` del `useInfiniteQuery` volvería a pedir, una
+ * por una, todas las páginas que el usuario fue abriendo.
  */
 export function useMessages(conversationId: string | undefined, live: boolean) {
+  const queryClient = useQueryClient();
   const query = useInfiniteQuery({
     queryKey: messagesKey(conversationId ?? ''),
     queryFn: ({ pageParam }) => getMessages(conversationId!, pageParam),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => (last.hayMas ? last.mensajes[0]?.id : undefined),
     enabled: Boolean(conversationId),
-    refetchInterval: live ? LIVE_RECONCILE_MS : POLL_INTERVAL_MS,
-    refetchOnWindowFocus: true,
     retry: retryUnlessClientError,
   });
+
+  useEffect(() => {
+    if (!conversationId) return;
+    const reconcile = () => {
+      if (document.visibilityState !== 'visible') return;
+      getMessages(conversationId)
+        .then((page) => {
+          for (const message of page.mensajes) addToCache(queryClient, conversationId, message);
+        })
+        // Un fallo de red no pisa lo que ya se ve: se reintenta en el próximo ciclo.
+        .catch(() => {});
+    };
+    const timer = setInterval(reconcile, live ? LIVE_RECONCILE_MS : POLL_INTERVAL_MS);
+    document.addEventListener('visibilitychange', reconcile);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', reconcile);
+    };
+  }, [conversationId, live, queryClient]);
 
   const messages = useMemo(
     () => mergeMessages([], query.data?.pages.flatMap((page) => page.mensajes) ?? []),
