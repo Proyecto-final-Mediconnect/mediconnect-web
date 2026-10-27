@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useNow } from '../../../shared/hooks/useNow';
 import { useMarkNotificationRead, useMyNotifications } from '../hooks/useNotifications';
 import { relativeTime } from '../lib/relativeTime';
@@ -10,8 +11,8 @@ import { relativeTime } from '../lib/relativeTime';
  * estar bien: cuenta los no leídos que dice el servidor y no los que hay en la
  * lista, que trae solo los últimos.
  *
- * Tocar un aviso lo marca como leído. No navega a ningún lado: el texto ya dice
- * qué pasó y con quién, y hoy no hay una pantalla de detalle a la que llevar.
+ * Tocar un aviso lo marca como leído. El de un mensaje nuevo (ENG-70) además
+ * lleva al chat; los de turnos no navegan: el texto ya dice qué pasó y con quién.
  */
 export function NotificationsBell() {
   const [open, setOpen] = useState(false);
@@ -20,6 +21,7 @@ export function NotificationsBell() {
   const now = useNow(60_000);
   const inbox = useMyNotifications();
   const markRead = useMarkNotificationRead();
+  const navigate = useNavigate();
 
   // Una respuesta con otra forma (un 200 que no es la bandeja) no rompe el shell.
   const notifications = Array.isArray(inbox.data?.notifications) ? inbox.data.notifications : [];
@@ -94,7 +96,13 @@ export function NotificationsBell() {
                   <li key={n.id}>
                     <button
                       type="button"
-                      onClick={() => unreadItem && markRead.mutate(n.id)}
+                      onClick={() => {
+                        if (unreadItem) markRead.mutate(n.id);
+                        if (n.conversationId) {
+                          setOpen(false);
+                          navigate(`/mensajes/${n.conversationId}`);
+                        }
+                      }}
                       aria-label={`${unreadItem ? 'Sin leer: ' : ''}${n.title}. ${n.body}`}
                       className={`grid w-full gap-1 px-5 py-3.5 text-left transition-colors hover:bg-surface focus:outline-none focus-visible:bg-surface ${
                         unreadItem ? 'bg-surface-teal/40' : ''

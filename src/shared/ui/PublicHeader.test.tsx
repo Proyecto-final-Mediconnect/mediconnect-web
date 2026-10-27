@@ -49,6 +49,7 @@ const profesional: SessionUser = {
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   vi.restoreAllMocks();
 });
 
@@ -77,27 +78,38 @@ describe('PublicHeader', () => {
   });
 
   /**
-   * El detalle que hace que el cambio no moleste: mientras `GET /me` viaja, la
-   * barra no afirma nada. Mostrar "Ingresar" y cambiarlo 200 ms después le dice a
-   * quien está logueado que no tiene sesión, aunque sea por un instante.
+   * Mientras `GET /me` viaja, a quien tuvo sesión en este navegador la barra no
+   * le afirma nada: mostrar "Ingresar" y cambiarlo después le diría que no tiene
+   * sesión, aunque sea por un instante.
    */
-  it('mientras resuelve la sesión no dice ni que hay ni que no hay', () => {
-    // Una promesa que nunca resuelve deja el hook en `isLoading` para siempre.
-    vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise(() => {}));
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-
-    render(
-      <QueryClientProvider client={client}>
-        <MemoryRouter>
-          <PublicHeader />
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
+  it('mientras resuelve, si hubo sesión no dice ni que hay ni que no hay', () => {
+    localStorage.setItem('mc:habia-sesion', '1');
+    renderPendiente();
 
     expect(screen.queryByRole('link', { name: 'Ingresar' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Crear cuenta' })).not.toBeInTheDocument();
     // El catálogo sí está: no depende de quién mire.
     expect(screen.getByRole('link', { name: 'Buscar profesionales' })).toBeVisible();
+  });
+
+  /** Con el backend arrancando en frío, `/me` puede tardar un minuto: el visitante
+   *  nuevo no puede quedarse sin forma de entrar. */
+  it('mientras resuelve, al que nunca ingresó le ofrece ingresar de entrada', () => {
+    renderPendiente();
+
+    expect(screen.getByRole('link', { name: 'Ingresar' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Crear cuenta' })).toBeVisible();
+  });
+
+  it('recuerda la sesión para la próxima visita, y la olvida sin ella', async () => {
+    renderHeader(profesional);
+    await screen.findByRole('link', { name: /Ana García/ });
+    expect(localStorage.getItem('mc:habia-sesion')).toBe('1');
+
+    cleanup();
+    renderHeader(null);
+    await screen.findByRole('link', { name: 'Ingresar' });
+    await waitFor(() => expect(localStorage.getItem('mc:habia-sesion')).toBeNull());
   });
 
   it('el paciente ve su nombre igual, apuntando a su propio panel', async () => {
@@ -117,3 +129,17 @@ describe('PublicHeader', () => {
     );
   });
 });
+
+/** Una promesa que nunca resuelve deja el hook en `isLoading` para siempre. */
+function renderPendiente() {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise(() => {}));
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+  render(
+    <QueryClientProvider client={client}>
+      <MemoryRouter>
+        <PublicHeader />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+}

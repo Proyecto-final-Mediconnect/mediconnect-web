@@ -1,6 +1,9 @@
+import { useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getMe, UnauthenticatedError } from '../api/getMe';
+import { disconnectRealtime } from '../../chat/lib/realtime';
 import { logout as logoutRequest } from '../api/logout';
+import { recordarSesion } from '../lib/sessionHint';
 import type { SessionUser } from '../types/session';
 
 export const SESSION_QUERY_KEY = ['session'] as const;
@@ -26,6 +29,15 @@ export function useSession() {
     staleTime: 5 * 60 * 1000,
   });
 
+  // Cubre también el login y el logout, que escriben la caché sin pasar por `/me`.
+  // Con la sesión muerta por cualquier motivo (refresh fallido, no solo el
+  // logout), el socket del chat no puede seguir con el token del usuario anterior.
+  useEffect(() => {
+    if (query.data === undefined) return;
+    recordarSesion(query.data !== null);
+    if (query.data === null) disconnectRealtime();
+  }, [query.data]);
+
   return {
     user: query.data ?? null,
     isLoading: query.isPending,
@@ -41,6 +53,8 @@ export function useLogout() {
     mutationFn: logoutRequest,
     onSuccess: () => {
       queryClient.setQueryData(SESSION_QUERY_KEY, null);
+      // El socket del chat (ENG-70) tiene el token de esta sesión en memoria.
+      disconnectRealtime();
       // Cualquier dato del usuario anterior deja de ser válido, y no alcanza con
       // invalidarlo: `invalidateQueries` conserva el `data`, y en un equipo
       // compartido el próximo que ingrese vería por un instante el código

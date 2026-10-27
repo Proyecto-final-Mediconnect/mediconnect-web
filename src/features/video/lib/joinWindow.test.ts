@@ -25,7 +25,7 @@ function appointment(overrides: Partial<Appointment> = {}): Appointment {
     durationMinutes: 30,
     price: 15000,
     currency: 'ARS',
-    status: 'RESERVADO_SIN_PAGAR',
+    status: 'CONFIRMADO',
     professional: { id: 'p1', firstName: 'Ana', lastName: 'Gómez' },
     patient: { id: 'q1', firstName: 'Luis', lastName: 'Pérez' },
     ...overrides,
@@ -94,6 +94,33 @@ describe('joinStateOf', () => {
     );
 
     expect(state.kind).toBe('OPEN');
+  });
+
+  it('un turno sin pagar pide el pago en vez de abrir la sala', () => {
+    const state = joinStateOf(
+      appointment({ status: 'RESERVADO_SIN_PAGAR' }),
+      new Date('2026-08-27T15:00:00.000Z'),
+    );
+
+    expect(state.kind).toBe('UNPAID');
+  });
+
+  it('un turno sin pagar pide el pago aunque la sala todavía no abra', () => {
+    const state = joinStateOf(
+      appointment({ status: 'RESERVADO_SIN_PAGAR' }),
+      new Date('2026-08-27T14:00:00.000Z'),
+    );
+
+    expect(state.kind).toBe('UNPAID');
+  });
+
+  it('un turno sin pagar que ya pasó queda cerrado', () => {
+    const state = joinStateOf(
+      appointment({ status: 'RESERVADO_SIN_PAGAR' }),
+      new Date('2026-08-27T16:00:00.000Z'),
+    );
+
+    expect(state.kind).toBe('CLOSED');
   });
 });
 
@@ -167,6 +194,14 @@ describe('firstJoinable', () => {
     const antes = turno({ id: 'a' });
 
     expect(firstJoinable([despues, antes], now)?.id).toBe('a');
+  });
+
+  it('ignora los que no están pagos aunque caigan en la ventana', () => {
+    const now = new Date('2026-08-20T12:55:00Z');
+
+    expect(
+      firstJoinable([turno({ id: 'a', status: 'RESERVADO_SIN_PAGAR' })], now),
+    ).toBeNull();
   });
 
   it('ignora los cancelados aunque caigan en la ventana', () => {

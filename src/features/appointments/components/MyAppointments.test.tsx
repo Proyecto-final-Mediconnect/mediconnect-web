@@ -267,6 +267,28 @@ describe('MyAppointments (ENG-178)', () => {
       );
     });
 
+    it('si la cotización falla por otra cosa, no afirma si la devolución es automática', async () => {
+      await abrirModal({ quote: () => jsonResponse({}, 500) });
+
+      const aviso = await screen.findByText(/No pudimos calcular la devolución ahora/);
+      expect(aviso).toHaveTextContent(
+        /Se aplica la política del profesional: Si cancelás con 24 horas o más/,
+      );
+      expect(screen.queryByText(/se gestiona aparte/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/te corresponde/)).not.toBeInTheDocument();
+    });
+
+    it('si la cotización falla y no hay política, sólo dice que no se pudo calcular', async () => {
+      await abrirModal({
+        quote: () => jsonResponse({}, 503),
+        profile: () => jsonResponse({}, 404),
+      });
+
+      expect(
+        await screen.findByText('No pudimos calcular la devolución ahora.'),
+      ).toBeInTheDocument();
+    });
+
     it('un turno sin pagar no habla de devolución', async () => {
       await abrirModal({}, [UPCOMING]);
 
