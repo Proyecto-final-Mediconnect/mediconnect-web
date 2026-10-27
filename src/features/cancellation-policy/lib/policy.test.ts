@@ -4,6 +4,7 @@ import {
   refundOutcomeText,
   refundPercentFor,
   refundQuoteText,
+  rescheduleBlockedText,
   validatePolicy,
 } from './policy';
 
@@ -127,5 +128,25 @@ describe('refundOutcomeText (ENG-65)', () => {
   it('sin nada que devolver, o con un backend sin ENG-65, no dice nada', () => {
     expect(refundOutcomeText({ amount: 0, status: null }, monto)).toBeNull();
     expect(refundOutcomeText(undefined, monto)).toBeNull();
+  });
+});
+
+describe('rescheduleBlockedText (ENG-66)', () => {
+  it('con la anticipación de la devolución total se puede reprogramar', () => {
+    expect(rescheduleBlockedText(DEFAULT, enHoras(24), NOW)).toBeNull();
+  });
+
+  it('con menos anticipación explica por qué no', () => {
+    expect(rescheduleBlockedText(DEFAULT, enHoras(10), NOW)).toBe(
+      'Con menos de 24 horas ya no se puede reprogramar.',
+    );
+  });
+
+  it('un parcial del 100 % corre el límite a sus horas', () => {
+    const p = { ...DEFAULT, partialRefundPercent: 100 };
+    expect(rescheduleBlockedText(p, enHoras(10), NOW)).toBeNull();
+    expect(rescheduleBlockedText(p, enHoras(1), NOW)).toBe(
+      'Con menos de 6 horas ya no se puede reprogramar.',
+    );
   });
 });

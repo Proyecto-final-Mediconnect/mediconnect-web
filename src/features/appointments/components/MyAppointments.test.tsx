@@ -382,6 +382,58 @@ describe('MyAppointments', () => {
       await screen.findByRole('region', { name: /próximos/i });
       expect(screen.queryByRole('link', { name: 'Reprogramar' })).not.toBeInTheDocument();
     });
+
+    describe('un turno pagado, según la política del profesional', () => {
+      /** Reprogramar pide 24 h (las de la devolución total). */
+      const PROFILE = {
+        id: PRO_ID,
+        firstName: 'Ana',
+        lastName: 'Médica',
+        photoUrl: null,
+        bio: null,
+        specialties: [],
+        education: [],
+        price: 15000,
+        currency: 'ARS',
+        cancellationPolicy: {
+          hoursFullRefund: 24,
+          hoursPartialRefund: 6,
+          partialRefundPercent: 50,
+        },
+      };
+      const PAID = { ...UPCOMING, status: 'CONFIRMADO' };
+
+      it('con la anticipación de la política se puede reprogramar', async () => {
+        // Faltan 26 h.
+        mockApi({ mine: () => jsonResponse([PAID]), profile: () => jsonResponse(PROFILE) });
+        renderMyAppointments();
+
+        expect(await screen.findByRole('link', { name: 'Reprogramar' })).toBeInTheDocument();
+      });
+
+      it('con menos anticipación no ofrece reprogramar y explica por qué', async () => {
+        // 11:00Z + 10 h.
+        mockApi({
+          mine: () => jsonResponse([{ ...PAID, scheduledAt: '2026-08-17T21:00:00.000Z' }]),
+          profile: () => jsonResponse(PROFILE),
+        });
+        renderMyAppointments();
+
+        expect(
+          await screen.findByText('Con menos de 24 horas ya no se puede reprogramar.'),
+        ).toBeInTheDocument();
+        expect(screen.queryByRole('link', { name: 'Reprogramar' })).not.toBeInTheDocument();
+      });
+
+      it('sin la política deja el botón: decide el backend', async () => {
+        mockApi({
+          mine: () => jsonResponse([{ ...PAID, scheduledAt: '2026-08-17T21:00:00.000Z' }]),
+        });
+        renderMyAppointments();
+
+        expect(await screen.findByRole('link', { name: 'Reprogramar' })).toBeInTheDocument();
+      });
+    });
   });
 
   it('"No, dejarlo" cierra la confirmación sin cancelar', async () => {

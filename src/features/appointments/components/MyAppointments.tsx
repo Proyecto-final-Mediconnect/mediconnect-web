@@ -17,7 +17,8 @@ import {
 import { formatPrice } from '../lib/weeks';
 import type { Appointment } from '../types/appointment';
 import { RefundEstimate } from '../../cancellation-policy/components/RefundEstimate';
-import { refundOutcomeText } from '../../cancellation-policy/lib/policy';
+import { refundOutcomeText, rescheduleBlockedText } from '../../cancellation-policy/lib/policy';
+import { usePublicProfile } from '../../catalog/hooks/usePublicProfile';
 
 /**
  * Mis turnos (ENG-55).
@@ -152,10 +153,7 @@ function AppointmentList({
         <span className="text-xs font-semibold text-brand">
           {String(appointments.length).padStart(2, '0')}
         </span>
-        <h2
-          id={id}
-          className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted"
-        >
+        <h2 id={id} className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
           {title}
         </h2>
       </div>
@@ -204,9 +202,7 @@ function AppointmentRow({
   const counterpart = counterpartOf(appointment, userId);
   const isPatient = appointment.patient?.id === userId;
   const cancellable = canCancel(appointment, userId);
-  // Se reprograma lo mismo que se puede cancelar, una sola vez (ENG-66). Si es un
-  // turno pagado sin la anticipación que pide la política, el backend lo rechaza
-  // y la pantalla de reprogramar muestra por qué.
+  // Se reprograma lo mismo que se puede cancelar, una sola vez (ENG-66).
   const reschedulable = cancellable && !appointment.rescheduledAt && appointment.professional;
 
   // Reloj propio: el botón de la videoconsulta aparece 10 minutos antes del
@@ -216,6 +212,19 @@ function AppointmentRow({
   const joinState = joinStateOf(appointment, now);
   // El pago es del paciente, no del profesional que cobra la consulta.
   const pagable = isPatient && canPay(appointment, now);
+
+  // Un turno pagado sólo se reprograma con la anticipación de la devolución total
+  // (ENG-66). Se avisa antes de mandar al paciente a la grilla; sin la política
+  // se deja el botón y decide el backend, que es la fuente de verdad.
+  const policy = usePublicProfile(
+    reschedulable && appointment.status === 'CONFIRMADO'
+      ? (appointment.professional?.id ?? '')
+      : '',
+  ).data?.cancellationPolicy;
+  const rescheduleBlocked =
+    reschedulable && appointment.status === 'CONFIRMADO' && policy
+      ? rescheduleBlockedText(policy, new Date(appointment.scheduledAt), now)
+      : null;
 
   return (
     <li
@@ -318,7 +327,13 @@ function AppointmentRow({
             </Link>
           )}
 
-          {reschedulable && !isConfirming && (
+          {reschedulable && !isConfirming && rescheduleBlocked && (
+            <p className={`self-center text-xs ${isNext ? 'text-white/70' : 'text-muted'}`}>
+              {rescheduleBlocked}
+            </p>
+          )}
+
+          {reschedulable && !isConfirming && !rescheduleBlocked && (
             <Link
               to={`/profesionales/${appointment.professional?.id}/turnos?reprogramar=${appointment.id}`}
               className={`inline-flex items-center justify-center rounded-[9px] border px-5 py-3 text-sm font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${

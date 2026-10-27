@@ -53,6 +53,27 @@ export function refundPercentFor(policy: CancellationPolicy, scheduledAt: Date, 
   return 0;
 }
 
+/**
+ * Por qué ya no se puede reprogramar un turno pagado, o `null` si todavía se
+ * puede (ENG-66). El backend sólo deja moverlo mientras corresponda la
+ * devolución total; esto adelanta el aviso, pero el que decide es el backend.
+ */
+export function rescheduleBlockedText(
+  policy: CancellationPolicy,
+  scheduledAt: Date,
+  now: Date,
+): string | null {
+  if (refundPercentFor(policy, scheduledAt, now) >= MAX_REFUND_PERCENT) return null;
+  // Con un parcial del 100 % la devolución total llega hasta las horas del parcial.
+  const minimo =
+    policy.partialRefundPercent === MAX_REFUND_PERCENT
+      ? Math.min(policy.hoursFullRefund, policy.hoursPartialRefund)
+      : policy.hoursFullRefund;
+  return minimo === 0
+    ? 'El turno ya empezó: no se puede reprogramar.'
+    : `Con menos de ${horas(minimo)} ya no se puede reprogramar.`;
+}
+
 function horas(n: number): string {
   return n === 1 ? '1 hora' : `${n} horas`;
 }
