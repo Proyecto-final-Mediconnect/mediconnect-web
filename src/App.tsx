@@ -8,6 +8,7 @@ import { EmergencyViewPage } from './pages/EmergencyViewPage';
 import { GuardiaFichaPage } from './pages/GuardiaFichaPage';
 import { GuardiaJuegoPage } from './pages/GuardiaJuegoPage';
 import { MediPassPage } from './pages/MediPassPage';
+import { MessagesPage } from './pages/MessagesPage';
 import { LandingPage } from './pages/LandingPage';
 import { LegalPage } from './pages/LegalPage';
 import { LoginPage } from './pages/LoginPage';
@@ -130,6 +131,26 @@ function App() {
         element={
           <RequireAuth allow={['PACIENTE', 'PROFESIONAL']}>
             <MyAppointmentsPage />
+          </RequireAuth>
+        }
+      />
+      {/* Mensajes (ENG-70). Los dos roles: el chat es entre paciente y
+          profesional. Con `:conversationId` abre esa conversación; `nuevo/…` es
+          el borrador de un chat que se crea con el primer mensaje. La ruta
+          estática le gana a la dinámica, así "nuevo" no se lee como un id. */}
+      <Route
+        path="/mensajes/:conversationId?"
+        element={
+          <RequireAuth allow={['PACIENTE', 'PROFESIONAL']}>
+            <MessagesPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/mensajes/nuevo/:contraparteId"
+        element={
+          <RequireAuth allow={['PACIENTE', 'PROFESIONAL']}>
+            <MessagesPage />
           </RequireAuth>
         }
       />
