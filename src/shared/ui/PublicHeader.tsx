@@ -46,7 +46,17 @@ export function PublicHeader() {
           <HeaderLink to="/profesionales" hideOnMobile>
             Buscar profesionales
           </HeaderLink>
-          {isLoading ? habiaSesion() ? <RanuraSesion /> : <Anonimo /> : user ? <BloqueSesion user={user} /> : <Anonimo />}
+          {isLoading ? (
+            habiaSesion() ? (
+              <RanuraSesion />
+            ) : (
+              <Anonimo />
+            )
+          ) : user ? (
+            <BloqueSesion user={user} />
+          ) : (
+            <Anonimo />
+          )}
         </nav>
       </div>
     </header>
