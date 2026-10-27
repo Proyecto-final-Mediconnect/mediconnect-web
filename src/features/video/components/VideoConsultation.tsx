@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useNow } from '../../../shared/hooks/useNow';
 import { Button } from '../../../shared/ui/Button';
@@ -41,6 +41,9 @@ type VideoConsultationProps = {
 
 type Fase = 'CURSO' | 'CIERRE';
 
+/** Cada cuánto se revisa si se acreditó el pago de un turno sin pagar. */
+const UNPAID_REFETCH_MS = 5_000;
+
 export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
   const { user } = useSession();
   const appointments = useMyAppointments();
@@ -51,6 +54,17 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
   const appointment =
     appointments.data?.find((cita) => cita.id === appointmentId) ?? null;
   const ventana = appointment ? joinStateOf(appointment, now) : null;
+
+  // El pago lo confirma un webhook de MercadoPago que puede tardar unos segundos:
+  // si el paciente vuelve antes, el turno sigue sin pagar. Mientras se muestre
+  // ese aviso se vuelve a pedir la lista, así entra solo apenas se acredita.
+  const sinPagar = ventana?.kind === 'UNPAID';
+  const { refetch } = appointments;
+  useEffect(() => {
+    if (!sinPagar) return;
+    const id = setInterval(() => void refetch(), UNPAID_REFETCH_MS);
+    return () => clearInterval(id);
+  }, [sinPagar, refetch]);
 
   // Mientras la lista no llegó no se pide nada: pedir a ciegas es justo lo que
   // hacía que llegar temprano generara un 409.
@@ -103,7 +117,8 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
   if (appointment && ventana?.kind === 'UNPAID') {
     return esPaciente ? (
       <Aviso titulo="Pagá el turno para entrar a la consulta.">
-        La sala se abre cuando el pago está confirmado.{' '}
+        La sala se abre cuando el pago está confirmado. Si ya pagaste, la confirmación puede
+        demorar unos segundos y vas a entrar solo.{' '}
         <Link
           to={`/turnos/${appointment.id}/pago`}
           className="font-semibold text-brand-hover underline-offset-2 hover:underline"
