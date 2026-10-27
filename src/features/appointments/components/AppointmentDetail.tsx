@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useNow } from '../../../shared/hooks/useNow';
 import { useSession } from '../../auth/hooks/useSession';
 import { PolicyNotice } from '../../cancellation-policy/components/PolicyNotice';
+import { MAX_REFUND_PERCENT, refundPercentFor } from '../../cancellation-policy/lib/policy';
 import { usePublicProfile } from '../../catalog/hooks/usePublicProfile';
 import { getPaymentStatus } from '../../payments/api/paymentsApi';
 import { canPay } from '../../payments/lib/checkout';
@@ -108,6 +109,13 @@ export function AppointmentDetail({
   const payable = isPatient && canPay(appointment, now);
   const cancellable = canCancel(appointment, userId, now);
   const reschedulable = cancellable && !appointment.rescheduledAt && appointment.professional;
+  // Un turno pagado sólo se reprograma con la anticipación del reembolso total
+  // (el backend lo rechaza si no). Se adelanta el aviso con la política del
+  // perfil público; el backend sigue siendo la fuente de verdad (ENG-66).
+  const reprogramacionCerrada =
+    appointment.status === 'CONFIRMADO' &&
+    policy !== undefined &&
+    refundPercentFor(policy, new Date(appointment.scheduledAt), now) < MAX_REFUND_PERCENT;
   const professionalId = appointment.professional?.id;
 
   return (
@@ -219,13 +227,18 @@ export function AppointmentDetail({
             Acciones
           </h2>
 
-          {reschedulable && (
+          {reschedulable && !reprogramacionCerrada && (
             <Link
               to={`/profesionales/${professionalId}/turnos?reprogramar=${appointment.id}`}
               className="inline-flex items-center justify-center rounded-[10px] border border-line-strong bg-white px-4 py-2.5 text-sm font-bold text-brand-deep transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
               Reprogramar
             </Link>
+          )}
+          {reschedulable && reprogramacionCerrada && policy && (
+            <p className="self-center text-sm text-muted">
+              Con menos de {policy.hoursFullRefund} horas ya no se puede reprogramar.
+            </p>
           )}
           {cancellable && (
             <button

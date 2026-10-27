@@ -268,6 +268,49 @@ describe('BookAppointment', () => {
     });
   });
 
+  describe('reprogramar sin el turno resuelto (ENG-66)', () => {
+    it('mientras carga la lista no muestra el flujo de reserva', async () => {
+      const fetchMock = mockApi({ mine: () => jsonResponse([]) });
+      fetchMock.mockImplementation((input): Promise<Response> => {
+        const url = String(input);
+        if (url.includes('/availability')) return Promise.resolve(jsonResponse(AVAILABILITY));
+        // La lista de turnos nunca responde.
+        if (url.includes('/appointments/me')) return new Promise(() => undefined);
+        return Promise.resolve(jsonResponse({}, 404));
+      });
+      renderBooking('33333333-3333-4333-8333-333333333333');
+
+      expect(await screen.findByText(/Cargando tu turno/)).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /confirmar/i })).not.toBeInTheDocument();
+    });
+
+    it('si la lista falla muestra el error y no el flujo de reserva', async () => {
+      mockApi({ mine: () => jsonResponse({ statusCode: 403, message: 'Falló la lista' }, 403) });
+      renderBooking('33333333-3333-4333-8333-333333333333');
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/Falló la lista/);
+      expect(screen.getByRole('button', { name: /reintentar/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /confirmar/i })).not.toBeInTheDocument();
+    });
+
+    it('un turno de otro profesional no se reprograma desde esta agenda', async () => {
+      mockApi({
+        mine: () =>
+          jsonResponse([
+            {
+              ...BOOKED_APPOINTMENT,
+              professional: { id: 'otro-profesional', firstName: 'Beto', lastName: 'Otro' },
+            },
+          ]),
+      });
+      renderBooking(BOOKED_APPOINTMENT.id);
+
+      expect(
+        await screen.findByText(/No encontramos el turno que querés reprogramar/),
+      ).toBeInTheDocument();
+    });
+  });
+
   it('al confirmar manda solo profesional, fecha y hora', async () => {
     let sent: unknown = null;
     mockApi({

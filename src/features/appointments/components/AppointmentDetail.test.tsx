@@ -108,6 +108,50 @@ describe('AppointmentDetail (ENG-178)', () => {
     expect(screen.getByText('Este turno ya se reprogramó una vez.')).toBeInTheDocument();
   });
 
+  describe('reprogramar un turno pagado (ENG-66)', () => {
+    const PROFILE = {
+      id: LATER.professional.id,
+      firstName: 'Ana',
+      lastName: 'Médica',
+      photoUrl: null,
+      bio: null,
+      specialties: [],
+      education: [],
+      price: 15000,
+      currency: 'ARS',
+      cancellationPolicy: { hoursFullRefund: 24, hoursPartialRefund: 6, partialRefundPercent: 50 },
+    };
+
+    it('con la anticipación de la política ofrece reprogramar', async () => {
+      // Faltan 7 días: devolución total.
+      mockApi({ mine: () => jsonResponse(ALL), profile: () => jsonResponse(PROFILE) });
+      renderDetail(LATER.id);
+
+      expect(await screen.findByRole('link', { name: 'Reprogramar' })).toBeInTheDocument();
+    });
+
+    it('con menos anticipación avisa en lugar de ofrecer reprogramar', async () => {
+      // Faltan 10 h: la política da sólo el parcial, así que el backend rechaza.
+      mockApi({
+        mine: () =>
+          jsonResponse([
+            {
+              ...LATER,
+              scheduledAt: '2026-08-17T21:00:00.000Z',
+              date: '2026-08-17',
+              startTime: '18:00',
+            },
+          ]),
+        profile: () => jsonResponse(PROFILE),
+      });
+      renderDetail(LATER.id);
+
+      expect(await screen.findByText(/ya no se puede reprogramar/)).toHaveTextContent(/24 horas/);
+      expect(screen.queryByRole('link', { name: 'Reprogramar' })).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Cancelar el turno' })).toBeInTheDocument();
+    });
+  });
+
   it('cancelar abre el modal', async () => {
     const u = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     mockApi({ mine: () => jsonResponse(ALL) });
