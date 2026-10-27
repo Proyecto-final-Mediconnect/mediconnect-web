@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useSession } from '../../features/auth/hooks/useSession';
+import { habiaSesion } from '../../features/auth/lib/sessionHint';
 import {
   dashboardPathFor,
   displayNameOf,
@@ -45,7 +46,17 @@ export function PublicHeader() {
           <HeaderLink to="/profesionales" hideOnMobile>
             Buscar profesionales
           </HeaderLink>
-          {isLoading ? <RanuraSesion /> : user ? <BloqueSesion user={user} /> : <Anonimo />}
+          {isLoading ? (
+            habiaSesion() ? (
+              <RanuraSesion />
+            ) : (
+              <Anonimo />
+            )
+          ) : user ? (
+            <BloqueSesion user={user} />
+          ) : (
+            <Anonimo />
+          )}
         </nav>
       </div>
     </header>
@@ -59,6 +70,10 @@ export function PublicHeader() {
  * anónimo y cambiarla 200 ms después le dice al usuario logueado que no tiene
  * sesión, aunque sea por un instante. Un hueco no afirma nada, y al reservar el
  * ancho el resto de la barra no salta cuando llega la respuesta.
+ *
+ * Solo se usa si en este navegador hubo sesión (`habiaSesion`). Al visitante que
+ * nunca ingresó se le muestra "Ingresar" de entrada: con el backend arrancando en
+ * frío, el hueco podía durar un minuto y la portada quedaba sin forma de entrar.
  */
 function RanuraSesion() {
   return <div aria-hidden="true" className="h-[42px] w-[150px] md:w-[210px]" />;

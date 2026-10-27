@@ -373,6 +373,26 @@ describe('VideoConsultation', () => {
       expect(await screen.findByText(/no tiene videoconsulta/i)).toBeVisible();
     });
 
+    it('un turno sin pagar avisa y entra solo cuando se acredita el pago', async () => {
+      // El webhook de MercadoPago puede llegar después de que el paciente vuelve.
+      reloj('2026-08-20T12:55:00Z'); // dentro de la ventana
+      turnos = [{ ...TURNO, status: 'RESERVADO_SIN_PAGAR' }];
+
+      renderComponent();
+
+      expect(await screen.findByText(/pagá el turno para entrar/i)).toBeVisible();
+      expect(
+        fetchSpy.mock.calls.filter(([u]: unknown[]) => String(u).includes('/video')),
+      ).toHaveLength(0);
+
+      turnos = [TURNO]; // el webhook acreditó el pago
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(6_000);
+      });
+
+      expect(await screen.findByTitle(/Videoconsulta con Ana Gómez/)).toBeInTheDocument();
+    });
+
     it('si el turno no está en la lista, decide el backend', async () => {
       // La lista está paginada: no aparecer ahí no puede significar "no entrás".
       reloj('2026-08-20T12:30:00Z');
