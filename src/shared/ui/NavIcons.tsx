@@ -130,3 +130,13 @@ export function IconModeracion(p: IconProps) {
     </Svg>
   );
 }
+
+/** Mensajes: un globo de diálogo (ENG-70). */
+export function IconMensajes(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M4 5h16a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H9l-4 3v-3H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />
+      <path d="M8 10h8M8 13h5" />
+    </Svg>
+  );
+}

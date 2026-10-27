@@ -3,6 +3,8 @@ export interface InAppNotification {
   id: string;
   type: string;
   appointmentId: string | null;
+  /** Conversación de un aviso de mensaje nuevo (ENG-70): tocarlo lleva al chat. */
+  conversationId?: string | null;
   title: string;
   body: string;
   /** ISO-8601. */

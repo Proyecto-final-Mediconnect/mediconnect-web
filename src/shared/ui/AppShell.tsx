@@ -13,6 +13,7 @@ import {
   IconAgenda,
   IconBuscar,
   IconHistoria,
+  IconMensajes,
   IconMediPass,
   IconModeracion,
   IconPanel,
@@ -86,6 +87,7 @@ const NAV_PACIENTE: NavItem[][] = [
     { to: '/paciente', label: 'Panel', end: true, Icon: IconPanel },
     { to: '/buscar', label: 'Buscar profesionales', Icon: IconBuscar },
     { to: '/mis-turnos', label: 'Mis turnos', Icon: IconTurnos },
+    { to: '/mensajes', label: 'Mensajes', Icon: IconMensajes },
   ],
   [
     { to: '/mi-historia-clinica', label: 'Mi historia clínica', Icon: IconHistoria },
@@ -99,6 +101,7 @@ const NAV_PROFESIONAL: NavItem[][] = [
     { to: '/profesional', label: 'Panel', end: true, Icon: IconPanel },
     { to: '/profesional/agenda', label: 'Mi agenda', Icon: IconAgenda },
     { to: '/mis-turnos', label: 'Mis consultas', Icon: IconTurnos },
+    { to: '/mensajes', label: 'Mensajes', Icon: IconMensajes },
   ],
   [{ to: '/perfil', label: 'Mi perfil público', Icon: IconPerfil }],
 ];
