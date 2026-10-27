@@ -204,7 +204,7 @@ export function PatientDashboardPage() {
                     {recientes.map((a) => (
                       <li key={a.id}>
                         <Link
-                          to={`/mis-turnos?turno=${a.id}`}
+                          to={`/turnos/${a.id}`}
                           className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-surface focus:outline-none focus-visible:bg-surface"
                         >
                           <DateBadge date={a.date} muted />

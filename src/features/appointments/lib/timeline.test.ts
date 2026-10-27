@@ -30,6 +30,22 @@ describe('appointmentTimeline (ENG-178)', () => {
     expect(pasos.slice(2)).toEqual(['Quedó confirmado', 'Consulta']);
   });
 
+  it('visto por el profesional, los pasos hablan del paciente', () => {
+    const pasos = appointmentTimeline(
+      { ...BASE, status: 'COMPLETADO', rescheduledAt: '2026-10-22T12:00:00.000Z' },
+      null,
+      NOW,
+      'PROFESIONAL',
+    ).map((p) => p.title);
+    expect(pasos).toEqual([
+      'El paciente reservó el turno',
+      'Pago acreditado',
+      'Se reprogramó el turno',
+      'Quedó confirmado',
+      'Se realizó la consulta',
+    ]);
+  });
+
   it('la reserva lleva la fecha en hora argentina', () => {
     expect(appointmentTimeline(BASE, null, NOW)[0].when).toBe('21 de octubre · 18:35');
   });

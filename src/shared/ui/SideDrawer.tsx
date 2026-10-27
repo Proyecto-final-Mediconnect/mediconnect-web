@@ -19,12 +19,24 @@ export function SideDrawer({
   children: ReactNode;
 }) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  // `onClose` suele ser una función nueva en cada render: si el efecto dependiera
+  // de ella, se reinstalaría (y robaría el foco) en cada tick del padre.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
 
   useEffect(() => {
     if (!open) return;
+    // Para devolverle el foco a quien abrió el panel al cerrarlo.
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeRef.current?.focus();
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      // El Escape que nace dentro de un <dialog> (la confirmación de cancelar)
+      // es de ese diálogo: no tiene que cerrar el panel entero.
+      if (e.key === 'Escape' && !(e.target as Element | null)?.closest('dialog')) {
+        onCloseRef.current();
+      }
     };
     document.addEventListener('keydown', onKey);
     const overflow = document.body.style.overflow;
@@ -32,8 +44,9 @@ export function SideDrawer({
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = overflow;
+      opener?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 

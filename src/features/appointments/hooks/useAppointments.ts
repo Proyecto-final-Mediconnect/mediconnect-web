@@ -85,8 +85,10 @@ export function useCancelAppointment() {
 
   return useMutation({
     mutationFn: cancelAppointment,
-    onSuccess: () => {
+    onSuccess: (_cancelled, appointmentId) => {
       void queryClient.invalidateQueries({ queryKey: MY_APPOINTMENTS_KEY });
+      // El detalle muestra el estado del pago: al cancelar puede pasar a reembolsado.
+      void queryClient.invalidateQueries({ queryKey: ['payment', appointmentId] });
       // Cancelar libera el horario: la grilla de reserva vuelve a ofrecerlo.
       // Sin esto, el paciente cancela y sigue viendo su propio turno "ocupado".
       void queryClient.invalidateQueries({ queryKey: ['availability'] });

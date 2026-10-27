@@ -60,7 +60,13 @@ export function AppointmentDetail({
     enabled: appointment !== null && isPatient,
     retry: false,
   });
-  const policy = usePublicProfile(appointment?.professional?.id ?? '').data?.cancellationPolicy;
+  // La política sólo se muestra al paciente que puede cancelar: para el resto no
+  // se pide el perfil (`''` lo deshabilita).
+  const policy = usePublicProfile(
+    appointment && isPatient && canCancel(appointment, userId, now)
+      ? (appointment.professional?.id ?? '')
+      : '',
+  ).data?.cancellationPolicy;
 
   if (appointments.isPending) {
     return (
@@ -92,7 +98,12 @@ export function AppointmentDetail({
 
   const person = counterpartOf(appointment, userId);
   const name = person ? `${person.firstName} ${person.lastName}` : 'Sin datos';
-  const steps = appointmentTimeline(appointment, payment.data ?? null, now);
+  const steps = appointmentTimeline(
+    appointment,
+    payment.data ?? null,
+    now,
+    isPatient ? 'PACIENTE' : 'PROFESIONAL',
+  );
   const join = joinStateOf(appointment, now);
   const payable = isPatient && canPay(appointment, now);
   const cancellable = canCancel(appointment, userId, now);

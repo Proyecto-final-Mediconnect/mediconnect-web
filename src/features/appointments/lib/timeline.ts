@@ -39,15 +39,20 @@ function cuando(iso: string | null | undefined): string | null {
   return `${formatDate(fecha)} · ${hora}`;
 }
 
+/** Quién mira la línea de tiempo: los pasos se cuentan desde su lugar. */
+export type TimelineViewer = 'PACIENTE' | 'PROFESIONAL';
+
 export function appointmentTimeline(
   appointment: Appointment,
   payment: PaymentStatusView | null,
   now: Date = new Date(),
+  viewer: TimelineViewer = 'PACIENTE',
 ): TimelineStep[] {
+  const paciente = viewer === 'PACIENTE';
   const pasos: TimelineStep[] = [
     {
       key: 'reserva',
-      title: 'Reservaste el turno',
+      title: paciente ? 'Reservaste el turno' : 'El paciente reservó el turno',
       when: cuando(appointment.createdAt),
       tone: 'done',
     },
@@ -62,12 +67,19 @@ export function appointmentTimeline(
   ) {
     pasos.push({
       key: 'pago',
-      title: `Pagaste ${formatPrice(appointment.price, appointment.currency)} con MercadoPago`,
+      title: paciente
+        ? `Pagaste ${formatPrice(appointment.price, appointment.currency)} con MercadoPago`
+        : 'Pago acreditado',
       when: cuando(payment?.confirmedAt),
       tone: 'done',
     });
   } else if (pago === 'REEMBOLSADO') {
-    pasos.push({ key: 'pago', title: 'Te devolvimos el pago', when: null, tone: 'done' });
+    pasos.push({
+      key: 'pago',
+      title: paciente ? 'Te devolvimos el pago' : 'Se devolvió el pago',
+      when: null,
+      tone: 'done',
+    });
   } else if (pago === 'RECHAZADO' && status === 'RESERVADO_SIN_PAGAR') {
     pasos.push({ key: 'pago', title: 'MercadoPago rechazó el pago', when: null, tone: 'bad' });
   } else if (status === 'RESERVADO_SIN_PAGAR') {
@@ -82,7 +94,7 @@ export function appointmentTimeline(
   if (appointment.rescheduledAt) {
     pasos.push({
       key: 'reprogramado',
-      title: 'Lo reprogramaste',
+      title: paciente ? 'Lo reprogramaste' : 'Se reprogramó el turno',
       when: cuando(appointment.rescheduledAt),
       tone: 'done',
     });
@@ -113,7 +125,12 @@ export function appointmentTimeline(
 
   const consulta = `${formatDate(appointment.date)} · ${appointment.startTime}`;
   if (status === 'COMPLETADO') {
-    pasos.push({ key: 'consulta', title: 'Tuviste la consulta', when: consulta, tone: 'done' });
+    pasos.push({
+      key: 'consulta',
+      title: paciente ? 'Tuviste la consulta' : 'Se realizó la consulta',
+      when: consulta,
+      tone: 'done',
+    });
   } else if (status === 'NO_ASISTIO') {
     pasos.push({
       key: 'consulta',
