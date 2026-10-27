@@ -266,6 +266,74 @@ describe('BookAppointment', () => {
       ).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /confirmar/i })).not.toBeInTheDocument();
     });
+
+    it('un turno de otro profesional no se reprograma con esta agenda', async () => {
+      const otro = { ...PAID, professional: { id: 'otro-pro', firstName: 'B', lastName: 'B' } };
+      mockApi({ mine: () => jsonResponse([otro]) });
+      renderBooking(PAID.id);
+
+      expect(
+        await screen.findByText(/No encontramos el turno que querés reprogramar/),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /confirmar/i })).not.toBeInTheDocument();
+    });
+
+    it('mientras carga la lista no muestra la reserva nueva', async () => {
+      // `Promise.resolve` adopta la promesa: la lista no llega nunca.
+      mockApi({ mine: () => new Promise<Response>(() => {}) as unknown as Response });
+      renderBooking(PAID.id);
+
+      expect(
+        await screen.findByText(/Cargando el turno que querés reprogramar/),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /confirmar reserva/i })).not.toBeInTheDocument();
+      expect(screen.queryByLabelText(/10:30 .* disponible/i)).not.toBeInTheDocument();
+    });
+
+    it('si la lista falla ofrece reintentar en vez de reservar uno nuevo', async () => {
+      let falla = true;
+      const fetchSpy = mockApi({
+        mine: () =>
+          falla ? jsonResponse({ message: 'Se cayó el servidor.' }, 500) : jsonResponse([PAID]),
+      });
+      renderBooking(PAID.id);
+
+      // `useMyAppointments` reintenta los 5xx una vez.
+      expect(await screen.findByRole('alert', undefined, { timeout: 4000 })).toHaveTextContent(
+        /No pudimos cargar el turno que querés reprogramar\. Se cayó el servidor\./,
+      );
+      expect(screen.queryByRole('button', { name: /confirmar reserva/i })).not.toBeInTheDocument();
+
+      falla = false;
+      await userEvent.click(screen.getByRole('button', { name: /reintentar/i }));
+
+      await userEvent.click(await screen.findByLabelText(/10:30 .* disponible/i));
+      expect(screen.getByRole('button', { name: /confirmar nuevo horario/i })).toBeEnabled();
+      expect(
+        fetchSpy.mock.calls.some(
+          ([, init]) => (init as RequestInit | undefined)?.method === 'POST',
+        ),
+      ).toBe(false);
+    });
+
+    it('un doble click reprograma una sola vez y nunca reserva', async () => {
+      const fetchSpy = mockApi({
+        mine: () => jsonResponse([PAID]),
+        reschedule: () =>
+          jsonResponse({ ...PAID, startTime: '10:30', rescheduledAt: NOW.toISOString() }),
+      });
+      renderBooking(PAID.id);
+
+      await userEvent.click(await screen.findByLabelText(/10:30 .* disponible/i));
+      await userEvent.dblClick(screen.getByRole('button', { name: /confirmar nuevo horario/i }));
+
+      expect(await screen.findByText(/Movimos tu turno/)).toBeInTheDocument();
+      const metodos = fetchSpy.mock.calls.map(
+        ([, init]) => (init as RequestInit | undefined)?.method,
+      );
+      expect(metodos.filter((m) => m === 'PATCH')).toHaveLength(1);
+      expect(metodos).not.toContain('POST');
+    });
   });
 
   it('al confirmar manda solo profesional, fecha y hora', async () => {

@@ -113,12 +113,22 @@ export function BookAppointment({ professionalId, rescheduleId }: BookAppointmen
   const book = useBookAppointment();
   const reschedule = useRescheduleAppointment();
   const myAppointments = useMyAppointments();
-  /** El turno que se está moviendo (ENG-66), o `null` si se reserva uno nuevo. */
-  const rescheduling =
-    rescheduleId !== undefined
-      ? ((myAppointments.data ?? []).find((a) => a.id === rescheduleId) ?? null)
-      : null;
-  const mutation = rescheduleId !== undefined ? reschedule : book;
+  /**
+   * El turno que se está moviendo (ENG-66), o `null` si se reserva uno nuevo o
+   * todavía no se resolvió. Tiene que ser de ESTE profesional: el backend lo
+   * mueve dentro de la agenda del turno, no de la que se está mirando.
+   *
+   * Qué hace la pantalla lo decide `rescheduleId`, nunca `rescheduling`: mientras
+   * la lista carga o si falla, `rescheduling` es `null` y eso no puede leerse
+   * como "reservar uno nuevo".
+   */
+  const isRescheduling = rescheduleId !== undefined;
+  const rescheduling = isRescheduling
+    ? ((myAppointments.data ?? []).find(
+        (a) => a.id === rescheduleId && a.professional?.id === professionalId,
+      ) ?? null)
+    : null;
+  const mutation = isRescheduling ? reschedule : book;
 
   const professional = availability.data?.professional;
   const price = professional?.consultationPrice ?? null;
@@ -143,9 +153,12 @@ export function BookAppointment({ professionalId, rescheduleId }: BookAppointmen
   }
 
   function confirm() {
-    if (!selected) return;
+    if (!selected || mutation.isPending) return;
 
-    if (rescheduling) {
+    if (isRescheduling) {
+      // Sin el turno resuelto no hay nada que mover, y reservar uno nuevo en su
+      // lugar sería un turno duplicado.
+      if (!rescheduling) return;
       reschedule.mutate(
         { appointmentId: rescheduling.id, date: selected.date, startTime: selected.startTime },
         {
@@ -181,10 +194,35 @@ export function BookAppointment({ professionalId, rescheduleId }: BookAppointmen
     );
   }
 
-  // Se pidió reprogramar un turno que no está en la lista: no es del paciente, ya
-  // no existe, o la URL quedó vieja. Reservar uno nuevo en su lugar sería
-  // sorprender al paciente con un segundo turno.
-  if (rescheduleId !== undefined && myAppointments.isSuccess && !rescheduling) {
+  // Al reprogramar, hasta tener el turno no se muestra la grilla: con la lista
+  // cargando o caída, la pantalla parecería una reserva nueva.
+  if (isRescheduling && myAppointments.isPending) {
+    return (
+      <p role="status" aria-live="polite" className="text-muted">
+        Cargando el turno que querés reprogramar…
+      </p>
+    );
+  }
+
+  if (isRescheduling && myAppointments.isError) {
+    return (
+      <div role="alert" className="grid justify-items-start gap-2 text-danger">
+        <p>No pudimos cargar el turno que querés reprogramar. {myAppointments.error.message}</p>
+        <button
+          type="button"
+          onClick={() => void myAppointments.refetch()}
+          className="font-semibold underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
+  // Se pidió reprogramar un turno que no está en la lista: no es del paciente, es
+  // de otro profesional, ya no existe, o la URL quedó vieja. Reservar uno nuevo en
+  // su lugar sería sorprender al paciente con un segundo turno.
+  if (isRescheduling && !rescheduling) {
     return (
       <p role="alert" className="text-danger">
         No encontramos el turno que querés reprogramar.{' '}
