@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { StatusChip } from '../../appointments/components/agenda/StatusChip';
 import { useNow } from '../../../shared/hooks/useNow';
-import { formatLongDate, statusLabel } from '../../appointments/lib/myAppointments';
+import { formatLongDate } from '../../appointments/lib/myAppointments';
 import { formatPrice } from '../../appointments/lib/weeks';
 import type { Appointment } from '../../appointments/types/appointment';
 import { joinStateOf, timeUntilOpen } from '../../video/lib/joinWindow';
@@ -90,9 +91,7 @@ export function NextAppointmentCard({
           </p>
         </div>
 
-        <span className="rounded-full bg-white/10 px-3 py-1 text-xs font-semibold text-on-night-strong">
-          {statusLabel(appointment.status)}
-        </span>
+        <StatusChip status={appointment.status} onDark />
       </div>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
@@ -115,7 +114,7 @@ export function NextAppointmentCard({
         )}
 
         <Link
-          to="/mis-turnos"
+          to={`/turnos/${appointment.id}`}
           className="inline-flex items-center rounded-[9px] border border-white/25 px-5 py-3 text-sm font-bold text-white transition-colors hover:border-brand-bright focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-bright focus-visible:ring-offset-2 focus-visible:ring-offset-night"
         >
           Ver el detalle
@@ -145,13 +144,17 @@ export function NoNextAppointment({
   accion?: { to: string; label: string };
 }) {
   return (
-    <article className="rounded-[14px] border border-dashed border-line-strong bg-white p-7">
-      <p className="font-display text-[24px] leading-[1.2] text-brand-deep">{titulo}</p>
-      <p className="mt-2 max-w-[520px] text-sm leading-[1.6] text-muted">{detalle}</p>
+    // En pantallas anchas va en una franja: texto a la izquierda, acción a la
+    // derecha. Un bloque alto con dos líneas adentro dejaba media tarjeta vacía.
+    <article className="flex flex-wrap items-center justify-between gap-5 rounded-[14px] border border-dashed border-line-strong bg-white p-6 lg:p-7">
+      <div className="min-w-0 flex-1 basis-[320px]">
+        <p className="font-display text-[24px] leading-[1.2] text-brand-deep">{titulo}</p>
+        <p className="mt-2 max-w-[560px] text-sm leading-[1.6] text-muted">{detalle}</p>
+      </div>
       {accion && (
         <Link
           to={accion.to}
-          className="mt-5 inline-flex items-center rounded-[9px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+          className="inline-flex flex-none items-center rounded-[9px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
         >
           {accion.label}
         </Link>

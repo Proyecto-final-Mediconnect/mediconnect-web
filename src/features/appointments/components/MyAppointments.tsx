@@ -1,46 +1,49 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useMediaQuery, WIDE_QUERY } from '../../../shared/hooks/useMediaQuery';
+import { SideDrawer } from '../../../shared/ui/SideDrawer';
 import { useNow } from '../../../shared/hooks/useNow';
-import { Button } from '../../../shared/ui/Button';
 import { useSession } from '../../auth/hooks/useSession';
 import { canPay } from '../../payments/lib/checkout';
 import { joinStateOf, timeUntilOpen } from '../../video/lib/joinWindow';
-import { useCancelAppointment, useMyAppointments } from '../hooks/useAppointments';
+import { useMyAppointments } from '../hooks/useAppointments';
 import {
-  canCancel,
-  counterpartOf,
-  formatLongDate,
-  isActive,
-  splitByTime,
-  statusLabel,
-} from '../lib/myAppointments';
+  agendaSections,
+  EMPTY_AGENDA_FILTERS,
+  filterAgenda,
+  type AgendaFilters,
+} from '../lib/agenda';
+import { canCancel, counterpartOf, formatLongDate, isActive } from '../lib/myAppointments';
 import { formatPrice } from '../lib/weeks';
 import type { Appointment } from '../types/appointment';
-import { usePublicProfile } from '../../catalog/hooks/usePublicProfile';
-import { RefundEstimate } from '../../cancellation-policy/components/RefundEstimate';
-import {
-  MAX_REFUND_PERCENT,
-  refundOutcomeText,
-  refundPercentFor,
-} from '../../cancellation-policy/lib/policy';
+import { AppointmentDetail } from './AppointmentDetail';
+import { AgendaToolbar } from './agenda/AgendaToolbar';
+import { CancelAppointmentDialog } from './agenda/CancelAppointmentDialog';
+import { DateBadge } from './agenda/DateBadge';
+import { RefundOutcomeBanner } from './agenda/RefundOutcomeBanner';
+import { StatusChip } from './agenda/StatusChip';
 
 /**
- * Mis turnos (ENG-55).
+ * Mis turnos (ENG-55, rediseñada en ENG-178 como en la app).
  *
- * Una sola pantalla para los dos roles: `GET /appointments/me` devuelve, vía
- * RLS, los turnos donde el usuario es el paciente o el profesional. Lo único que
- * cambia según quién mire es de quién se muestra el nombre y quién ve el botón
- * de cancelar.
+ * Una sola lista: el próximo turno destacado, después los demás próximos en
+ * tarjetas con su acción principal, y bajando, la historia agrupada por mes en
+ * filas compactas. Cada turno abre su detalle (`/turnos/:id`), donde están todas
+ * las acciones y la línea de tiempo.
+ *
+ * Sirve a los dos roles: `GET /appointments/me` devuelve, vía RLS, los turnos
+ * donde el usuario es el paciente o el profesional. Cambia de quién se muestra el
+ * nombre y qué acciones aparecen.
  */
 export function MyAppointments() {
   const { user } = useSession();
+  const userId = user?.id ?? null;
   const appointments = useMyAppointments();
-  const cancel = useCancelAppointment();
-
-  /** Turno con la confirmación abierta. Cancelar no puede ser un solo click. */
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
-  /** Qué pasó con la devolución del último turno cancelado (ENG-65). Solo lo dice
-   *  la respuesta de la cancelación, así que se muestra hasta que se cierra. */
+  const now = useNow();
+  const wide = useMediaQuery(WIDE_QUERY);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [filters, setFilters] = useState<AgendaFilters>(EMPTY_AGENDA_FILTERS);
+  const [toCancel, setToCancel] = useState<Appointment | null>(null);
   const [refundOutcome, setRefundOutcome] = useState<string | null>(null);
 
   if (appointments.isPending) {
@@ -59,374 +62,399 @@ export function MyAppointments() {
     );
   }
 
-  const { upcoming, past } = splitByTime(appointments.data);
+  const isPatient = user?.role === 'PACIENTE';
+  const counterpart = (a: Appointment) => counterpartOf(a, userId);
+  const visible = filterAgenda(appointments.data, filters, counterpart, now);
+  const sections = agendaSections(visible, now);
+  const upcoming = sections[0]?.kind === 'upcoming' ? sections[0] : null;
+  const history = sections.filter((s) => s.kind === 'history');
+  const [next, ...restUpcoming] = upcoming?.data ?? [];
+  const filtering =
+    filters.search.trim() !== '' || filters.period !== 'todos' || filters.status !== 'todos';
 
-  function confirmCancel(appointmentId: string) {
-    cancel.mutate(appointmentId, {
-      onSuccess: (cancelled) =>
-        setRefundOutcome(
-          refundOutcomeText(cancelled.refund, (amount) => formatPrice(amount, cancelled.currency)),
-        ),
-      onSettled: () => setConfirmingId(null),
-    });
-  }
+  // En pantalla ancha, tocar un turno abre su detalle en un panel lateral sin
+  // perder la lista; queda en la URL (`?turno=`) para recargar o compartir. En
+  // angosta cada turno abre su pantalla.
+  const requested = searchParams.get('turno');
+  const selectedId =
+    wide && requested && appointments.data.some((a) => a.id === requested) ? requested : null;
+  const select = (id: string) => setSearchParams({ turno: id });
+  const closeDetail = () => setSearchParams({}, { replace: true });
+  const listProps = { userId, now, wide, selectedId, onSelect: select, onCancel: setToCancel };
+
+  const list = (
+    <div className="grid min-w-0 content-start gap-6">
+      {appointments.data.length > 0 && (
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <AgendaToolbar
+                filters={filters}
+                onChange={setFilters}
+                searchLabel={isPatient ? 'Buscar por profesional' : 'Buscar por paciente'}
+              />
+            </div>
+            {isPatient && (
+              <Link
+                to="/buscar"
+                className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              >
+                <span aria-hidden="true">+</span> Nuevo turno
+              </Link>
+            )}
+          </div>
+        </>
+      )}
+
+      {sections.length === 0 &&
+        (filtering ? (
+          <Empty
+            title="No hay turnos con esos filtros"
+            description="Probá con otra fecha, otro estado u otro nombre."
+            action={
+              <button
+                type="button"
+                onClick={() => setFilters(EMPTY_AGENDA_FILTERS)}
+                className="font-semibold text-brand-hover underline-offset-2 hover:underline"
+              >
+                Limpiar filtros
+              </button>
+            }
+          />
+        ) : (
+          <Empty
+            title="Todavía no tenés turnos"
+            description={
+              isPatient
+                ? 'Buscá un profesional y reservá el horario que te quede cómodo.'
+                : 'Cuando un paciente reserve, el turno aparece acá.'
+            }
+            action={
+              isPatient ? (
+                <Link
+                  to="/buscar"
+                  className="font-semibold text-brand-hover underline-offset-2 hover:underline"
+                >
+                  Buscar profesional
+                </Link>
+              ) : null
+            }
+          />
+        ))}
+
+      {next && (
+        <section aria-labelledby="proximo-turno" className="grid gap-3">
+          <h2 id="proximo-turno" className="sr-only">
+            Próximo turno
+          </h2>
+          <NextAppointment appointment={next} {...listProps} />
+        </section>
+      )}
+
+      {restUpcoming.length > 0 && (
+        <section aria-labelledby="proximos" className="grid gap-3">
+          <SectionTitle id="proximos">Próximos</SectionTitle>
+          <ul className="grid gap-3">
+            {restUpcoming.map((appointment) => (
+              <li key={appointment.id}>
+                <UpcomingCard appointment={appointment} {...listProps} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {history.map((section) => (
+        <section key={section.key} aria-labelledby={`mes-${section.key}`} className="grid gap-3">
+          <SectionTitle id={`mes-${section.key}`}>{section.title}</SectionTitle>
+          <ul className="divide-y divide-line-soft overflow-hidden rounded-[14px] border border-line bg-white">
+            {section.data.map((appointment) => (
+              <li key={appointment.id}>
+                <HistoryRow appointment={appointment} {...listProps} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
 
   return (
-    <div className="space-y-8">
+    <div className="grid gap-6">
       {refundOutcome && (
-        <div
-          role="status"
-          className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-brand/30 bg-surface-teal px-4 py-3 text-sm text-brand-deep"
-        >
-          <p className="min-w-0 flex-1">{refundOutcome}</p>
-          <button
-            type="button"
-            onClick={() => setRefundOutcome(null)}
-            className="font-semibold underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-          >
-            Entendido
-          </button>
-        </div>
-      )}
-      {cancel.isError && (
-        <p
-          role="alert"
-          className="rounded-lg border border-danger/30 bg-danger/5 px-4 py-3 text-sm text-danger"
-        >
-          {cancel.error.message}
-        </p>
+        <RefundOutcomeBanner text={refundOutcome} onClose={() => setRefundOutcome(null)} />
       )}
 
-      <AppointmentList
-        id="proximos"
-        title="Próximos"
-        empty="No tenés turnos próximos."
-        appointments={upcoming}
-        userId={user?.id ?? null}
-        confirmingId={confirmingId}
-        isCancelling={cancel.isPending}
-        onAskCancel={setConfirmingId}
-        onConfirmCancel={confirmCancel}
-        highlightFirst
-      />
+      {list}
 
-      <AppointmentList
-        id="pasados"
-        title="Pasados"
-        empty="Todavía no tuviste ningún turno."
-        appointments={past}
-        userId={user?.id ?? null}
-        confirmingId={null}
-        isCancelling={false}
-        onAskCancel={setConfirmingId}
-        onConfirmCancel={confirmCancel}
+      <SideDrawer open={selectedId !== null} title="Detalle del turno" onClose={closeDetail}>
+        {selectedId && <AppointmentDetail appointmentId={selectedId} variant="panel" />}
+      </SideDrawer>
+
+      <CancelAppointmentDialog
+        appointment={toCancel}
+        now={now}
+        onClose={() => setToCancel(null)}
+        onCancelled={setRefundOutcome}
       />
     </div>
   );
 }
 
-type AppointmentListProps = {
-  id: string;
-  title: string;
-  empty: string;
-  appointments: Appointment[];
+/** Props comunes de las tarjetas y filas: a dónde lleva tocarlas y cuál está elegida. */
+interface ListItemProps {
+  appointment: Appointment;
   userId: string | null;
-  confirmingId: string | null;
-  isCancelling: boolean;
-  onAskCancel: (id: string | null) => void;
-  onConfirmCancel: (id: string) => void;
-  /** Destaca el primer turno de la lista. Solo para "Próximos". */
-  highlightFirst?: boolean;
-};
+  now: Date;
+  wide: boolean;
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  onCancel: (a: Appointment) => void;
+}
 
-function AppointmentList({
-  id,
-  title,
-  empty,
-  appointments,
-  userId,
-  confirmingId,
-  isCancelling,
-  onAskCancel,
-  onConfirmCancel,
-  highlightFirst = false,
-}: AppointmentListProps) {
+/** En ancha, elegir el turno lo muestra al costado; en angosta abre su pantalla. */
+function OpenLink({
+  appointment,
+  wide,
+  selected,
+  onSelect,
+  label,
+  className,
+  children,
+}: {
+  appointment: Appointment;
+  wide: boolean;
+  selected: boolean;
+  onSelect: (id: string) => void;
+  label: string;
+  className: string;
+  children: React.ReactNode;
+}) {
   return (
-    <section aria-labelledby={id}>
-      <div className="flex items-baseline gap-4 border-t border-brand-deep pt-4">
-        <span className="text-xs font-semibold text-brand">
-          {String(appointments.length).padStart(2, '0')}
-        </span>
-        <h2 id={id} className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
-          {title}
-        </h2>
-      </div>
-
-      {appointments.length === 0 ? (
-        <p className="mt-4 text-sm text-muted">{empty}</p>
-      ) : (
-        <ul className="mt-4 grid gap-3.5">
-          {appointments.map((appointment, i) => (
-            <AppointmentRow
-              key={appointment.id}
-              appointment={appointment}
-              userId={userId}
-              // El primero de "Próximos" es el que el paciente vino a mirar: va
-              // en oscuro, como la tarjeta de próximo turno del panel.
-              isNext={highlightFirst && i === 0}
-              isConfirming={confirmingId === appointment.id}
-              isCancelling={isCancelling}
-              onAskCancel={onAskCancel}
-              onConfirmCancel={onConfirmCancel}
-            />
-          ))}
-        </ul>
-      )}
-    </section>
+    <Link
+      to={wide ? `?turno=${appointment.id}` : `/turnos/${appointment.id}`}
+      onClick={(e) => {
+        if (!wide) return;
+        e.preventDefault();
+        onSelect(appointment.id);
+      }}
+      aria-label={label}
+      aria-current={wide && selected ? 'true' : undefined}
+      className={className}
+    >
+      {children}
+    </Link>
   );
 }
 
-function AppointmentRow({
+function SectionTitle({ id, children }: { id: string; children: React.ReactNode }) {
+  return (
+    <h2 id={id} className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+      {children}
+    </h2>
+  );
+}
+
+function Empty({
+  title,
+  description,
+  action,
+}: {
+  title: string;
+  description: string;
+  action: React.ReactNode;
+}) {
+  return (
+    <div className="grid justify-items-center gap-2 rounded-[14px] border border-dashed border-line-strong bg-white px-6 py-12 text-center">
+      <p className="text-[17px] font-bold text-brand-deep">{title}</p>
+      <p className="max-w-[46ch] text-sm text-muted">{description}</p>
+      {action && <div className="mt-2 text-sm">{action}</div>}
+    </div>
+  );
+}
+
+function personName(appointment: Appointment, userId: string | null): string {
+  const person = counterpartOf(appointment, userId);
+  if (person) return `${person.firstName} ${person.lastName}`;
+  return appointment.patient?.id === userId
+    ? 'Profesional no disponible'
+    : 'Paciente no disponible';
+}
+
+/** La acción que importa ahora, si hay una: entrar a la sala o pagar. */
+function PrimaryAction({
   appointment,
   userId,
-  isNext = false,
-  isConfirming,
-  isCancelling,
-  onAskCancel,
-  onConfirmCancel,
+  now,
+  onDark = false,
 }: {
   appointment: Appointment;
   userId: string | null;
-  isNext?: boolean;
-  isConfirming: boolean;
-  isCancelling: boolean;
-  onAskCancel: (id: string | null) => void;
-  onConfirmCancel: (id: string) => void;
+  now: Date;
+  onDark?: boolean;
 }) {
-  const counterpart = counterpartOf(appointment, userId);
+  const join = joinStateOf(appointment, now);
   const isPatient = appointment.patient?.id === userId;
-  const cancellable = canCancel(appointment, userId);
-  // Se reprograma lo mismo que se puede cancelar, una sola vez (ENG-66). Si es un
-  // turno pagado sin la anticipación que pide la política, el backend lo rechaza
-  // y la pantalla de reprogramar muestra por qué.
-  const reschedulable = cancellable && !appointment.rescheduledAt && appointment.professional;
+  const base =
+    'inline-flex items-center justify-center rounded-[9px] px-4 py-2.5 text-sm font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2';
 
-  // Reloj propio: el botón de la videoconsulta aparece 10 minutos antes del
-  // turno, y sin un tick React no tendría motivo para volver a renderizar. El
-  // paciente que deja la pantalla abierta esperando es justo el que lo necesita.
-  const now = useNow();
-  const joinState = joinStateOf(appointment, now);
-  // El pago es del paciente, no del profesional que cobra la consulta.
-  const pagable = isPatient && canPay(appointment, now);
+  if (join.kind === 'OPEN') {
+    return (
+      <Link
+        to={`/turnos/${appointment.id}/videoconsulta`}
+        className={`${base} bg-brand text-ink-deep hover:bg-brand-bright`}
+      >
+        Entrar a la sala
+      </Link>
+    );
+  }
+  if (isPatient && canPay(appointment, now)) {
+    return (
+      <Link
+        to={`/turnos/${appointment.id}/pago`}
+        className={`${base} ${onDark ? 'bg-brand text-ink-deep hover:bg-brand-bright' : 'bg-brand-deep text-white hover:bg-night'}`}
+      >
+        Pagar
+      </Link>
+    );
+  }
+  return null;
+}
 
-  // Un turno pagado sólo se reprograma con la anticipación del reembolso total
-  // (el backend lo rechaza si no). Se adelanta el aviso con la política del
-  // perfil público; el backend sigue siendo la fuente de verdad. Sin pedir el
-  // perfil (`''`) cuando no hace falta.
-  const policy = usePublicProfile(
-    reschedulable && appointment.status === 'CONFIRMADO'
-      ? (appointment.professional?.id ?? '')
-      : '',
-  ).data?.cancellationPolicy;
-  const reprogramacionCerrada =
-    policy !== undefined &&
-    refundPercentFor(policy, new Date(appointment.scheduledAt), now) < MAX_REFUND_PERCENT;
+function NextAppointment({ appointment, userId, now, wide, onSelect, onCancel }: ListItemProps) {
+  const join = joinStateOf(appointment, now);
+  const soon =
+    join.kind === 'TOO_EARLY' && join.opensAt.getTime() - now.getTime() < 24 * 60 * 60_000;
 
   return (
-    <li
-      className={`rounded-[14px] border p-6 ${
-        isNext
-          ? 'border-night bg-night text-white'
-          : isActive(appointment)
-            ? 'border-line bg-white'
-            : 'border-line bg-white opacity-70'
+    <article className="rounded-[16px] bg-night p-6 text-white">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-bright">
+          Próximo turno
+        </p>
+        <StatusChip status={appointment.status} onDark />
+      </div>
+      <p className="font-display mt-3 text-[26px] leading-[1.2]">
+        {formatLongDate(appointment.date)} · {appointment.startTime}
+      </p>
+      <p className="mt-1.5 text-sm text-on-night">
+        {personName(appointment, userId)} · Videoconsulta · {appointment.durationMinutes} min ·{' '}
+        {formatPrice(appointment.price, appointment.currency)}
+      </p>
+      {soon && join.kind === 'TOO_EARLY' && (
+        <p className="mt-3 text-sm text-on-night-strong">
+          La sala se abre {timeUntilOpen(join.opensAt, now)}.
+        </p>
+      )}
+      <div className="mt-5 flex flex-wrap items-center gap-3">
+        <PrimaryAction appointment={appointment} userId={userId} now={now} onDark />
+        <OpenLink
+          appointment={appointment}
+          wide={wide}
+          selected={false}
+          onSelect={onSelect}
+          label={`Ver el turno con ${personName(appointment, userId)}`}
+          className="inline-flex items-center rounded-[9px] border border-white/25 px-4 py-2.5 text-sm font-bold text-white transition-colors hover:border-brand-bright focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          Ver detalle
+        </OpenLink>
+        {canCancel(appointment, userId, now) && (
+          <button
+            type="button"
+            onClick={() => onCancel(appointment)}
+            className="text-sm font-semibold text-on-night underline-offset-2 hover:text-white hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            Cancelar turno
+          </button>
+        )}
+      </div>
+    </article>
+  );
+}
+
+function UpcomingCard({
+  appointment,
+  userId,
+  now,
+  wide,
+  selectedId,
+  onSelect,
+  onCancel,
+}: ListItemProps) {
+  const name = personName(appointment, userId);
+  const selected = wide && selectedId === appointment.id;
+
+  return (
+    <article
+      className={`flex flex-wrap items-center gap-4 rounded-[14px] border bg-white p-4 transition-colors ${
+        selected ? 'border-brand ring-1 ring-brand' : 'border-line hover:border-line-strong'
       }`}
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          {isNext && (
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-bright">
-              Próximo turno
-            </p>
-          )}
-          <p
-            className={
-              isNext
-                ? 'font-display mt-2.5 text-[26px] leading-[1.2] text-white'
-                : 'text-[17px] font-bold text-brand-deep'
-            }
-          >
-            {formatLongDate(appointment.date)} · {appointment.startTime}
-          </p>
-          <p className={`mt-1.5 text-sm ${isNext ? 'text-on-night' : 'text-muted'}`}>
-            {/* El nombre puede faltar si la contraparte borró su perfil: es
-                preferible mostrar el turno sin nombre que esconderlo. */}
-            {counterpart
-              ? `${isPatient ? 'Profesional' : 'Paciente'}: ${counterpart.firstName} ${counterpart.lastName}`
-              : isPatient
-                ? 'Profesional no disponible'
-                : 'Paciente no disponible'}
-          </p>
-          <p className={`mt-1 text-sm ${isNext ? 'text-on-night' : 'text-muted'}`}>
-            {appointment.durationMinutes} min ·{' '}
-            {formatPrice(appointment.price, appointment.currency)}
-            {appointment.rescheduledAt && ' · reprogramado'}
-          </p>
-        </div>
-
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-semibold ${
-            isNext ? 'bg-white/10 text-on-night-strong' : 'bg-surface-teal text-brand-hover'
-          }`}
-        >
-          {statusLabel(appointment.status)}
+      <OpenLink
+        appointment={appointment}
+        wide={wide}
+        selected={selected}
+        onSelect={onSelect}
+        label={`Ver el turno con ${name}`}
+        className="flex min-w-0 flex-1 items-center gap-4 rounded-[10px] focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+      >
+        <DateBadge date={appointment.date} />
+        <span className="min-w-0">
+          <span className="block truncate text-[15px] font-bold text-brand-deep">{name}</span>
+          <span className="block text-sm text-muted">
+            {appointment.startTime} · {appointment.durationMinutes} min · Videoconsulta
+          </span>
         </span>
-      </div>
-
-      {/* Las acciones van en una sola fila: antes cada una abría su propio
-          bloque y en un turno por pagar y cancelable quedaban tres botones
-          apilados uno abajo del otro. */}
-      {(joinState.kind === 'OPEN' ||
-        pagable ||
-        (!isPatient && counterpart) ||
-        (cancellable && !isConfirming)) && (
-        <div className="mt-4 flex flex-wrap gap-3">
-          {joinState.kind === 'OPEN' && (
-            <Link
-              to={`/turnos/${appointment.id}/videoconsulta`}
-              className="inline-flex items-center justify-center gap-2 rounded-[9px] bg-brand px-5 py-3 text-sm font-bold text-ink-deep transition-colors hover:bg-brand-bright focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-            >
-              Ingresar a videoconsulta
-            </Link>
-          )}
-
-          {/* Solo al paciente: el profesional no paga su propia consulta. */}
-          {pagable && (
-            <Link
-              to={`/turnos/${appointment.id}/pago`}
-              className={`inline-flex items-center justify-center rounded-[9px] px-5 py-3 text-sm font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${
-                joinState.kind === 'OPEN'
-                  ? isNext
-                    ? 'border border-white/25 text-white hover:border-brand-bright'
-                    : 'border border-line-strong bg-white text-brand-deep hover:border-brand'
-                  : 'bg-brand text-ink-deep hover:bg-brand-bright'
-              }`}
-            >
-              Pagar la consulta
-            </Link>
-          )}
-
-          {/* Historia clínica (ENG-58). Solo del lado del profesional: es quien
-              escribe el asiento. Sin ventana horaria — se escribe durante la
-              consulta y también días después. El backend igual exige un turno
-              entre los dos, así que este link es la puerta, no la autorización. */}
-          {!isPatient && counterpart && (
-            <Link
-              to={`/pacientes/${counterpart.id}/historia-clinica`}
-              className={`inline-flex items-center justify-center rounded-[9px] border px-5 py-3 text-sm font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${
-                isNext
-                  ? 'border-white/25 text-white hover:border-brand-bright focus-visible:ring-offset-night'
-                  : 'border-line-strong bg-white text-brand-deep hover:border-brand'
-              }`}
-            >
-              Historia clínica
-            </Link>
-          )}
-
-          {reschedulable && !reprogramacionCerrada && !isConfirming && (
-            <Link
-              to={`/profesionales/${appointment.professional?.id}/turnos?reprogramar=${appointment.id}`}
-              className={`inline-flex items-center justify-center rounded-[9px] border px-5 py-3 text-sm font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${
-                isNext
-                  ? 'border-white/25 text-white hover:border-brand-bright focus-visible:ring-offset-night'
-                  : 'border-line-strong bg-white text-brand-deep hover:border-brand'
-              }`}
-            >
-              Reprogramar
-            </Link>
-          )}
-
-          {reschedulable && reprogramacionCerrada && !isConfirming && policy && (
-            <p className={`self-center text-sm ${isNext ? 'text-on-night' : 'text-muted'}`}>
-              Con menos de {policy.hoursFullRefund} horas ya no se puede reprogramar.
-            </p>
-          )}
-
-          {cancellable && !isConfirming && (
-            <button
-              type="button"
-              onClick={() => onAskCancel(appointment.id)}
-              className={`rounded-[9px] border px-5 py-3 text-sm font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${
-                isNext
-                  ? 'border-white/25 text-white hover:border-brand-bright focus-visible:ring-offset-night'
-                  : 'border-line-strong bg-white text-brand-deep hover:border-brand'
-              }`}
-            >
-              Cancelar turno
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* El aviso previo solo aparece dentro de las 24 horas: en un turno de
-          dentro de tres semanas, "se abre en 21 días" es ruido. Es un enlace
-          porque ahora se puede entrar antes y esperar en la sala. */}
-      {joinState.kind === 'TOO_EARLY' &&
-        joinState.opensAt.getTime() - now.getTime() < 24 * 60 * 60_000 && (
-          <p className={`mt-4 text-sm ${isNext ? 'text-on-night' : 'text-muted'}`}>
-            La videoconsulta se abre {timeUntilOpen(joinState.opensAt, now)}.{' '}
-            <Link
-              to={`/turnos/${appointment.id}/videoconsulta`}
-              className={`font-semibold underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
-                isNext ? 'text-brand-bright' : 'text-brand-hover'
-              }`}
-            >
-              Esperar en la sala
-            </Link>
-          </p>
+      </OpenLink>
+      <StatusChip status={appointment.status} />
+      <div className="flex items-center gap-3">
+        <PrimaryAction appointment={appointment} userId={userId} now={now} />
+        {canCancel(appointment, userId, now) && (
+          <button
+            type="button"
+            onClick={() => onCancel(appointment)}
+            aria-label={`Cancelar el turno con ${name}`}
+            className="text-sm font-semibold text-muted underline-offset-2 hover:text-danger hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            Cancelar
+          </button>
         )}
+      </div>
+    </article>
+  );
+}
 
-      {cancellable && isConfirming && (
-        <div
-          className={`mt-4 rounded-[10px] border p-4 ${
-            isNext ? 'border-white/20 bg-white/5' : 'border-danger/30 bg-danger/5'
-          }`}
+function HistoryRow({ appointment, userId, wide, selectedId, onSelect }: ListItemProps) {
+  const name = personName(appointment, userId);
+  const muted = !isActive(appointment);
+  const selected = wide && selectedId === appointment.id;
+
+  return (
+    <OpenLink
+      appointment={appointment}
+      wide={wide}
+      selected={selected}
+      onSelect={onSelect}
+      label={`Ver el turno con ${name}`}
+      className={`flex items-center gap-4 px-4 py-3 transition-colors focus:outline-none focus-visible:bg-surface ${
+        selected ? 'bg-surface-teal' : 'hover:bg-surface'
+      }`}
+    >
+      <DateBadge date={appointment.date} muted={muted} />
+      <span className="min-w-0 flex-1">
+        <span
+          className={`block truncate text-[15px] font-semibold ${muted ? 'text-muted' : 'text-brand-deep'}`}
         >
-          <p className={`text-sm ${isNext ? 'text-on-night-strong' : 'text-ink'}`}>
-            ¿Cancelás el turno del {formatLongDate(appointment.date)} a las {appointment.startTime}?
-            El horario vuelve a quedar libre para otra persona.
-          </p>
-          {/* Solo un turno pagado tiene algo que devolver. */}
-          {appointment.status === 'CONFIRMADO' && appointment.professional && (
-            <RefundEstimate
-              appointmentId={appointment.id}
-              professionalId={appointment.professional.id}
-              scheduledAt={appointment.scheduledAt}
-              price={appointment.price}
-              currency={appointment.currency}
-              now={now}
-              className={`mt-2 ${isNext ? 'text-on-night-strong' : 'text-ink'}`}
-            />
-          )}
-          <div className="mt-3 flex flex-wrap gap-3">
-            <Button
-              type="button"
-              onClick={() => onConfirmCancel(appointment.id)}
-              disabled={isCancelling}
-            >
-              {isCancelling ? 'Cancelando…' : 'Sí, cancelar'}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => onAskCancel(null)}
-              disabled={isCancelling}
-            >
-              No, dejarlo
-            </Button>
-          </div>
-        </div>
-      )}
-    </li>
+          {name}
+        </span>
+        <span className="block text-sm text-muted-soft">
+          {appointment.startTime} · {formatPrice(appointment.price, appointment.currency)}
+        </span>
+      </span>
+      <StatusChip status={appointment.status} />
+      <span aria-hidden="true" className="text-muted-soft">
+        ›
+      </span>
+    </OpenLink>
   );
 }

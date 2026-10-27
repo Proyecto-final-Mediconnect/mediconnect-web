@@ -1,129 +1,30 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { cleanup, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-// Los turnos llevan enlaces (videoconsulta, pago): sin Router, `Link` explota.
-import { MemoryRouter } from 'react-router-dom';
 import { MyAppointments } from './MyAppointments';
-
-const PATIENT_ID = '11111111-1111-4111-8111-111111111111';
-const PRO_ID = '22222222-2222-4222-8222-222222222222';
-
-/** Lunes 17/08/2026 a las 08:00 locales. */
-const NOW = new Date('2026-08-17T11:00:00Z');
-
-const PATIENT_SESSION = {
-  id: PATIENT_ID,
-  email: 'paciente@test.com',
-  role: 'PACIENTE',
-  firstName: 'Juan',
-  lastName: 'Paciente',
-};
-
-const PRO_SESSION = {
-  id: PRO_ID,
-  email: 'pro@test.com',
-  role: 'PROFESIONAL',
-  firstName: 'Ana',
-  lastName: 'Médica',
-};
-
-const PARTIES = {
-  professional: { id: PRO_ID, firstName: 'Ana', lastName: 'Médica' },
-  patient: { id: PATIENT_ID, firstName: 'Juan', lastName: 'Paciente' },
-};
-
-/** Mañana 10:00: cancelable. */
-const UPCOMING = {
-  id: '33333333-3333-4333-8333-333333333333',
-  scheduledAt: '2026-08-18T13:00:00.000Z',
-  date: '2026-08-18',
-  startTime: '10:00',
-  durationMinutes: 30,
-  price: 15000,
-  currency: 'ARS',
-  status: 'RESERVADO_SIN_PAGAR',
-  ...PARTIES,
-};
-
-/** La semana pasada: ya ocurrió. */
-const PAST = {
-  id: '44444444-4444-4444-8444-444444444444',
-  scheduledAt: '2026-08-10T13:00:00.000Z',
-  date: '2026-08-10',
-  startTime: '10:00',
-  durationMinutes: 30,
-  price: 15000,
-  currency: 'ARS',
-  status: 'COMPLETADO',
-  ...PARTIES,
-};
-
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' },
-  });
-}
-
-function mockApi(
-  handlers: {
-    session?: () => Response;
-    mine?: () => Response;
-    cancel?: () => Response;
-    profile?: () => Response;
-    quote?: () => Response;
-  } = {},
-) {
-  return vi.spyOn(globalThis, 'fetch').mockImplementation((input, init): Promise<Response> => {
-    const url = String(input);
-    const method = init?.method ?? 'GET';
-
-    if (method === 'PATCH' && url.includes('/cancel')) {
-      return Promise.resolve(
-        handlers.cancel?.() ?? jsonResponse({ ...UPCOMING, status: 'CANCELADO' }),
-      );
-    }
-    // Antes que el PATCH: la URL de la cotización también contiene "/cancel".
-    if (url.includes('/cancellation-quote')) {
-      return Promise.resolve(handlers.quote?.() ?? jsonResponse({}, 404));
-    }
-    if (url.includes(`/professionals/${PRO_ID}`)) {
-      return Promise.resolve(handlers.profile?.() ?? jsonResponse({}, 404));
-    }
-    if (url.includes('/appointments/me')) {
-      return Promise.resolve(handlers.mine?.() ?? jsonResponse([PAST, UPCOMING]));
-    }
-    if (url.includes('/me')) {
-      return Promise.resolve(handlers.session?.() ?? jsonResponse(PATIENT_SESSION));
-    }
-    return Promise.resolve(jsonResponse({}, 404));
-  });
-}
+import {
+  CANCELLED,
+  jsonResponse,
+  LATER,
+  mockApi,
+  NOW,
+  PAST,
+  PRO_SESSION,
+  renderWithRouter,
+  UPCOMING,
+} from '../testing/appointmentsMock';
 
 function renderMyAppointments() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
-  });
-  // `MemoryRouter`: desde ENG-58 la fila del profesional linkea a la historia
-  // clínica del paciente, y un `<Link>` fuera de un router tira.
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <MyAppointments />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
+  return renderWithRouter(<MyAppointments />);
 }
 
-/** La lista de una sección, para afirmar sobre "Próximos" sin tocar "Pasados". */
-function section(name: RegExp) {
-  return within(screen.getByRole('region', { name }));
+function user() {
+  return userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
 }
 
-describe('MyAppointments', () => {
+describe('MyAppointments (ENG-178)', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     vi.useFakeTimers({ shouldAdvanceTime: true });
@@ -135,61 +36,101 @@ describe('MyAppointments', () => {
     cleanup();
   });
 
-  it('separa los turnos en próximos y pasados', async () => {
-    mockApi();
+  it('destaca el próximo turno, lista los demás próximos y agrupa la historia por mes', async () => {
+    mockApi({ mine: () => jsonResponse([PAST, CANCELLED, LATER, UPCOMING]) });
     renderMyAppointments();
 
-    await screen.findByRole('region', { name: /próximos/i });
+    const proximo = await screen.findByRole('region', { name: 'Próximo turno' });
+    expect(within(proximo).getByText(/18 de agosto de 2026 · 10:00/)).toBeInTheDocument();
 
-    expect(section(/próximos/i).getByText(/18 de agosto de 2026/)).toBeInTheDocument();
-    expect(section(/pasados/i).getByText(/10 de agosto de 2026/)).toBeInTheDocument();
+    const proximos = screen.getByRole('region', { name: 'Próximos' });
+    expect(within(proximos).getAllByRole('listitem')).toHaveLength(1);
+
+    // La historia va del más reciente al más viejo, un grupo por mes.
+    const meses = screen
+      .getAllByRole('heading', { level: 2 })
+      .map((h) => h.textContent)
+      .filter((t) => /2026/.test(t ?? ''));
+    expect(meses).toEqual(['Agosto 2026', 'Julio 2026']);
   });
 
-  it('cada turno muestra fecha, hora, contraparte y estado', async () => {
-    mockApi();
+  it('cada turno muestra la contraparte, la hora y el estado', async () => {
+    mockApi({ mine: () => jsonResponse([LATER, UPCOMING]) });
     renderMyAppointments();
 
-    await screen.findByRole('region', { name: /próximos/i });
-    const proximos = section(/próximos/i);
-
-    expect(proximos.getByText(/18 de agosto de 2026 · 10:00/)).toBeInTheDocument();
-    expect(proximos.getByText(/Profesional: Ana Médica/)).toBeInTheDocument();
-    expect(proximos.getByText('Reservado (sin pagar)')).toBeInTheDocument();
-    expect(proximos.getByText(/30 min/)).toBeInTheDocument();
+    const proximos = await screen.findByRole('region', { name: 'Próximos' });
+    expect(within(proximos).getByText('Ana Médica')).toBeInTheDocument();
+    expect(within(proximos).getByText(/10:00 · 30 min/)).toBeInTheDocument();
+    expect(within(proximos).getByText('Confirmado')).toBeInTheDocument();
   });
 
-  it('el paciente ve al profesional; el profesional ve al paciente', async () => {
+  it('el profesional ve al paciente y busca por paciente', async () => {
     mockApi({ session: () => jsonResponse(PRO_SESSION) });
     renderMyAppointments();
 
-    await screen.findByRole('region', { name: /próximos/i });
-
-    expect(section(/próximos/i).getByText(/Paciente: Juan Paciente/)).toBeInTheDocument();
+    expect((await screen.findAllByText(/Juan Paciente/)).length).toBeGreaterThan(0);
+    expect(screen.getByRole('searchbox', { name: 'Buscar por paciente' })).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /nuevo turno/i })).not.toBeInTheDocument();
   });
 
-  it('cancelar pide confirmación antes de llamar a la API', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    const fetchMock = mockApi();
+  it('cada turno abre su detalle', async () => {
+    mockApi();
     renderMyAppointments();
 
-    await user.click(await screen.findByRole('button', { name: /cancelar turno/i }));
+    const links = await screen.findAllByRole('link', { name: 'Ver el turno con Ana Médica' });
+    expect(links.map((l) => l.getAttribute('href'))).toEqual(
+      expect.arrayContaining([`/turnos/${UPCOMING.id}`, `/turnos/${PAST.id}`]),
+    );
+  });
 
-    expect(screen.getByText(/¿Cancelás el turno/)).toBeInTheDocument();
+  it('el turno sin pagar ofrece pagar', async () => {
+    mockApi({ mine: () => jsonResponse([UPCOMING]) });
+    renderMyAppointments();
+
+    expect(await screen.findByRole('link', { name: 'Pagar' })).toHaveAttribute(
+      'href',
+      `/turnos/${UPCOMING.id}/pago`,
+    );
+  });
+
+  it('busca por nombre y, sin resultados, ofrece limpiar los filtros', async () => {
+    const u = user();
+    mockApi();
+    renderMyAppointments();
+
+    await u.type(await screen.findByRole('searchbox'), 'zzz');
+
+    expect(screen.getByText('No hay turnos con esos filtros')).toBeInTheDocument();
+    await u.click(screen.getByRole('button', { name: 'Limpiar filtros' }));
+    expect(await screen.findByRole('region', { name: 'Próximo turno' })).toBeInTheDocument();
+  });
+
+  it('filtra por estado', async () => {
+    const u = user();
+    mockApi({ mine: () => jsonResponse([PAST, UPCOMING]) });
+    renderMyAppointments();
+
+    await u.selectOptions(await screen.findByRole('combobox', { name: 'Estado' }), 'completados');
+
+    expect(screen.queryByRole('region', { name: 'Próximo turno' })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Agosto 2026' })).toBeInTheDocument();
+  });
+
+  it('cancelar pide confirmación en un modal y después manda el PATCH', async () => {
+    const u = user();
+    const fetchMock = mockApi({ mine: () => jsonResponse([UPCOMING]) });
+    renderMyAppointments();
+
+    await u.click(await screen.findByRole('button', { name: /cancelar turno/i }));
+    const modal = screen.getByRole('dialog', { name: '¿Cancelar el turno?' });
+    expect(within(modal).getByText(/18 de agosto de 2026 a las 10:00/)).toBeInTheDocument();
     expect(
       fetchMock.mock.calls.some(
         ([, init]) => (init as RequestInit | undefined)?.method === 'PATCH',
       ),
     ).toBe(false);
-  });
 
-  it('confirmar manda el PATCH del turno elegido', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    const fetchMock = mockApi();
-    renderMyAppointments();
-
-    await user.click(await screen.findByRole('button', { name: /cancelar turno/i }));
-    await user.click(screen.getByRole('button', { name: /sí, cancelar/i }));
-
+    await u.click(within(modal).getByRole('button', { name: 'Sí, cancelar' }));
     await waitFor(() => {
       const patch = fetchMock.mock.calls.find(
         ([, init]) => (init as RequestInit | undefined)?.method === 'PATCH',
@@ -198,10 +139,94 @@ describe('MyAppointments', () => {
     });
   });
 
-  describe('reembolso según la política del profesional (ENG-171)', () => {
-    /** 24 h → 100 %, 6 h → 50 %, menos → nada. */
+  it('"Mantener el turno" cierra el modal sin cancelar', async () => {
+    const u = user();
+    const fetchMock = mockApi({ mine: () => jsonResponse([UPCOMING]) });
+    renderMyAppointments();
+
+    await u.click(await screen.findByRole('button', { name: /cancelar turno/i }));
+    await u.click(screen.getByRole('button', { name: 'Mantener el turno' }));
+
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(
+        ([, init]) => (init as RequestInit | undefined)?.method === 'PATCH',
+      ),
+    ).toBe(false);
+  });
+
+  it('el profesional no cancela el turno de su paciente', async () => {
+    mockApi({ session: () => jsonResponse(PRO_SESSION), mine: () => jsonResponse([UPCOMING]) });
+    renderMyAppointments();
+
+    await screen.findByRole('region', { name: 'Próximo turno' });
+    expect(screen.queryByRole('button', { name: /cancelar/i })).not.toBeInTheDocument();
+  });
+
+  it('sin turnos lo dice y ofrece buscar un profesional', async () => {
+    mockApi({ mine: () => jsonResponse([]) });
+    renderMyAppointments();
+
+    expect(await screen.findByText('Todavía no tenés turnos')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Buscar profesional' })).toHaveAttribute(
+      'href',
+      '/buscar',
+    );
+  });
+
+  it('si la lista falla muestra el mensaje del backend (un 4xx no se reintenta)', async () => {
+    mockApi({
+      mine: () => jsonResponse({ statusCode: 403, message: 'No tenés permiso.' }, 403),
+    });
+    renderMyAppointments();
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No tenés permiso.');
+  });
+
+  describe('en pantalla ancha', () => {
+    beforeEach(() => {
+      vi.stubGlobal(
+        'matchMedia',
+        vi.fn().mockImplementation((query: string) => ({
+          matches: true,
+          media: query,
+          addEventListener: vi.fn(),
+          removeEventListener: vi.fn(),
+        })),
+      );
+    });
+
+    afterEach(() => vi.unstubAllGlobals());
+
+    it('tocar un turno abre su detalle en un panel lateral, que se cierra con la ✕', async () => {
+      const u = user();
+      mockApi({ mine: () => jsonResponse([PAST, UPCOMING]) });
+      renderWithRouter(<MyAppointments />, '/mis-turnos', '/mis-turnos');
+
+      const fila = (
+        await screen.findAllByRole('link', { name: 'Ver el turno con Ana Médica' })
+      ).find((l) => l.getAttribute('href') === `/mis-turnos?turno=${PAST.id}`);
+      await u.click(fila!);
+
+      const panel = await screen.findByRole('dialog', { name: 'Detalle del turno' });
+      expect(within(panel).getByText('Tuviste la consulta')).toBeInTheDocument();
+
+      await u.click(within(panel).getByRole('button', { name: 'Cerrar' }));
+      expect(screen.queryByRole('dialog', { name: 'Detalle del turno' })).not.toBeInTheDocument();
+    });
+
+    it('sin un turno elegido no abre nada: la lista ocupa todo', async () => {
+      mockApi({ mine: () => jsonResponse([PAST, UPCOMING]) });
+      renderWithRouter(<MyAppointments />, '/mis-turnos', '/mis-turnos');
+
+      await screen.findByRole('region', { name: 'Próximo turno' });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('reembolso al cancelar (ENG-171, ENG-65)', () => {
     const PROFILE = {
-      id: PRO_ID,
+      id: UPCOMING.professional.id,
       firstName: 'Ana',
       lastName: 'Médica',
       photoUrl: null,
@@ -212,56 +237,38 @@ describe('MyAppointments', () => {
       currency: 'ARS',
       cancellationPolicy: { hoursFullRefund: 24, hoursPartialRefund: 6, partialRefundPercent: 50 },
     };
-
     /** Pagado, mañana a las 10:00: faltan 26 h. */
     const PAID = { ...UPCOMING, status: 'CONFIRMADO' };
 
-    async function abrirConfirmacion(turnos: unknown[], extra: Parameters<typeof mockApi>[0] = {}) {
-      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    async function abrirModal(
+      extra: Parameters<typeof mockApi>[0] = {},
+      turnos: unknown[] = [PAID],
+    ) {
+      const u = user();
       mockApi({ mine: () => jsonResponse(turnos), profile: () => jsonResponse(PROFILE), ...extra });
       renderMyAppointments();
-      await user.click(await screen.findByRole('button', { name: /cancelar turno/i }));
-      return user;
+      await u.click(await screen.findByRole('button', { name: /cancelar turno/i }));
+      return u;
     }
 
-    it('con 26 h de anticipación le corresponde la devolución total', async () => {
-      await abrirConfirmacion([PAID]);
+    it('sin la cotización de ENG-65 cuenta con la política del perfil y no promete devolución automática', async () => {
+      await abrirModal();
 
       expect(await screen.findByText(/te corresponde la devolución total/)).toHaveTextContent(
-        /15\.000/,
+        /15\.000.*se gestiona aparte/,
       );
     });
 
-    it('con 10 h de anticipación le corresponde el parcial', async () => {
-      // 11:00Z + 10 h = 21:00Z.
-      await abrirConfirmacion([{ ...PAID, scheduledAt: '2026-08-17T21:00:00.000Z' }]);
+    it('con la cotización del backend usa la política guardada en el turno', async () => {
+      await abrirModal({ quote: () => jsonResponse({ percent: 30, amount: 4500, status: null }) });
 
-      expect(await screen.findByText(/te corresponde el 50 %/)).toHaveTextContent(/7\.500/);
-    });
-
-    it('con menos de 6 h no le corresponde nada', async () => {
-      await abrirConfirmacion([{ ...PAID, scheduledAt: '2026-08-17T13:00:00.000Z' }]);
-
-      expect(await screen.findByText(/no te corresponde devolución/)).toBeInTheDocument();
-    });
-
-    it('un turno sin pagar no habla de devolución', async () => {
-      await abrirConfirmacion([UPCOMING]);
-
-      expect(screen.getByText(/¿Cancelás el turno/)).toBeInTheDocument();
-      expect(screen.queryByText(/devolución/)).not.toBeInTheDocument();
-    });
-
-    it('sin la cotización de ENG-65 no promete devolución automática', async () => {
-      await abrirConfirmacion([PAID]);
-
-      expect(await screen.findByText(/te corresponde la devolución total/)).toHaveTextContent(
-        /se gestiona aparte/,
+      expect(await screen.findByText(/te corresponde el 30 %/)).toHaveTextContent(
+        /4\.500.*Te lo devolvemos por MercadoPago/,
       );
     });
 
     it('si la cotización falla por otra cosa, no afirma si la devolución es automática', async () => {
-      await abrirConfirmacion([PAID], { quote: () => jsonResponse({}, 500) });
+      await abrirModal({ quote: () => jsonResponse({}, 500) });
 
       const aviso = await screen.findByText(/No pudimos calcular la devolución ahora/);
       expect(aviso).toHaveTextContent(
@@ -272,7 +279,7 @@ describe('MyAppointments', () => {
     });
 
     it('si la cotización falla y no hay política, sólo dice que no se pudo calcular', async () => {
-      await abrirConfirmacion([PAID], {
+      await abrirModal({
         quote: () => jsonResponse({}, 503),
         profile: () => jsonResponse({}, 404),
       });
@@ -282,224 +289,30 @@ describe('MyAppointments', () => {
       ).toBeInTheDocument();
     });
 
-    describe('con el reembolso de ENG-65', () => {
-      it('usa la cotización del backend, con la política guardada en el turno', async () => {
-        // El perfil dice 100 % a 26 h, pero el turno se reservó con otra política:
-        // manda la del turno.
-        await abrirConfirmacion([PAID], {
-          quote: () => jsonResponse({ percent: 30, amount: 4500, status: null }),
-        });
+    it('un turno sin pagar no habla de devolución', async () => {
+      await abrirModal({}, [UPCOMING]);
 
-        expect(await screen.findByText(/te corresponde el 30 %/)).toHaveTextContent(
-          /4\.500.*Te lo devolvemos por MercadoPago/,
-        );
-      });
-
-      it('después de cancelar dice cómo salió la devolución, hasta que se cierra', async () => {
-        const user = await abrirConfirmacion([PAID], {
-          quote: () => jsonResponse({ percent: 100, amount: 15000, status: null }),
-          cancel: () =>
-            jsonResponse({
-              ...PAID,
-              status: 'CANCELADO',
-              refund: { percent: 100, amount: 15000, status: 'PROCESADO' },
-            }),
-        });
-
-        await user.click(screen.getByRole('button', { name: /sí, cancelar/i }));
-
-        expect(
-          await screen.findByText(/Te devolvemos .*15\.000 por MercadoPago/),
-        ).toBeInTheDocument();
-        await user.click(screen.getByRole('button', { name: 'Entendido' }));
-        expect(screen.queryByText(/Te devolvemos/)).not.toBeInTheDocument();
-      });
-
-      it('si MercadoPago rechazó la devolución, lo dice', async () => {
-        const user = await abrirConfirmacion([PAID], {
-          quote: () => jsonResponse({ percent: 100, amount: 15000, status: null }),
-          cancel: () =>
-            jsonResponse({
-              ...PAID,
-              status: 'CANCELADO',
-              refund: { percent: 100, amount: 15000, status: 'RECHAZADO' },
-            }),
-        });
-
-        await user.click(screen.getByRole('button', { name: /sí, cancelar/i }));
-
-        expect(
-          await screen.findByText(/MercadoPago no aceptó la devolución .*15\.000/),
-        ).toBeInTheDocument();
-      });
-
-      it('sin nada que devolver no muestra ningún aviso después de cancelar', async () => {
-        const user = await abrirConfirmacion([UPCOMING], {
-          cancel: () =>
-            jsonResponse({
-              ...UPCOMING,
-              status: 'CANCELADO',
-              refund: { percent: 0, amount: 0, status: null },
-            }),
-        });
-
-        await user.click(screen.getByRole('button', { name: /sí, cancelar/i }));
-
-        await waitFor(() =>
-          expect(screen.queryByText(/¿Cancelás el turno/)).not.toBeInTheDocument(),
-        );
-        expect(screen.queryByRole('button', { name: 'Entendido' })).not.toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('reprogramar (ENG-66)', () => {
-    it('el paciente puede reprogramar un turno futuro', async () => {
-      mockApi();
-      renderMyAppointments();
-
-      const link = await screen.findByRole('link', { name: 'Reprogramar' });
-      expect(link).toHaveAttribute(
-        'href',
-        `/profesionales/${PRO_ID}/turnos?reprogramar=${UPCOMING.id}`,
-      );
+      expect(screen.getByRole('dialog')).not.toHaveTextContent(/devolución/);
     });
 
-    it('un turno ya reprogramado no se vuelve a reprogramar', async () => {
-      mockApi({
-        mine: () => jsonResponse([{ ...UPCOMING, rescheduledAt: '2026-08-16T12:00:00.000Z' }]),
-      });
-      renderMyAppointments();
-
-      expect(await screen.findByText(/reprogramado/)).toBeInTheDocument();
-      expect(screen.queryByRole('link', { name: 'Reprogramar' })).not.toBeInTheDocument();
-    });
-
-    describe('turno pagado y política', () => {
-      const PROFILE = {
-        id: PRO_ID,
-        firstName: 'Ana',
-        lastName: 'Médica',
-        photoUrl: null,
-        bio: null,
-        specialties: [],
-        education: [],
-        price: 15000,
-        currency: 'ARS',
-        cancellationPolicy: {
-          hoursFullRefund: 24,
-          hoursPartialRefund: 6,
-          partialRefundPercent: 50,
-        },
-      };
-
-      it('con la anticipación de la política ofrece reprogramar', async () => {
-        // Faltan 26 h: devolución total.
-        mockApi({
-          mine: () => jsonResponse([{ ...UPCOMING, status: 'CONFIRMADO' }]),
-          profile: () => jsonResponse(PROFILE),
-        });
-        renderMyAppointments();
-
-        expect(await screen.findByRole('link', { name: 'Reprogramar' })).toBeInTheDocument();
+    it('después de cancelar dice cómo salió la devolución, hasta que se cierra', async () => {
+      const u = await abrirModal({
+        quote: () => jsonResponse({ percent: 100, amount: 15000, status: null }),
+        cancel: () =>
+          jsonResponse({
+            ...PAID,
+            status: 'CANCELADO',
+            refund: { percent: 100, amount: 15000, status: 'PROCESADO' },
+          }),
       });
 
-      it('con menos anticipación avisa en lugar de ofrecer reprogramar', async () => {
-        // Faltan 10 h: la política da sólo el parcial, así que el backend rechaza.
-        mockApi({
-          mine: () =>
-            jsonResponse([
-              {
-                ...UPCOMING,
-                status: 'CONFIRMADO',
-                scheduledAt: '2026-08-17T21:00:00.000Z',
-                date: '2026-08-17',
-                startTime: '18:00',
-              },
-            ]),
-          profile: () => jsonResponse(PROFILE),
-        });
-        renderMyAppointments();
+      await u.click(screen.getByRole('button', { name: 'Sí, cancelar' }));
 
-        expect(await screen.findByText(/ya no se puede reprogramar/)).toHaveTextContent(/24 horas/);
-        expect(screen.queryByRole('link', { name: 'Reprogramar' })).not.toBeInTheDocument();
-      });
+      expect(
+        await screen.findByText(/Te devolvemos .*15\.000 por MercadoPago/),
+      ).toBeInTheDocument();
+      await u.click(screen.getByRole('button', { name: 'Entendido' }));
+      expect(screen.queryByText(/Te devolvemos/)).not.toBeInTheDocument();
     });
-
-    it('el profesional no reprograma el turno de su paciente', async () => {
-      mockApi({ session: () => jsonResponse(PRO_SESSION) });
-      renderMyAppointments();
-
-      await screen.findByRole('region', { name: /próximos/i });
-      expect(screen.queryByRole('link', { name: 'Reprogramar' })).not.toBeInTheDocument();
-    });
-  });
-
-  it('"No, dejarlo" cierra la confirmación sin cancelar', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    const fetchMock = mockApi();
-    renderMyAppointments();
-
-    await user.click(await screen.findByRole('button', { name: /cancelar turno/i }));
-    await user.click(screen.getByRole('button', { name: /no, dejarlo/i }));
-
-    expect(screen.queryByText(/¿Cancelás el turno/)).not.toBeInTheDocument();
-    expect(
-      fetchMock.mock.calls.some(
-        ([, init]) => (init as RequestInit | undefined)?.method === 'PATCH',
-      ),
-    ).toBe(false);
-  });
-
-  it('un turno pasado no se puede cancelar', async () => {
-    mockApi({ mine: () => jsonResponse([PAST]) });
-    renderMyAppointments();
-
-    await screen.findByText(/10 de agosto de 2026/);
-
-    expect(screen.queryByRole('button', { name: /cancelar turno/i })).not.toBeInTheDocument();
-  });
-
-  it('el profesional no puede cancelar el turno de su paciente', async () => {
-    // El backend devuelve 403; la pantalla ni siquiera ofrece el botón.
-    mockApi({ session: () => jsonResponse(PRO_SESSION) });
-    renderMyAppointments();
-
-    await screen.findByText(/18 de agosto de 2026/);
-
-    expect(screen.queryByRole('button', { name: /cancelar turno/i })).not.toBeInTheDocument();
-  });
-
-  it('muestra el error del backend si la cancelación falla', async () => {
-    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-    mockApi({
-      cancel: () =>
-        jsonResponse({ message: 'El turno cambió de estado mientras lo cancelabas.' }, 409),
-    });
-    renderMyAppointments();
-
-    await user.click(await screen.findByRole('button', { name: /cancelar turno/i }));
-    await user.click(screen.getByRole('button', { name: /sí, cancelar/i }));
-
-    expect(await screen.findByRole('alert')).toHaveTextContent(/cambió de estado/i);
-  });
-
-  it('sin turnos muestra las dos secciones vacías, no un error', async () => {
-    mockApi({ mine: () => jsonResponse([]) });
-    renderMyAppointments();
-
-    expect(await screen.findByText('No tenés turnos próximos.')).toBeInTheDocument();
-    expect(screen.getByText('Todavía no tuviste ningún turno.')).toBeInTheDocument();
-  });
-
-  it('si la lista falla muestra el mensaje del backend', async () => {
-    mockApi({ mine: () => jsonResponse({ message: 'No pudimos cargar tus turnos.' }, 500) });
-    renderMyAppointments();
-
-    // `useMyAppointments` reintenta los 5xx una vez, así que el error tarda más
-    // que el timeout por defecto de `findBy`.
-    expect(await screen.findByRole('alert', undefined, { timeout: 4000 })).toHaveTextContent(
-      /no pudimos cargar tus turnos/i,
-    );
   });
 });
