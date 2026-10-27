@@ -353,6 +353,57 @@ describe('MyAppointments', () => {
       expect(screen.queryByRole('link', { name: 'Reprogramar' })).not.toBeInTheDocument();
     });
 
+    describe('turno pagado y política', () => {
+      const PROFILE = {
+        id: PRO_ID,
+        firstName: 'Ana',
+        lastName: 'Médica',
+        photoUrl: null,
+        bio: null,
+        specialties: [],
+        education: [],
+        price: 15000,
+        currency: 'ARS',
+        cancellationPolicy: {
+          hoursFullRefund: 24,
+          hoursPartialRefund: 6,
+          partialRefundPercent: 50,
+        },
+      };
+
+      it('con la anticipación de la política ofrece reprogramar', async () => {
+        // Faltan 26 h: devolución total.
+        mockApi({
+          mine: () => jsonResponse([{ ...UPCOMING, status: 'CONFIRMADO' }]),
+          profile: () => jsonResponse(PROFILE),
+        });
+        renderMyAppointments();
+
+        expect(await screen.findByRole('link', { name: 'Reprogramar' })).toBeInTheDocument();
+      });
+
+      it('con menos anticipación avisa en lugar de ofrecer reprogramar', async () => {
+        // Faltan 10 h: la política da sólo el parcial, así que el backend rechaza.
+        mockApi({
+          mine: () =>
+            jsonResponse([
+              {
+                ...UPCOMING,
+                status: 'CONFIRMADO',
+                scheduledAt: '2026-08-17T21:00:00.000Z',
+                date: '2026-08-17',
+                startTime: '18:00',
+              },
+            ]),
+          profile: () => jsonResponse(PROFILE),
+        });
+        renderMyAppointments();
+
+        expect(await screen.findByText(/ya no se puede reprogramar/)).toHaveTextContent(/24 horas/);
+        expect(screen.queryByRole('link', { name: 'Reprogramar' })).not.toBeInTheDocument();
+      });
+    });
+
     it('el profesional no reprograma el turno de su paciente', async () => {
       mockApi({ session: () => jsonResponse(PRO_SESSION) });
       renderMyAppointments();

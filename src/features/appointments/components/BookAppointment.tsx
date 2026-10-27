@@ -116,7 +116,9 @@ export function BookAppointment({ professionalId, rescheduleId }: BookAppointmen
   /** El turno que se está moviendo (ENG-66), o `null` si se reserva uno nuevo. */
   const rescheduling =
     rescheduleId !== undefined
-      ? ((myAppointments.data ?? []).find((a) => a.id === rescheduleId) ?? null)
+      ? ((myAppointments.data ?? []).find(
+          (a) => a.id === rescheduleId && a.professional?.id === professionalId,
+        ) ?? null)
       : null;
   const mutation = rescheduleId !== undefined ? reschedule : book;
 
@@ -145,7 +147,10 @@ export function BookAppointment({ professionalId, rescheduleId }: BookAppointmen
   function confirm() {
     if (!selected) return;
 
-    if (rescheduling) {
+    if (rescheduleId !== undefined) {
+      // Sin el turno resuelto no se puede reprogramar, y caer a `book` crearía
+      // un segundo turno.
+      if (!rescheduling) return;
       reschedule.mutate(
         { appointmentId: rescheduling.id, date: selected.date, startTime: selected.startTime },
         {
@@ -181,8 +186,33 @@ export function BookAppointment({ professionalId, rescheduleId }: BookAppointmen
     );
   }
 
-  // Se pidió reprogramar un turno que no está en la lista: no es del paciente, ya
-  // no existe, o la URL quedó vieja. Reservar uno nuevo en su lugar sería
+  // Mientras no se sabe cuál es el turno a mover no se muestra el flujo de
+  // reserva: confirmar ahí crearía un turno nuevo en vez de reprogramar.
+  if (rescheduleId !== undefined && myAppointments.isPending) {
+    return (
+      <p role="status" aria-live="polite" className="text-muted">
+        Cargando tu turno…
+      </p>
+    );
+  }
+
+  if (rescheduleId !== undefined && myAppointments.isError) {
+    return (
+      <div role="alert" className="text-danger">
+        <p>{myAppointments.error.message}</p>
+        <button
+          type="button"
+          onClick={() => void myAppointments.refetch()}
+          className="mt-2 font-semibold underline"
+        >
+          Reintentar
+        </button>
+      </div>
+    );
+  }
+
+  // Se pidió reprogramar un turno que no está en la lista: no es del paciente, es de
+  // otro profesional, ya no existe, o la URL quedó vieja. Reservar uno nuevo en su lugar sería
   // sorprender al paciente con un segundo turno.
   if (rescheduleId !== undefined && myAppointments.isSuccess && !rescheduling) {
     return (

@@ -16,8 +16,13 @@ import {
 } from '../lib/myAppointments';
 import { formatPrice } from '../lib/weeks';
 import type { Appointment } from '../types/appointment';
+import { usePublicProfile } from '../../catalog/hooks/usePublicProfile';
 import { RefundEstimate } from '../../cancellation-policy/components/RefundEstimate';
-import { refundOutcomeText } from '../../cancellation-policy/lib/policy';
+import {
+  MAX_REFUND_PERCENT,
+  refundOutcomeText,
+  refundPercentFor,
+} from '../../cancellation-policy/lib/policy';
 
 /**
  * Mis turnos (ENG-55).
@@ -152,10 +157,7 @@ function AppointmentList({
         <span className="text-xs font-semibold text-brand">
           {String(appointments.length).padStart(2, '0')}
         </span>
-        <h2
-          id={id}
-          className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted"
-        >
+        <h2 id={id} className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted">
           {title}
         </h2>
       </div>
@@ -216,6 +218,19 @@ function AppointmentRow({
   const joinState = joinStateOf(appointment, now);
   // El pago es del paciente, no del profesional que cobra la consulta.
   const pagable = isPatient && canPay(appointment, now);
+
+  // Un turno pagado sólo se reprograma con la anticipación del reembolso total
+  // (el backend lo rechaza si no). Se adelanta el aviso con la política del
+  // perfil público; el backend sigue siendo la fuente de verdad. Sin pedir el
+  // perfil (`''`) cuando no hace falta.
+  const policy = usePublicProfile(
+    reschedulable && appointment.status === 'CONFIRMADO'
+      ? (appointment.professional?.id ?? '')
+      : '',
+  ).data?.cancellationPolicy;
+  const reprogramacionCerrada =
+    policy !== undefined &&
+    refundPercentFor(policy, new Date(appointment.scheduledAt), now) < MAX_REFUND_PERCENT;
 
   return (
     <li
@@ -318,7 +333,7 @@ function AppointmentRow({
             </Link>
           )}
 
-          {reschedulable && !isConfirming && (
+          {reschedulable && !reprogramacionCerrada && !isConfirming && (
             <Link
               to={`/profesionales/${appointment.professional?.id}/turnos?reprogramar=${appointment.id}`}
               className={`inline-flex items-center justify-center rounded-[9px] border px-5 py-3 text-sm font-bold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${
@@ -329,6 +344,12 @@ function AppointmentRow({
             >
               Reprogramar
             </Link>
+          )}
+
+          {reschedulable && reprogramacionCerrada && !isConfirming && policy && (
+            <p className={`self-center text-sm ${isNext ? 'text-on-night' : 'text-muted'}`}>
+              Con menos de {policy.hoursFullRefund} horas ya no se puede reprogramar.
+            </p>
           )}
 
           {cancellable && !isConfirming && (
