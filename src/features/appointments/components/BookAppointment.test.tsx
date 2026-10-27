@@ -83,6 +83,7 @@ function mockApi(
     availability?: () => Response;
     mine?: () => Response;
     book?: (body: unknown) => Response;
+    profile?: () => Response;
   } = {},
 ) {
   return vi.spyOn(globalThis, 'fetch').mockImplementation((input, init): Promise<Response> => {
@@ -98,6 +99,9 @@ function mockApi(
     }
     if (url.includes('/appointments/me')) {
       return Promise.resolve(handlers.mine?.() ?? jsonResponse([]));
+    }
+    if (url.endsWith(`/professionals/${PRO_ID}`)) {
+      return Promise.resolve(handlers.profile?.() ?? jsonResponse({}, 404));
     }
     return Promise.resolve(jsonResponse({}, 404));
   });
@@ -157,6 +161,21 @@ describe('BookAppointment', () => {
     expect(screen.getByRole('heading', { name: /confirmar turno/i })).toBeInTheDocument();
     // Ningún POST todavía: un click en la grilla no compromete una consulta paga.
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
+  });
+
+  it('muestra la política de cancelación del profesional al revisar (ENG-171)', async () => {
+    mockApi({
+      profile: () =>
+        jsonResponse({
+          ...PROFESSIONAL,
+          cancellationPolicy: { hoursFullRefund: 24, hoursPartialRefund: 6, partialRefundPercent: 50 },
+        }),
+    });
+    renderBooking();
+
+    expect(
+      await screen.findByText(/Entre 24 horas y 6 horas antes, el 50 %/),
+    ).toBeInTheDocument();
   });
 
   it('avisa que el turno queda reservado sin pagar', async () => {

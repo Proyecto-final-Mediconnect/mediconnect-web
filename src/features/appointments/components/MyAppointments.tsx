@@ -16,6 +16,8 @@ import {
 } from '../lib/myAppointments';
 import { formatPrice } from '../lib/weeks';
 import type { Appointment } from '../types/appointment';
+import { RefundEstimate } from '../../cancellation-policy/components/RefundEstimate';
+import { refundOutcomeText } from '../../cancellation-policy/lib/policy';
 
 /**
  * Mis turnos (ENG-55).
@@ -32,6 +34,9 @@ export function MyAppointments() {
 
   /** Turno con la confirmación abierta. Cancelar no puede ser un solo click. */
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  /** Qué pasó con la devolución del último turno cancelado (ENG-65). Solo lo dice
+   *  la respuesta de la cancelación, así que se muestra hasta que se cierra. */
+  const [refundOutcome, setRefundOutcome] = useState<string | null>(null);
 
   if (appointments.isPending) {
     return (
@@ -53,12 +58,31 @@ export function MyAppointments() {
 
   function confirmCancel(appointmentId: string) {
     cancel.mutate(appointmentId, {
+      onSuccess: (cancelled) =>
+        setRefundOutcome(
+          refundOutcomeText(cancelled.refund, (amount) => formatPrice(amount, cancelled.currency)),
+        ),
       onSettled: () => setConfirmingId(null),
     });
   }
 
   return (
     <div className="space-y-8">
+      {refundOutcome && (
+        <div
+          role="status"
+          className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-brand/30 bg-surface-teal px-4 py-3 text-sm text-brand-deep"
+        >
+          <p className="min-w-0 flex-1">{refundOutcome}</p>
+          <button
+            type="button"
+            onClick={() => setRefundOutcome(null)}
+            className="font-semibold underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            Entendido
+          </button>
+        </div>
+      )}
       {cancel.isError && (
         <p
           role="alert"
@@ -333,6 +357,18 @@ function AppointmentRow({
             ¿Cancelás el turno del {formatLongDate(appointment.date)} a las {appointment.startTime}?
             El horario vuelve a quedar libre para otra persona.
           </p>
+          {/* Solo un turno pagado tiene algo que devolver. */}
+          {appointment.status === 'CONFIRMADO' && appointment.professional && (
+            <RefundEstimate
+              appointmentId={appointment.id}
+              professionalId={appointment.professional.id}
+              scheduledAt={appointment.scheduledAt}
+              price={appointment.price}
+              currency={appointment.currency}
+              now={now}
+              className={`mt-2 ${isNext ? 'text-on-night-strong' : 'text-ink'}`}
+            />
+          )}
           <div className="mt-3 flex flex-wrap gap-3">
             <Button
               type="button"

@@ -65,6 +65,26 @@ export interface Appointment {
   patient: AppointmentParty | null;
 }
 
+/** Qué pasó con el reembolso de una cancelación (ENG-65). */
+export type RefundOutcome = 'PROCESADO' | 'PENDIENTE' | 'RECHAZADO';
+
+/**
+ * Cuánto le corresponde al paciente si cancela, y qué pasó con eso (ENG-65).
+ * `status` es `null` cuando no hay nada que devolver (el turno no estaba pago o
+ * la política da 0 %), y siempre en la cotización, antes de cancelar.
+ */
+export interface CancellationRefund {
+  percent: number;
+  amount: number;
+  status: RefundOutcome | null;
+}
+
+/** Lo que devuelve `PATCH /appointments/:id/cancel`. `refund` falta con un
+ *  backend anterior a ENG-65. */
+export interface CancelledAppointment extends Appointment {
+  refund?: CancellationRefund;
+}
+
 /** Cuerpo del POST. No lleva precio, duración ni estado: los decide el servidor
  *  (y el backend rechaza el request si aparecen). */
 export interface BookAppointmentPayload {
