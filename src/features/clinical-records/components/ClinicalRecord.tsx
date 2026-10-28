@@ -1,19 +1,32 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { flushSync } from 'react-dom';
 import { isClientError } from '../../../shared/api/apiError';
 import { useClinicalRecord } from '../hooks/useClinicalRecord';
+import { DateBadge } from '../../appointments/components/agenda/DateBadge';
+import { formatMonthYear } from '../../appointments/lib/agenda';
+import { useMediaQuery, WIDE_QUERY } from '../../../shared/hooks/useMediaQuery';
+import { SideDrawer } from '../../../shared/ui/SideDrawer';
+import { readEntryFields } from '../lib/clinicalEntry';
 import {
+  agruparPorMes,
+  diaLocal,
   FILTROS_VACIOS,
+  nombreDe,
   filtrarEntradas,
   opcionesDe,
   type FiltrosHC,
 } from '../lib/filtrarEntradas';
 import type { ClinicalEntry } from '../types/clinicalRecord';
 import { EntryCard } from './EntryCard';
+import { TONO_TIPO } from '../lib/entryTone';
+import { CorrectedChip, TypeChip } from './entryType';
 import { RecordFilters } from './RecordFilters';
 
 /**
- * Historia clínica de un paciente (ENG-58, ENG-59, ENG-60), con la pantalla del
- * canvas: filtros al costado y la cadena como línea de tiempo.
+ * Historia clínica de un paciente (ENG-58, ENG-59, ENG-60), con la
+ * misma forma que "Mis turnos": los filtros al costado (arriba en pantallas
+ * angostas), los registros en filas agrupadas por mes, y el detalle de cada uno
+ * en el panel lateral (debajo de la fila en pantallas angostas).
  *
  * Qué entradas se ven lo decide **RLS**, no esta pantalla, así que el componente
  * no ramifica por rol. Desde ENG-60 los dos roles ven la historia **completa**:
@@ -69,17 +82,38 @@ export function ClinicalRecord({
 }: ClinicalRecordProps) {
   const record = useClinicalRecord(patientId);
   const [filtros, setFiltros] = useState<FiltrosHC>(FILTROS_VACIOS);
+  // En ancho se abre una sola, en el panel lateral; en angosto se despliegan
+  // debajo de su fila y pueden quedar varias abiertas para comparar.
+  const [abierta, setAbierta] = useState<number | null>(null);
+  const [desplegadas, setDesplegadas] = useState<Set<number>>(() => new Set());
+  const [imprimiendo, setImprimiendo] = useState(false);
+  const wide = useMediaQuery(WIDE_QUERY);
+
+  // La copia impresa lleva el detalle de cada registro, no las filas: también
+  // cuando se imprime con Ctrl+P y no con el botón.
+  useEffect(() => {
+    const antes = () => flushSync(() => setImprimiendo(true));
+    const despues = () => setImprimiendo(false);
+    window.addEventListener('beforeprint', antes);
+    window.addEventListener('afterprint', despues);
+    return () => {
+      window.removeEventListener('beforeprint', antes);
+      window.removeEventListener('afterprint', despues);
+    };
+  }, []);
 
   const entries = useMemo(() => record.data ?? [], [record.data]);
 
-  const { visibles, opciones, corregidaPor, posicionDe } = useMemo(() => {
+  const { visibles, opciones, corregidaPor, posicionDe, porNumero } = useMemo(() => {
     // Los vínculos de corrección se calculan sobre la cadena completa y no
     // sobre lo filtrado: si no, filtrar por tipo escondería el otro lado del
     // vínculo y una entrada corregida aparecería como si estuviera firme.
     const corregidaPor = new Map<string, number>();
     const posicionDe = new Map<string, number>();
+    const porNumero = new Map<number, ClinicalEntry>();
     for (const e of entries) {
       posicionDe.set(e.id, e.sequenceNumber);
+      porNumero.set(e.sequenceNumber, e);
       if (e.correctsEntryId) corregidaPor.set(e.correctsEntryId, e.sequenceNumber);
     }
 
@@ -88,8 +122,49 @@ export function ClinicalRecord({
       opciones: opcionesDe(entries),
       corregidaPor,
       posicionDe,
+      porNumero,
     };
   }, [entries, filtros]);
+
+  const seleccionada = abierta !== null ? porNumero.get(abierta) : undefined;
+
+  function descargar() {
+    flushSync(() => setImprimiendo(true));
+    window.print();
+    setImprimiendo(false);
+  }
+
+  /** El detalle de una entrada, con los vínculos que abren a la otra punta. */
+  function detalle(entry: ClinicalEntry, variant: 'card' | 'panel') {
+    return (
+      <EntryCard
+        entry={entry}
+        variant={variant}
+        corregidaPor={corregidaPor.get(entry.id)}
+        corrigeA={entry.correctsEntryId ? posicionDe.get(entry.correctsEntryId) : undefined}
+        onIrA={
+          variant !== 'panel'
+            ? undefined
+            : wide
+              ? setAbierta
+              : (seq) => {
+                  setDesplegadas((actual) => new Set(actual).add(seq));
+                  document
+                    .getElementById(`fila-${seq}`)
+                    ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+        }
+        onCorregir={
+          puedeCorregir(entry)
+            ? () => {
+                setAbierta(null);
+                onCorregir?.(entry);
+              }
+            : undefined
+        }
+      />
+    );
+  }
 
   /**
    * Las tres condiciones para ofrecer la corrección de una entrada (ENG-100).
@@ -139,45 +214,115 @@ export function ClinicalRecord({
 
         {entries.length > 0 && (
           <>
-            <EncabezadoImpreso scopeNote={scopeNote} total={entries.length} visibles={visibles.length} />
-          <div className="grid items-start gap-[22px] lg:grid-cols-[262px_minmax(0,1fr)] print:block">
-            <RecordFilters
-              filtros={filtros}
-              onChange={setFiltros}
-              tipos={opciones.tipos}
-              profesionales={opciones.profesionales}
+            <EncabezadoImpreso
+              scopeNote={scopeNote}
               total={entries.length}
               visibles={visibles.length}
-              onDescargar={() => window.print()}
             />
+            <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-8 print:block">
+              <RecordFilters
+                filtros={filtros}
+                onChange={setFiltros}
+                tipos={opciones.tipos}
+                profesionales={opciones.profesionales}
+                total={entries.length}
+                visibles={visibles.length}
+                onDescargar={descargar}
+              />
 
-            {visibles.length === 0 ? (
-              <p className="rounded-[14px] border border-dashed border-line-strong bg-white p-6 text-[13px] leading-[1.6] text-muted">
-                Ninguna entrada coincide con esos filtros. Probá ampliando el rango de fechas o
-                sacando alguno.
-              </p>
-            ) : (
-              <div className="grid gap-3.5">
-                {[...visibles].reverse().map((entry) => (
-                  <EntryCard
-                    key={entry.id}
-                    entry={entry}
-                    corregidaPor={corregidaPor.get(entry.id)}
-                    corrigeA={
-                      entry.correctsEntryId ? posicionDe.get(entry.correctsEntryId) : undefined
-                    }
-                    onCorregir={
-                      puedeCorregir(entry) ? () => onCorregir?.(entry) : undefined
-                    }
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+              {visibles.length === 0 ? (
+                <div className="rounded-[14px] border border-dashed border-line-strong bg-white p-6 text-[13px] leading-[1.6] text-muted">
+                  Ninguna entrada coincide con esos filtros. Probá con otras palabras o ampliando
+                  las fechas.{' '}
+                  <button
+                    type="button"
+                    onClick={() => setFiltros(FILTROS_VACIOS)}
+                    className="font-semibold text-brand-deep underline underline-offset-2"
+                  >
+                    Limpiar filtros
+                  </button>
+                </div>
+              ) : imprimiendo ? (
+                <div className="grid gap-4">
+                  {[...visibles].reverse().map((entry) => (
+                    <div key={entry.id}>{detalle(entry, 'card')}</div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid gap-7">
+                  {agruparPorMes([...visibles].reverse()).map(({ mes, entradas }) => (
+                    <section key={mes} aria-labelledby={`mes-${mes}`} className="grid gap-3">
+                      <h3
+                        id={`mes-${mes}`}
+                        className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted"
+                      >
+                        {formatMonthYear(mes)}
+                      </h3>
+                      {/* La línea de tiempo: un riel con un punto del color de
+                          cada tipo (ámbar si el registro tiene una corrección),
+                          y al lado la tarjeta compacta. */}
+                      <ul className="relative grid gap-2.5 border-l-2 border-line-soft pl-6">
+                        {entradas.map((entry) => (
+                          <li
+                            key={entry.id}
+                            id={`fila-${entry.sequenceNumber}`}
+                            className="relative"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={`absolute -left-[32px] top-[37px] size-3.5 -translate-y-1/2 rounded-full border-[3px] border-surface ring-2 ${
+                                corregidaPor.has(entry.id)
+                                  ? 'bg-tag-warm-dot ring-tag-warm-dot/30'
+                                  : `${TONO_TIPO[entry.entryType]?.dot ?? 'bg-brand'} ring-line-soft`
+                              }`}
+                            />
+                            <EntryRow
+                              entry={entry}
+                              corregida={corregidaPor.has(entry.id)}
+                              abierta={
+                                wide
+                                  ? abierta === entry.sequenceNumber
+                                  : desplegadas.has(entry.sequenceNumber)
+                              }
+                              wide={wide}
+                              onToggle={() =>
+                                wide
+                                  ? setAbierta(entry.sequenceNumber)
+                                  : setDesplegadas((actual) => {
+                                      const siguiente = new Set(actual);
+                                      if (!siguiente.delete(entry.sequenceNumber)) {
+                                        siguiente.add(entry.sequenceNumber);
+                                      }
+                                      return siguiente;
+                                    })
+                              }
+                            />
+                            {/* En angosto el detalle se despliega debajo de la
+                                fila; en ancho va al panel lateral. */}
+                            {!wide && desplegadas.has(entry.sequenceNumber) && (
+                              <div className="mt-2 rounded-[14px] bg-surface p-3">
+                                {detalle(entry, 'panel')}
+                              </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <SideDrawer
+              open={wide && seleccionada !== undefined}
+              title="Registro de la historia clínica"
+              onClose={() => setAbierta(null)}
+            >
+              {seleccionada && detalle(seleccionada, 'panel')}
+            </SideDrawer>
           </>
         )}
       </section>
-
     </div>
   );
 }
@@ -237,11 +382,71 @@ function RecordError({ error }: { error: Error }) {
       )}
       {!denied && !isClientError(error) && (
         <p className="mt-1.5 text-[13px] leading-[1.6] text-muted">
-          Probá de nuevo en un momento. La historia clínica no se perdió: el problema es de
-          lectura.
+          Probá de nuevo en un momento. La historia clínica no se perdió: el problema es de lectura.
         </p>
       )}
     </div>
+  );
+}
+
+/**
+ * Un registro en la línea de tiempo: tarjeta compacta con el día en un bloque,
+ * el titular, quién lo firmó y el tipo al costado. El detalle se abre al tocarla.
+ */
+function EntryRow({
+  entry,
+  corregida,
+  abierta,
+  wide,
+  onToggle,
+}: {
+  entry: ClinicalEntry;
+  corregida: boolean;
+  abierta: boolean;
+  wide: boolean;
+  onToggle: () => void;
+}) {
+  const titular = readEntryFields(entry)[0]?.value ?? 'Registro sin contenido legible';
+  const hora = new Date(entry.createdAt).toLocaleTimeString('es-AR', {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={wide ? undefined : abierta}
+      aria-haspopup={wide ? 'dialog' : undefined}
+      className={`flex w-full items-center gap-3.5 rounded-[14px] border bg-white px-3.5 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+        abierta ? 'border-brand ring-1 ring-brand' : 'border-line hover:border-line-strong'
+      }`}
+    >
+      <DateBadge date={diaLocal(entry.createdAt)} muted={corregida} />
+      <span className="min-w-0 flex-1">
+        <span
+          className={`block truncate text-[15px] font-semibold ${corregida ? 'text-muted' : 'text-brand-deep'}`}
+        >
+          {titular}
+        </span>
+        {/* "Firmada por" y no el nombre suelto: debajo de un titular clínico,
+            el nombre solo se lee como si fuera el paciente. */}
+        <span className="block truncate text-sm text-muted-soft">
+          {entry.professional ? `Firmada por ${nombreDe(entry)}` : 'Profesional no disponible'} ·{' '}
+          {hora}
+        </span>
+      </span>
+      <span className="hidden flex-none items-center gap-2 sm:flex">
+        {corregida && <CorrectedChip />}
+        <TypeChip type={entry.entryType} />
+      </span>
+      <span
+        aria-hidden="true"
+        className={`flex-none text-muted-soft transition-transform ${!wide && abierta ? 'rotate-90' : ''}`}
+      >
+        ›
+      </span>
+    </button>
   );
 }
 

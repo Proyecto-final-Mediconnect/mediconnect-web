@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { PatientClinicalRecordPage } from './PatientClinicalRecordPage';
+import { desplegarRegistros } from '../features/clinical-records/testing/desplegarRegistros';
 
 /**
  * La historia clínica de un paciente vista por su profesional (ENG-58, ENG-60).
@@ -140,6 +141,7 @@ async function conUnaEntrada(motivo = 'Dolor lumbar de 3 días') {
   await userEvent.type(screen.getByLabelText(/motivo de consulta/i), motivo);
   await userEvent.click(screen.getByRole('button', { name: /guardar en la historia/i }));
   await screen.findByText(motivo);
+  await desplegarRegistros();
 }
 
 afterEach(() => {
@@ -284,8 +286,8 @@ describe('PatientClinicalRecordPage', () => {
 
       expect(await screen.findByText('Dolor cervical')).toBeInTheDocument();
       // La original sigue ahí, con su texto intacto y la etiqueta.
-      expect(screen.getByText('Dolor lumbar de 3 días')).toBeInTheDocument();
-      expect(screen.getByText('CORREGIDA')).toBeInTheDocument();
+      expect(screen.getAllByText('Dolor lumbar de 3 días').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Corregida').length).toBeGreaterThan(0);
     });
 
     it('la entrada ya corregida deja de ofrecer el botón', async () => {
@@ -294,7 +296,9 @@ describe('PatientClinicalRecordPage', () => {
       await userEvent.click(botonCorregir());
       await userEvent.type(screen.getByLabelText(/qué estás corrigiendo/i), 'Error de tipeo');
       await userEvent.click(screen.getByRole('button', { name: /guardar la corrección/i }));
-      await screen.findByText('CORREGIDA');
+      await screen.findAllByText('Corregida');
+      // La corrección entra como una fila nueva, cerrada.
+      await desplegarRegistros();
 
       // Queda uno solo: el de la corrección, que todavía nadie corrigió.
       expect(screen.getAllByRole('button', { name: /corregir esta entrada/i })).toHaveLength(1);

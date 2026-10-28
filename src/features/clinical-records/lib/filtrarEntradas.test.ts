@@ -151,3 +151,14 @@ describe('idsEnCorreccion', () => {
     expect(idsEnCorreccion([entrada()]).size).toBe(0);
   });
 });
+
+describe('busqueda', () => {
+  it('encuentra por profesional sin tildes y deja afuera lo que no coincide', () => {
+    const todas = [
+      entrada(),
+      entrada({ id: 'e2', professional: { firstName: 'Martín', lastName: 'Olivares' } }),
+    ];
+    expect(filtrarEntradas(todas, con({ busqueda: 'rios ana' })).map((e) => e.id)).toEqual(['e1']);
+    expect(filtrarEntradas(todas, con({ busqueda: 'no-existe' }))).toHaveLength(0);
+  });
+});

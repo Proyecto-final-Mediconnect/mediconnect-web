@@ -1,9 +1,10 @@
-import type { ClinicalEntry } from '../types/clinicalRecord';
+import { readEntryFields } from './clinicalEntry';
+import { ENTRY_TYPE_LABELS, type ClinicalEntry } from '../types/clinicalRecord';
 
 /**
  * Filtros de la historia clínica (pantalla "Historia clínica" del canvas).
  *
- * El canvas pone un panel de filtros al costado de la cadena, y no es adorno:
+ * Van arriba de la cadena (`RecordToolbar`), y no son adorno:
  * una historia real tiene decenas de entradas de varios profesionales, y quien
  * la abre casi siempre busca algo puntual —"qué me dijo el cardiólogo", "las
  * prescripciones del año pasado"—. Sin filtros, la única herramienta es
@@ -19,6 +20,8 @@ import type { ClinicalEntry } from '../types/clinicalRecord';
  */
 
 export interface FiltrosHC {
+  /** Texto libre: busca en el contenido, el tipo y el profesional. */
+  busqueda: string;
   /** `''` = todos. */
   tipo: string;
   /** Nombre completo del profesional. `''` = todos. */
@@ -31,6 +34,7 @@ export interface FiltrosHC {
 }
 
 export const FILTROS_VACIOS: FiltrosHC = {
+  busqueda: '',
   tipo: '',
   profesional: '',
   desde: '',
@@ -49,7 +53,7 @@ export function nombreDe(entry: ClinicalEntry): string {
  *  Local y no UTC: el input de fecha que elige la persona es local, y comparar
  *  contra la fecha UTC dejaba afuera las entradas de la noche —una consulta de
  *  las 22:00 en Argentina es del día siguiente en UTC. */
-function diaLocal(iso: string): string {
+export function diaLocal(iso: string): string {
   const d = new Date(iso);
   const mes = `${d.getMonth() + 1}`.padStart(2, '0');
   const dia = `${d.getDate()}`.padStart(2, '0');
@@ -70,10 +74,35 @@ export function idsEnCorreccion(entries: ClinicalEntry[]): Set<string> {
   return ids;
 }
 
+/** Minúsculas y sin tildes, para que "diagnostico" encuentre "Diagnóstico". */
+function normalizar(texto: string): string {
+  return texto
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+/** Todo lo que se lee de una entrada, en un solo texto para buscar. */
+function textoDe(entry: ClinicalEntry): string {
+  return normalizar(
+    [
+      ENTRY_TYPE_LABELS[entry.entryType] ?? entry.entryType,
+      nombreDe(entry),
+      ...readEntryFields(entry).map((campo) => campo.value),
+    ].join(' '),
+  );
+}
+
 export function filtrarEntradas(entries: ClinicalEntry[], filtros: FiltrosHC): ClinicalEntry[] {
   const enCorreccion = idsEnCorreccion(entries);
+  // Cada palabra tiene que aparecer, en cualquier orden: "ibuprofeno garcía".
+  const palabras = normalizar(filtros.busqueda).split(/\s+/).filter(Boolean);
 
   return entries.filter((e) => {
+    if (palabras.length) {
+      const texto = textoDe(e);
+      if (!palabras.every((p) => texto.includes(p))) return false;
+    }
     if (filtros.tipo && e.entryType !== filtros.tipo) return false;
     if (filtros.profesional && nombreDe(e) !== filtros.profesional) return false;
     if (filtros.soloCorrecciones && !enCorreccion.has(e.id)) return false;
@@ -97,4 +126,34 @@ export function opcionesDe(entries: ClinicalEntry[]): {
     tipos: [...new Set(entries.map((e) => e.entryType))].sort(),
     profesionales: [...new Set(entries.map(nombreDe))].sort(),
   };
+}
+
+/** `true` si hay algún filtro puesto. */
+export function hayFiltros(filtros: FiltrosHC): boolean {
+  return (
+    filtros.busqueda.trim() !== '' ||
+    !!filtros.tipo ||
+    !!filtros.profesional ||
+    !!filtros.desde ||
+    !!filtros.hasta ||
+    filtros.soloCorrecciones
+  );
+}
+
+/**
+ * Las entradas agrupadas por mes (`YYYY-MM`, en la hora local), en el orden en
+ * que llegan. La historia se lee por meses, como se recuerda: "en agosto me
+ * vio la cardióloga".
+ */
+export function agruparPorMes(
+  entries: ClinicalEntry[],
+): { mes: string; entradas: ClinicalEntry[] }[] {
+  const grupos: { mes: string; entradas: ClinicalEntry[] }[] = [];
+  for (const e of entries) {
+    const mes = diaLocal(e.createdAt).slice(0, 7);
+    const ultimo = grupos[grupos.length - 1];
+    if (ultimo?.mes === mes) ultimo.entradas.push(e);
+    else grupos.push({ mes, entradas: [e] });
+  }
+  return grupos;
 }
