@@ -10,7 +10,16 @@ import type { VitalBlock } from '../types/medipass';
  * por lo mismo — un diagnóstico escrito en otro idioma sigue siendo legible por
  * su código.
  */
-export function VitalBlockCard({ vital, footer }: { vital: VitalBlock; footer?: ReactNode }) {
+export function VitalBlockCard({
+  vital,
+  footer,
+  fill = false,
+}: {
+  vital: VitalBlock;
+  footer?: ReactNode;
+  /** Ocupa todo el ancho de su columna en vez de centrarse con un tope. */
+  fill?: boolean;
+}) {
   const alergias = vital.alergias ?? [];
   const medicacion = vital.medicacion ?? [];
   const condiciones = vital.condiciones ?? [];
@@ -22,7 +31,9 @@ export function VitalBlockCard({ vital, footer }: { vital: VitalBlock; footer?: 
   ].filter(Boolean);
 
   return (
-    <article className="mx-auto w-full max-w-[560px] overflow-hidden rounded-[14px] border border-night bg-night text-white">
+    <article
+      className={`${fill ? 'w-full' : 'mx-auto w-full max-w-[560px]'} overflow-hidden rounded-[14px] border border-night bg-night text-white`}
+    >
       <header className="border-b border-white/10 px-6 py-6 sm:px-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-[15px] font-bold text-white">MediPass</p>

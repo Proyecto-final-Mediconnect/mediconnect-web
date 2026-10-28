@@ -34,7 +34,7 @@ export function ActiveAccesses() {
   return (
     <section
       aria-labelledby="accediendo"
-      className="overflow-hidden rounded-[14px] border border-line bg-white"
+      className="flex flex-col overflow-hidden rounded-[18px] border border-line bg-white"
     >
       <div className="flex items-center justify-between gap-3 border-b border-line-soft px-5 py-4">
         <h2 id="accediendo" className="text-[15px] font-bold text-brand-deep">
@@ -64,9 +64,30 @@ export function ActiveAccesses() {
           </button>
         </div>
       ) : abiertos.length === 0 ? (
-        <p className="px-5 py-4 text-[13px] leading-[1.6] text-muted">
-          Nadie está mirando tu MediPass en este momento.
-        </p>
+        <div className="grid flex-1 place-content-center justify-items-center gap-2 px-5 py-6 text-center">
+          <span
+            aria-hidden="true"
+            className="grid size-10 place-items-center rounded-full bg-surface-teal text-brand-hover"
+          >
+            <svg
+              viewBox="0 0 20 20"
+              className="size-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+            >
+              <path
+                d="M10 2.5 4 5v4.5c0 3.6 2.6 6.6 6 8 3.4-1.4 6-4.4 6-8V5l-6-2.5Z"
+                strokeLinejoin="round"
+              />
+              <path d="m7.5 10 1.8 1.8L12.8 8" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
+          <p className="text-[13px] leading-[1.6] text-muted">
+            Nadie está mirando tu MediPass en este momento.
+          </p>
+          <p className="text-xs text-muted-soft">Cuando alguien lo escanee, lo vas a ver acá.</p>
+        </div>
       ) : (
         <ul className="divide-y divide-line-soft">
           {abiertos.map((acceso) => (
