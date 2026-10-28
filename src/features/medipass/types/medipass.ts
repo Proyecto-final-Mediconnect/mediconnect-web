@@ -72,3 +72,19 @@ export interface MediPassHistory {
   pagina: number;
   hayMas: boolean;
 }
+
+/**
+ * Un acceso abierto ahora sobre el MediPass (`GET /medipass/me/accesses`,
+ * ENG-74). El backend ya deja afuera los vencidos y los revocados.
+ */
+export interface MediPassActiveAccess {
+  /** El id de la sesión: es lo que se manda para cortarla (ENG-75). */
+  id: string;
+  consultante: string;
+  matricula: string | null;
+  /** ISO-8601. */
+  desde: string;
+  /** ISO-8601: cuándo se corta sola. */
+  expiraEl: string;
+  minutosRestantes: number;
+}

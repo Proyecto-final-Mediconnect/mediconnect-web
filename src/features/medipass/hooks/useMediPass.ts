@@ -1,5 +1,11 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { getMyMediPassCode, getMyMediPassHistory, getMyVitalBlock } from '../api/medipassApi';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  getMyActiveAccesses,
+  getMyMediPassCode,
+  getMyMediPassHistory,
+  getMyVitalBlock,
+  revokeAccess,
+} from '../api/medipassApi';
 
 /**
  * El código vigente. Se vuelve a pedir justo cuando vence (ENG-72 lo rota cada
@@ -37,5 +43,31 @@ export function useMyMediPassHistory(pagina: number) {
     queryKey: ['medipass', 'me', 'historial', pagina],
     queryFn: () => getMyMediPassHistory(pagina),
     placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Quién está mirando el MediPass ahora (ENG-74). Se refresca cada 30 segundos:
+ * es "en tiempo real" en la medida en que importa, sin un socket abierto para
+ * una lista de dos o tres filas.
+ */
+export function useMyActiveAccesses() {
+  return useQuery({
+    queryKey: ['medipass', 'me', 'accesses'],
+    queryFn: getMyActiveAccesses,
+    refetchInterval: 30_000,
+  });
+}
+
+/** Corta un acceso (ENG-75) y actualiza la lista y el historial. */
+export function useRevokeAccess() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: revokeAccess,
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['medipass', 'me', 'accesses'] }),
+        queryClient.invalidateQueries({ queryKey: ['medipass', 'me', 'historial'] }),
+      ]),
   });
 }

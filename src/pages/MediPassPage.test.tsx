@@ -42,6 +42,7 @@ function renderPage(
     if (url.includes('/medipass/me/historial')) {
       return Promise.resolve(json({ accesos: [], pagina: 1, hayMas: false }));
     }
+    if (url.endsWith('/medipass/me/accesses')) return Promise.resolve(json([]));
     return Promise.resolve(json(SESION));
   });
 
@@ -85,6 +86,13 @@ describe('MediPassPage (ENG-135)', () => {
 
     expect(await screen.findByText(MOCK_VITAL_BLOCK.nombre)).toBeVisible();
     expect(screen.getByText('Allergies')).toBeVisible();
+  });
+
+  it('muestra quién está accediendo ahora (ENG-74)', async () => {
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'Accediendo ahora' })).toBeInTheDocument();
+    expect(await screen.findByText(/nadie está mirando tu medipass/i)).toBeInTheDocument();
   });
 
   it('muestra el historial de accesos debajo (ENG-76)', async () => {
