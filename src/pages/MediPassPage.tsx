@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useSession } from '../features/auth/hooks/useSession';
 import { AccessHistory } from '../features/medipass/components/AccessHistory';
 import { ActiveAccesses } from '../features/medipass/components/ActiveAccesses';
@@ -5,6 +6,7 @@ import { VitalBlockCard } from '../features/medipass/components/VitalBlockCard';
 import { useMyMediPassCode, useMyVitalBlock } from '../features/medipass/hooks/useMediPass';
 import { cuentaRegresiva, emergencyUrl, formatCodigo } from '../features/medipass/lib/medipass';
 import { useNow } from '../shared/hooks/useNow';
+import type { VitalBlock } from '../features/medipass/types/medipass';
 import { MediPassQr } from '../shared/ui/MediPassQr';
 import { DashboardLayout } from './DashboardLayout';
 
@@ -23,6 +25,17 @@ import { DashboardLayout } from './DashboardLayout';
  * con la opción de cortarlo (ENG-74, ENG-75). Abajo, el bloque vital tal como lo
  * va a leer quien escanee (`GET /medipass/me/vital`) y el historial de accesos.
  */
+/** Sin nada clínico cargado: el médico solo vería el nombre y la edad (ENG-136). */
+function vitalVacio(vital: VitalBlock): boolean {
+  return (
+    !vital.grupoSanguineo &&
+    !vital.alergias?.length &&
+    !vital.medicacion?.length &&
+    !vital.condiciones?.length &&
+    !vital.contacto
+  );
+}
+
 /** El código rota cada 5 minutos (ENG-72): es lo que llena la barra. */
 const CODIGO_MS = 5 * 60_000;
 
@@ -167,7 +180,23 @@ export function MediPassPage() {
                 {vital.error.message}
               </p>
             ) : (
-              <VitalBlockCard vital={vital.data} fill />
+              <>
+                {vitalVacio(vital.data) && (
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-brand/30 bg-surface-teal px-5 py-4">
+                    <p className="text-[13px] leading-[1.6] text-brand-deep">
+                      <strong className="font-bold">Tu MediPass está casi vacío.</strong> Cargá tus
+                      alergias, remedios y un contacto para que le sirva a un médico de guardia.
+                    </p>
+                    <Link
+                      to="/perfil/paciente#emergencias"
+                      className="rounded-full bg-brand-deep px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                    >
+                      Completar mis datos
+                    </Link>
+                  </div>
+                )}
+                <VitalBlockCard vital={vital.data} fill />
+              </>
             )}
           </section>
 

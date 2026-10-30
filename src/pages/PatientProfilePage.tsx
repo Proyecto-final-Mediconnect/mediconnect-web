@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { PatientProfileForm } from '../features/patient-profile/components/PatientProfileForm';
+import { VitalInfoForm } from '../features/patient-profile/components/VitalInfoForm';
+import { isEmpty, toForm } from '../features/patient-profile/lib/vitalInfo';
 import { useSession } from '../features/auth/hooks/useSession';
 import { useMyProfile } from '../features/patient-profile/hooks/usePatientProfile';
 import { DashboardLayout } from './DashboardLayout';
@@ -27,6 +29,7 @@ export function PatientProfilePage() {
     ((perfil.data?.firstName ?? user?.firstName)?.charAt(0) ?? '') +
       ((perfil.data?.lastName ?? user?.lastName)?.charAt(0) ?? '') || '·';
   const completo = perfil.data?.completed ?? false;
+  const medipassVacio = perfil.data ? isEmpty(toForm(perfil.data)) : false;
 
   /** Campos vacíos, nombrados igual que sus etiquetas en el formulario para que
    *  la lista se pueda seguir sin traducir nada. */
@@ -47,7 +50,12 @@ export function PatientProfilePage() {
   return (
     <DashboardLayout barTitle="Mi perfil">
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <PatientProfileForm />
+        <div className="grid gap-5">
+          <PatientProfileForm />
+          {/* Los datos de emergencia van aparte y con su propio "Guardar": se
+              cargan de a poco y no tienen que ver con los datos personales. */}
+          {perfil.data && <VitalInfoForm />}
+        </div>
 
         <aside className="grid gap-4 xl:sticky xl:top-24">
           <section className="overflow-hidden rounded-[14px] border border-line bg-white">
@@ -127,6 +135,27 @@ export function PatientProfilePage() {
               <p className="border-t border-line-soft px-5 py-3.5 text-[12px] leading-[1.6] text-muted">
                 Hasta completarlo no vas a poder confirmar un turno.
               </p>
+            </section>
+          )}
+
+          {/* El MediPass vacío se avisa acá también: es lo que ve un médico de
+              guardia, y sin datos no le sirve de nada (ENG-136). */}
+          {medipassVacio && (
+            <section className="overflow-hidden rounded-[14px] border border-brand/30 bg-surface-teal">
+              <div className="px-5 py-4">
+                <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-hover">
+                  Tu MediPass está vacío
+                </h2>
+                <p className="mt-1.5 text-[13px] leading-[1.6] text-brand-deep">
+                  Si un médico lo escanea en una guardia, hoy solo ve tu nombre y tu edad.
+                </p>
+                <a
+                  href="#emergencias"
+                  className="mt-3 inline-block text-[13px] font-bold text-brand-hover underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+                >
+                  Cargar mis datos de emergencia →
+                </a>
+              </div>
             </section>
           )}
 
