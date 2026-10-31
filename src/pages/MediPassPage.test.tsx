@@ -2,6 +2,7 @@
 import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { MediPassPage } from './MediPassPage';
@@ -92,9 +93,11 @@ describe('MediPassPage (ENG-135)', () => {
     );
   });
 
-  it('muestra el bloque vital tal como lo lee quien escanea', async () => {
+  it('muestra los datos de emergencia, con la ficha del médico a un toque', async () => {
     renderPage();
 
+    expect(await screen.findByRole('heading', { name: 'Tus datos de emergencia' })).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: /ver como lo ve un médico/i }));
     expect(await screen.findByText(MOCK_VITAL_BLOCK.nombre)).toBeVisible();
     expect(screen.getByText('Allergies')).toBeVisible();
   });

@@ -1,22 +1,10 @@
-import { Link } from 'react-router-dom';
 import { useSession } from '../features/auth/hooks/useSession';
 import { AccessHistory } from '../features/medipass/components/AccessHistory';
 import { ActiveAccesses } from '../features/medipass/components/ActiveAccesses';
-import { ScopeSettings } from '../features/medipass/components/ScopeSettings';
-import { VitalBlockCard } from '../features/medipass/components/VitalBlockCard';
-import {
-  useMyMediPassCode,
-  useMyScope,
-  useMyVitalBlock,
-} from '../features/medipass/hooks/useMediPass';
-import {
-  cuentaRegresiva,
-  emergencyUrl,
-  formatCodigo,
-  recortarPorScope,
-} from '../features/medipass/lib/medipass';
+import { EmergencyData } from '../features/medipass/components/EmergencyData';
+import { useMyMediPassCode, useMyVitalBlock } from '../features/medipass/hooks/useMediPass';
+import { cuentaRegresiva, emergencyUrl, formatCodigo } from '../features/medipass/lib/medipass';
 import { useNow } from '../shared/hooks/useNow';
-import type { VitalBlock } from '../features/medipass/types/medipass';
 import { MediPassQr } from '../shared/ui/MediPassQr';
 import { DashboardLayout } from './DashboardLayout';
 
@@ -32,20 +20,10 @@ import { DashboardLayout } from './DashboardLayout';
  * médico lo abre con la cámara del celular sin instalar nada.
  *
  * Arriba, el pase (QR, código y cuánto le queda) y quién lo está mirando ahora,
- * con la opción de cortarlo (ENG-74, ENG-75). Abajo, el bloque vital tal como lo
- * va a leer quien escanee (`GET /medipass/me/vital`) y el historial de accesos.
+ * con la opción de cortarlo (ENG-74, ENG-75). Abajo, los datos de emergencia
+ * (`GET /medipass/me/vital`): qué se ve, editarlos y la ficha del médico, y el
+ * historial de accesos.
  */
-/** Sin nada clínico cargado: el médico solo vería el nombre y la edad (ENG-136). */
-function vitalVacio(vital: VitalBlock): boolean {
-  return (
-    !vital.grupoSanguineo &&
-    !vital.alergias?.length &&
-    !vital.medicacion?.length &&
-    !vital.condiciones?.length &&
-    !vital.contacto
-  );
-}
-
 /** El código rota cada 5 minutos (ENG-72): es lo que llena la barra. */
 const CODIGO_MS = 5 * 60_000;
 
@@ -54,7 +32,6 @@ export function MediPassPage() {
   const now = useNow(1000);
   const codigo = useMyMediPassCode();
   const vital = useMyVitalBlock();
-  const scope = useMyScope();
 
   const nombre = user?.firstName ? `${user.firstName} ${user.lastName ?? ''}`.trim() : '';
   const restante = codigo.data ? new Date(codigo.data.expiraEl).getTime() - now.getTime() : 0;
@@ -169,50 +146,19 @@ export function MediPassPage() {
           <ActiveAccesses />
         </div>
 
-        {/* Abajo: lo que ve quien escanea, y lo que pasó con el código. */}
+        {/* Abajo: tus datos de emergencia (qué se ve y editarlos) y quién entró. */}
         <div className="grid items-start gap-6 lg:grid-cols-2">
-          <section aria-labelledby="vista" className="grid gap-3">
-            <div>
-              <h2 id="vista" className="text-[17px] font-bold text-brand-deep">
-                Lo que ve quien escanea tu código
-              </h2>
-              <p className="mt-1 text-[13px] leading-[1.6] text-muted">
-                Solo tu información vital, en inglés por si la guardia es en el exterior. Elegí qué
-                bloques se muestran; tus consultas y estudios nunca.
-              </p>
-            </div>
-
-            {vital.isPending ? (
-              <p role="status" className="text-[14px] text-muted">
-                Cargando tu información vital…
-              </p>
-            ) : vital.isError ? (
-              <p role="alert" className="text-[14px] font-semibold text-danger">
-                {vital.error.message}
-              </p>
-            ) : (
-              <>
-                {vitalVacio(vital.data) && (
-                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-brand/30 bg-surface-teal px-5 py-4">
-                    <p className="text-[13px] leading-[1.6] text-brand-deep">
-                      <strong className="font-bold">Tu MediPass está casi vacío.</strong> Cargá tus
-                      alergias, remedios y un contacto para que le sirva a un médico de guardia.
-                    </p>
-                    <Link
-                      to="/perfil/paciente#emergencias"
-                      className="rounded-full bg-brand-deep px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                    >
-                      Completar mis datos
-                    </Link>
-                  </div>
-                )}
-                <ScopeSettings vital={vital.data} />
-                {/* La vista previa es la ficha recortada: exactamente lo que ve
-                    el médico, con lo apagado como "not shared" (ENG-149). */}
-                <VitalBlockCard vital={recortarPorScope(vital.data, scope.data)} fill />
-              </>
-            )}
-          </section>
+          {vital.isPending ? (
+            <p role="status" className="text-[14px] text-muted">
+              Cargando tu información vital…
+            </p>
+          ) : vital.isError ? (
+            <p role="alert" className="text-[14px] font-semibold text-danger">
+              {vital.error.message}
+            </p>
+          ) : (
+            <EmergencyData vital={vital.data} />
+          )}
 
           <AccessHistory />
         </div>

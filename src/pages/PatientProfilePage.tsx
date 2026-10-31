@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { PatientProfileForm } from '../features/patient-profile/components/PatientProfileForm';
-import { VitalInfoForm } from '../features/patient-profile/components/VitalInfoForm';
 import { isEmpty, toForm } from '../features/patient-profile/lib/vitalInfo';
 import { useSession } from '../features/auth/hooks/useSession';
 import { useMyProfile } from '../features/patient-profile/hooks/usePatientProfile';
@@ -50,12 +49,9 @@ export function PatientProfilePage() {
   return (
     <DashboardLayout barTitle="Mi perfil">
       <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div className="grid gap-5">
-          <PatientProfileForm />
-          {/* Los datos de emergencia van aparte y con su propio "Guardar": se
-              cargan de a poco y no tienen que ver con los datos personales. */}
-          {perfil.data && <VitalInfoForm />}
-        </div>
+        {/* Los datos de emergencia no van acá: se editan en el MediPass, al lado
+            de lo que ve el médico y de qué se comparte (ENG-136). */}
+        <PatientProfileForm />
 
         <aside className="grid gap-4 xl:sticky xl:top-24">
           <section className="overflow-hidden rounded-[14px] border border-line bg-white">
@@ -138,25 +134,29 @@ export function PatientProfilePage() {
             </section>
           )}
 
-          {/* El MediPass vacío se avisa acá también: es lo que ve un médico de
-              guardia, y sin datos no le sirve de nada (ENG-136). */}
-          {medipassVacio && (
-            <section className="overflow-hidden rounded-[14px] border border-brand/30 bg-surface-teal">
-              <div className="px-5 py-4">
-                <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-hover">
-                  Tu MediPass está vacío
-                </h2>
-                <p className="mt-1.5 text-[13px] leading-[1.6] text-brand-deep">
-                  Si un médico lo escanea en una guardia, hoy solo ve tu nombre y tu edad.
-                </p>
-                <a
-                  href="#emergencias"
-                  className="mt-3 inline-block text-[13px] font-bold text-brand-hover underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-                >
-                  Cargar mis datos de emergencia →
-                </a>
-              </div>
-            </section>
+          {/* El MediPass es parte de "tus datos" aunque se edite en otra pantalla:
+              si está vacío se avisa, porque es lo que ve un médico de guardia. */}
+          {perfil.data && (
+            <Link
+              to="/medipass#emergencias"
+              className={`group block rounded-[14px] border px-5 py-4 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+                medipassVacio
+                  ? 'border-brand/30 bg-surface-teal hover:border-brand'
+                  : 'border-line bg-white hover:border-line-strong'
+              }`}
+            >
+              <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-brand-hover">
+                {medipassVacio ? 'Tu MediPass está vacío' : 'Datos de emergencia'}
+              </span>
+              <span className="mt-1.5 block text-[13px] leading-[1.6] text-brand-deep">
+                {medipassVacio
+                  ? 'Si un médico lo escanea en una guardia, hoy solo ve tu nombre y tu edad.'
+                  : 'Alergias, medicación, grupo sanguíneo y a quién llamar: se cargan en tu MediPass.'}
+              </span>
+              <span className="mt-3 inline-block text-[13px] font-bold text-brand-hover group-hover:underline underline-offset-2">
+                {medipassVacio ? 'Cargar mis datos de emergencia →' : 'Editar en MediPass →'}
+              </span>
+            </Link>
           )}
 
           {completo && (
