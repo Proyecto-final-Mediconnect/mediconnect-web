@@ -82,3 +82,43 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+
+    # Headers de seguridad del sitio (Sprint 0 §5.5.4 y §4.8.3, ENG-166).
+    #
+    # Igual que la Rewrite Rule de arriba: mientras el servicio no esté en un
+    # Blueprint, Render NO lee esto y hay que cargarlos a mano en Settings →
+    # Headers, con path `/*`.
+    #
+    # La CSP permite solo lo que la web usa de verdad:
+    #   - script: los propios (Vite empaqueta todo, no hay scripts de terceros).
+    #   - style: los propios, Google Fonts y `'unsafe-inline'` para los `style`
+    #     que pone React (barras de progreso, anchos calculados).
+    #   - font: Google Fonts.
+    #   - img: las propias, `data:`/`blob:` (el QR y avatares) y https (fotos de
+    #     perfil del storage de Supabase).
+    #   - connect: el backend, Supabase (REST y Realtime del chat) y Sentry.
+    #   - frame: Daily, que es el iframe de la videoconsulta.
+    # MercadoPago no aparece porque se llega con una redirección de página
+    # entera, que la CSP no restringe.
+    headers:
+      - path: /*
+        name: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https:; connect-src 'self' https://mediconnect-backend-smss.onrender.com https://*.supabase.co wss://*.supabase.co https://*.ingest.sentry.io https://*.ingest.us.sentry.io; frame-src https://*.daily.co; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000; includeSubDomains
+      # La videoconsulta pide cámara y micrófono dentro del iframe de Daily: se
+      # habilitan solo para la propia página y para Daily.
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(self "https://*.daily.co"), microphone=(self "https://*.daily.co"), geolocation=()
+
