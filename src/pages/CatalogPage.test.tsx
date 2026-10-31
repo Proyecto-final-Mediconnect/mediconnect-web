@@ -183,9 +183,7 @@ describe('CatalogPage (ENG-49)', () => {
     await waitFor(() =>
       expect(screen.queryAllByRole('link', { name: 'Reservar turno' })).toHaveLength(0),
     );
-    expect(
-      screen.getAllByText(/Las reservas son para cuentas de paciente/)[0],
-    ).toBeVisible();
+    expect(screen.getAllByText(/Las reservas son para cuentas de paciente/)[0]).toBeVisible();
   });
 
   it('pide 20 por página en la primera carga', async () => {
@@ -374,6 +372,37 @@ describe('CatalogPage (ENG-49)', () => {
     await user.click(screen.getByRole('button', { name: /limpiar/i }));
 
     await waitFor(() => expect(lastSpecialties()).toEqual([]));
+  });
+
+  describe('sin datos inventados (ENG-150)', () => {
+    it('no ofrece filtros de disponibilidad ni de calificación', async () => {
+      renderCatalog();
+      await screen.findByText('Nombre1 Apellido1');
+
+      expect(screen.queryByLabelText('Disponibilidad')).not.toBeInTheDocument();
+      expect(screen.queryByText('Calificación mínima')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: '4.5+' })).not.toBeInTheDocument();
+    });
+
+    it('la búsqueda por texto sigue filtrando lo cargado', async () => {
+      const user = userEvent.setup();
+      renderCatalog();
+      await screen.findByText('Nombre1 Apellido1');
+
+      await user.type(screen.getByLabelText('¿A quién necesitás ver?'), 'zzz');
+
+      expect(await screen.findByText('No encontramos profesionales')).toBeVisible();
+      expect(screen.queryByText('Nombre1 Apellido1')).not.toBeInTheDocument();
+    });
+
+    it('las tarjetas dicen que no hay reseñas en vez de un puntaje', async () => {
+      renderCatalog();
+      await screen.findByText('Nombre1 Apellido1');
+
+      expect(screen.getAllByText('Sin reseñas todavía').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Próximo turno')).not.toBeInTheDocument();
+      expect(screen.queryByText(/años de experiencia/)).not.toBeInTheDocument();
+    });
   });
 
   describe('scroll infinito', () => {
