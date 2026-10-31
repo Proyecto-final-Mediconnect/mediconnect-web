@@ -1,13 +1,6 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '../../../shared/ui/Button';
 import { formatPrice } from '../lib/formatPrice';
-import {
-  mockDetailsFor,
-  mockReviewsFor,
-  mockServicesFor,
-  type MockService,
-} from '../lib/mockProfessionalDetails';
 import type { PublicProfessionalProfile } from '../types/catalog';
 import { ReservarTurnoCta } from './ReservarTurnoCta';
 import { PolicyNotice } from '../../cancellation-policy/components/PolicyNotice';
@@ -38,6 +31,13 @@ function educationLine(institution: string, degree: string, year: number | null)
 const PASOS = ['Servicio', 'Horario', 'Revisión', 'Pago', 'Listo'];
 
 /**
+ * MediConnect solo atiende por videoconsulta, así que es el único servicio y la
+ * única modalidad. No es un dato del profesional que falte en la API: es un
+ * hecho de la plataforma, y por eso se puede escribir acá.
+ */
+const SERVICIO = 'Videoconsulta';
+
+/**
  * Perfil público de un profesional (ENG-50), con el diseño del canvas.
  *
  * Es la pantalla intermedia entre el catálogo y la reserva: acá el paciente
@@ -50,11 +50,17 @@ const PASOS = ['Servicio', 'Horario', 'Revisión', 'Pago', 'Listo'];
  * se deshabilita para el visitante anónimo: esconderlo dejaría al catálogo
  * público sin salida.
  *
- * **Qué es real y qué no.** `GET /professionals/:id` devuelve nombre, foto, bio,
- * especialidades, formación y precio. Matrícula, años de experiencia,
- * calificación, reseñas, modalidad y la lista de servicios son inventados (ver
- * `lib/mockProfessionalDetails`). El primer servicio usa el precio real, así que
- * lo que se ve al abrir el perfil es lo que el profesional publicó.
+ * **Todo sale de la API o no se muestra** (ENG-150). `GET /professionals/:id`
+ * devuelve nombre, foto, bio, especialidades, formación y precio, y eso es lo que
+ * hay. Antes se inventaban años de experiencia, calificación, reseñas, dos
+ * servicios extra y su duración; se sacaron. Las reseñas muestran que no hay
+ * ninguna —ENG-80/ENG-82 todavía no existen— y el servicio es uno solo, la
+ * videoconsulta, con el precio que publicó el profesional.
+ *
+ * El "próximo turno" tampoco está: `GET /professionals/:id/availability` pide
+ * sesión, y este perfil lo ve también el visitante anónimo. Para él la consulta
+ * daría 401 y el dato aparecería o no según quién mire. El horario se elige en
+ * el paso siguiente, que ya muestra la disponibilidad real.
  *
  * La **formación** no está en el canvas, pero sí en la API. Se muestra igual: es
  * dato verdadero y es de lo que más pesa al elegir a quién te atiende.
@@ -112,11 +118,7 @@ function ProfileBody({
   basePath: string;
 }) {
   const fullName = `${profile.firstName} ${profile.lastName}`;
-  const mock = mockDetailsFor(profile);
-  const servicios = mockServicesFor(profile.price);
-  const resenas = mockReviewsFor(profile);
-
-  const [elegido, setElegido] = useState<MockService>(servicios[0]);
+  const precio = formatPrice(profile.price, profile.currency);
 
   return (
     <div>
@@ -133,28 +135,26 @@ function ProfileBody({
 
       <div className="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
         <div className="grid gap-4">
-          <Cabecera profile={profile} fullName={fullName} mock={mock} />
-          <Servicios servicios={servicios} elegido={elegido} onElegir={setElegido} />
+          <Cabecera profile={profile} fullName={fullName} precio={precio} />
+          <Servicios precio={precio} />
           {profile.education.length > 0 && <Formacion education={profile.education} />}
-          <Resenas resenas={resenas} mock={mock} />
+          <Resenas />
         </div>
 
-        <PanelReserva profile={profile} elegido={elegido} mock={mock} />
+        <PanelReserva profile={profile} fullName={fullName} precio={precio} />
       </div>
     </div>
   );
 }
 
-type Mock = ReturnType<typeof mockDetailsFor>;
-
 function Cabecera({
   profile,
   fullName,
-  mock,
+  precio,
 }: {
   profile: PublicProfessionalProfile;
   fullName: string;
-  mock: Mock;
+  precio: string;
 }) {
   return (
     <section className="grid gap-6 rounded-[14px] border border-line bg-white p-7 sm:grid-cols-[120px_minmax(0,1fr)]">
@@ -187,12 +187,9 @@ function Cabecera({
         </div>
 
         <p className="mt-1.5 text-[15px] font-medium text-muted">
-          <span>
-            {profile.specialties.length > 0
-              ? profile.specialties.map((s) => s.name).join(' · ')
-              : 'Especialidad a confirmar'}
-          </span>
-          <span> · {mock.yearsOfExperience} años de experiencia</span>
+          {profile.specialties.length > 0
+            ? profile.specialties.map((s) => s.name).join(' · ')
+            : 'Especialidad a confirmar'}
         </p>
 
         {profile.bio && (
@@ -203,12 +200,12 @@ function Cabecera({
           </p>
         )}
 
+        {/* Sin calificación: no hay reseñas de las que sacarla. El hueco no se
+            nota porque el bloque de datos es una fila flexible, no una grilla
+            de tres columnas fijas. */}
         <dl className="mt-5 flex flex-wrap gap-x-11 gap-y-4">
-          <Dato titulo="Calificación">
-            {mock.rating.toFixed(1).replace('.', ',')} · {mock.reviewCount} reseñas
-          </Dato>
-          <Dato titulo="Consulta">{formatPrice(profile.price, profile.currency)}</Dato>
-          <Dato titulo="Modalidad">{mock.modality}</Dato>
+          <Dato titulo="Consulta">{precio}</Dato>
+          <Dato titulo="Modalidad">{SERVICIO}</Dato>
         </dl>
       </div>
     </section>
@@ -246,54 +243,30 @@ function Tarjeta({
   );
 }
 
-function Servicios({
-  servicios,
-  elegido,
-  onElegir,
-}: {
-  servicios: MockService[];
-  elegido: MockService;
-  onElegir: (s: MockService) => void;
-}) {
+/**
+ * El único servicio. Ya no es un botón: con una sola opción no hay nada que
+ * elegir, y un control que no cambia nada confunde más de lo que ayuda. Queda
+ * marcado como elegido para que se lea igual que el primer paso de la reserva.
+ */
+function Servicios({ precio }: { precio: string }) {
   return (
     <Tarjeta titulo="Servicios">
-      <div className="grid gap-2.5 px-6 py-[18px]">
-        {servicios.map((servicio) => {
-          const activo = servicio.id === elegido.id;
-
-          return (
-            <button
-              key={servicio.id}
-              type="button"
-              aria-pressed={activo}
-              onClick={() => onElegir(servicio)}
-              className={`flex flex-wrap items-center justify-between gap-4 rounded-[10px] border px-4 py-3.5 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${
-                activo ? 'border-brand bg-surface-teal' : 'border-line hover:border-brand/50'
-              }`}
-            >
-              <span className="grid gap-1">
-                <span className="flex flex-wrap items-center gap-2.5">
-                  <span className="text-base font-bold text-brand-deep">{servicio.nombre}</span>
-                  {activo && (
-                    <span className="rounded-[5px] bg-brand-deep px-2 py-1 text-[10px] font-bold tracking-[0.08em] text-white">
-                      ELEGIDO
-                    </span>
-                  )}
-                </span>
-                <span className="text-sm text-muted">{servicio.detalle}</span>
+      <div className="px-6 py-[18px]">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-[10px] border border-brand bg-surface-teal px-4 py-3.5">
+          <div className="grid gap-1">
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="text-base font-bold text-brand-deep">{SERVICIO}</span>
+              <span className="rounded-[5px] bg-brand-deep px-2 py-1 text-[10px] font-bold tracking-[0.08em] text-white">
+                ELEGIDO
               </span>
+            </div>
+            <span className="text-sm text-muted">
+              Consulta por video desde la plataforma, sin moverte de tu casa.
+            </span>
+          </div>
 
-              <span className="grid gap-0.5 text-right">
-                <span className="text-[17px] font-bold text-brand-deep">
-                  {servicio.precio === null ? 'A confirmar' : formatPrice(servicio.precio, 'ARS')}
-                </span>
-                <span className="text-[13px] font-medium text-muted-soft">
-                  {servicio.duracion}
-                </span>
-              </span>
-            </button>
-          );
-        })}
+          <span className="text-[17px] font-bold text-brand-deep">{precio}</span>
+        </div>
       </div>
     </Tarjeta>
   );
@@ -313,44 +286,33 @@ function Formacion({ education }: { education: PublicProfessionalProfile['educat
   );
 }
 
-function Resenas({ resenas, mock }: { resenas: ReturnType<typeof mockReviewsFor>; mock: Mock }) {
+/**
+ * Estado vacío, no una sección escondida: que el paciente vea que todavía no hay
+ * reseñas es información en sí, y esconder el bloque haría pensar que el perfil
+ * está incompleto. Cuando ENG-80/ENG-82 sirvan reseñas, se listan acá.
+ */
+function Resenas() {
   return (
-    <Tarjeta
-      titulo="Reseñas"
-      descripcion="Cuando existan, solo va a poder dejar reseña quien haya tenido una consulta."
-    >
-      <ul className="grid gap-px bg-line-soft">
-        {resenas.map((resena) => (
-          <li key={resena.autor} className="bg-white px-6 py-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="text-sm font-bold text-brand-deep">{resena.autor}</span>
-              <span className="text-xs font-semibold tracking-[0.06em] text-muted-soft">
-                {resena.puntaje} · {resena.fecha}
-              </span>
-            </div>
-            <p className="mt-2 text-sm leading-[1.65] text-ink">{resena.texto}</p>
-          </li>
-        ))}
-      </ul>
-
-      <p className="border-t border-line-soft px-6 py-4 text-[13px] text-muted">
-        {mock.reviewCount} reseñas en total.
-      </p>
+    <Tarjeta titulo="Reseñas">
+      <div className="grid justify-items-center gap-1.5 px-6 py-8 text-center">
+        <p className="text-[15px] font-semibold text-brand-deep">Todavía no tiene reseñas</p>
+        <p className="max-w-[380px] text-[13px] leading-[1.6] text-muted">
+          Solo va a poder dejar una reseña quien haya tenido una consulta con este profesional.
+        </p>
+      </div>
     </Tarjeta>
   );
 }
 
 function PanelReserva({
   profile,
-  elegido,
-  mock,
+  fullName,
+  precio,
 }: {
   profile: PublicProfessionalProfile;
-  elegido: MockService;
-  mock: Mock;
+  fullName: string;
+  precio: string;
 }) {
-  const fullName = `${profile.firstName} ${profile.lastName}`;
-
   return (
     <aside className="overflow-hidden rounded-[14px] border border-brand/40 bg-white lg:sticky lg:top-24">
       <div className="border-b border-line-soft px-[22px] py-5">
@@ -388,21 +350,20 @@ function PanelReserva({
           Paso 1 de {PASOS.length} · elegí el servicio
         </span>
 
+        {/* La duración se fue con los servicios inventados: la define cada
+            horario de la agenda, y se ve al elegirlo en el paso siguiente. */}
         <dl className="grid gap-2.5 text-sm font-medium text-ink">
+          <Fila titulo="Profesional">{fullName}</Fila>
           <Fila titulo="Servicio">
-            <span className="font-bold text-brand-deep">{elegido.nombre}</span>
+            <span className="font-bold text-brand-deep">{SERVICIO}</span>
           </Fila>
-          <Fila titulo="Duración">{elegido.duracion}</Fila>
-          <Fila titulo="Modalidad">{mock.modality}</Fila>
         </dl>
 
         <div className="h-px bg-line-soft" />
 
         <div className="flex items-baseline justify-between pt-1.5">
           <span className="text-[13px] font-semibold text-muted">Total</span>
-          <span className="text-[26px] font-bold text-brand-deep">
-            {elegido.precio === null ? 'A confirmar' : formatPrice(elegido.precio, 'ARS')}
-          </span>
+          <span className="text-[26px] font-bold text-brand-deep">{precio}</span>
         </div>
 
         <ReservarTurnoCta
@@ -423,7 +384,9 @@ function Fila({ titulo, children }: { titulo: string; children: React.ReactNode 
   return (
     <div className="flex justify-between gap-3">
       <dt className="text-muted">{titulo}</dt>
-      <dd>{children}</dd>
+      {/* A la derecha también al cortar en dos líneas: un nombre largo no se
+          despega de su columna. */}
+      <dd className="text-right">{children}</dd>
     </div>
   );
 }

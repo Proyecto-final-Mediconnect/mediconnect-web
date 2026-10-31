@@ -33,7 +33,6 @@ type CatalogViewProps = {
 };
 
 export function CatalogView({ basePath }: CatalogViewProps) {
-
   const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
   const priceRangeError = validatePriceRange(filters);
 
@@ -51,8 +50,8 @@ export function CatalogView({ basePath }: CatalogViewProps) {
     setAppliedFilters(debouncedFilters);
   }
 
-  // Búsqueda por texto, disponibilidad y calificación: el backend no los
-  // soporta, así que se resuelven sobre lo ya cargado (ver localCatalogFilters).
+  // Búsqueda por texto: el backend no la soporta, así que se resuelve sobre lo
+  // ya cargado (ver localCatalogFilters).
   const [localFilters, setLocalFilters] = useState<LocalCatalogFilters>(EMPTY_LOCAL_FILTERS);
 
   const catalog = useProfessionalsCatalog(appliedFilters);
