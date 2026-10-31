@@ -88,3 +88,15 @@ export interface MediPassActiveAccess {
   expiraEl: string;
   minutosRestantes: number;
 }
+
+/**
+ * Qué bloques ve un consultante externo (`GET`/`PUT /medipass/me/scope`,
+ * ENG-149). Sin configurar, todos. El nombre y la edad siempre se ven.
+ */
+export interface MediPassScope {
+  grupoSanguineo: boolean;
+  alergias: boolean;
+  medicacion: boolean;
+  condiciones: boolean;
+  contacto: boolean;
+}

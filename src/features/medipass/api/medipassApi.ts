@@ -6,6 +6,7 @@ import type {
   MediPassActiveAccess,
   MediPassCode,
   MediPassHistory,
+  MediPassScope,
   OpenEmergencySessionInput,
   VitalBlock,
 } from '../types/medipass';
@@ -58,7 +59,27 @@ export async function revokeAccess(id: string): Promise<void> {
   const response = await apiFetch(`/medipass/me/accesses/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   });
-  if (!response.ok) throw await toApiError(response, 'No pudimos cortar el acceso. Probá de nuevo.');
+  if (!response.ok)
+    throw await toApiError(response, 'No pudimos cortar el acceso. Probá de nuevo.');
+}
+
+/** `GET /medipass/me/scope`: qué bloques ve un consultante externo (ENG-149). */
+export async function getMyScope(): Promise<MediPassScope> {
+  const response = await apiFetch('/medipass/me/scope');
+  if (!response.ok) throw await toApiError(response, 'No pudimos cargar qué se muestra.');
+  return (await response.json()) as MediPassScope;
+}
+
+/** `PUT /medipass/me/scope`: cambia qué ve un consultante externo (ENG-149). */
+export async function updateMyScope(scope: MediPassScope): Promise<MediPassScope> {
+  const response = await apiFetch('/medipass/me/scope', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(scope),
+  });
+  if (!response.ok)
+    throw await toApiError(response, 'No pudimos guardar el cambio, probá de nuevo.');
+  return (await response.json()) as MediPassScope;
 }
 
 /** Fetch público: quien escanea no tiene cuenta, así que no hay sesión que renovar. */

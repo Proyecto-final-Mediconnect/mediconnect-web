@@ -27,6 +27,14 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+const SCOPE = {
+  grupoSanguineo: true,
+  alergias: true,
+  medicacion: true,
+  condiciones: true,
+  contacto: true,
+};
+
 function renderPage(
   codigo: Response = json({
     codigo: 'AB12CD34',
@@ -43,6 +51,9 @@ function renderPage(
       return Promise.resolve(json({ accesos: [], pagina: 1, hayMas: false }));
     }
     if (url.endsWith('/medipass/me/accesses')) return Promise.resolve(json([]));
+    if (url.endsWith('/medipass/me/scope')) return Promise.resolve(json(SCOPE));
+    // El shell pide los turnos para el aviso de la sala; acá no importan.
+    if (url.includes('/appointments/me')) return Promise.resolve(json([]));
     return Promise.resolve(json(SESION));
   });
 

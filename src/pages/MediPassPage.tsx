@@ -2,9 +2,19 @@ import { Link } from 'react-router-dom';
 import { useSession } from '../features/auth/hooks/useSession';
 import { AccessHistory } from '../features/medipass/components/AccessHistory';
 import { ActiveAccesses } from '../features/medipass/components/ActiveAccesses';
+import { ScopeSettings } from '../features/medipass/components/ScopeSettings';
 import { VitalBlockCard } from '../features/medipass/components/VitalBlockCard';
-import { useMyMediPassCode, useMyVitalBlock } from '../features/medipass/hooks/useMediPass';
-import { cuentaRegresiva, emergencyUrl, formatCodigo } from '../features/medipass/lib/medipass';
+import {
+  useMyMediPassCode,
+  useMyScope,
+  useMyVitalBlock,
+} from '../features/medipass/hooks/useMediPass';
+import {
+  cuentaRegresiva,
+  emergencyUrl,
+  formatCodigo,
+  recortarPorScope,
+} from '../features/medipass/lib/medipass';
 import { useNow } from '../shared/hooks/useNow';
 import type { VitalBlock } from '../features/medipass/types/medipass';
 import { MediPassQr } from '../shared/ui/MediPassQr';
@@ -44,6 +54,7 @@ export function MediPassPage() {
   const now = useNow(1000);
   const codigo = useMyMediPassCode();
   const vital = useMyVitalBlock();
+  const scope = useMyScope();
 
   const nombre = user?.firstName ? `${user.firstName} ${user.lastName ?? ''}`.trim() : '';
   const restante = codigo.data ? new Date(codigo.data.expiraEl).getTime() - now.getTime() : 0;
@@ -166,8 +177,8 @@ export function MediPassPage() {
                 Lo que ve quien escanea tu código
               </h2>
               <p className="mt-1 text-[13px] leading-[1.6] text-muted">
-                Solo tu información vital, en inglés por si la guardia es en el exterior. Tus
-                consultas y estudios no se muestran.
+                Solo tu información vital, en inglés por si la guardia es en el exterior. Elegí qué
+                bloques se muestran; tus consultas y estudios nunca.
               </p>
             </div>
 
@@ -195,7 +206,10 @@ export function MediPassPage() {
                     </Link>
                   </div>
                 )}
-                <VitalBlockCard vital={vital.data} fill />
+                <ScopeSettings vital={vital.data} />
+                {/* La vista previa es la ficha recortada: exactamente lo que ve
+                    el médico, con lo apagado como "not shared" (ENG-149). */}
+                <VitalBlockCard vital={recortarPorScope(vital.data, scope.data)} fill />
               </>
             )}
           </section>

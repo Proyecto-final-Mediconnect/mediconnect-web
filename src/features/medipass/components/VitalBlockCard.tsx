@@ -23,10 +23,18 @@ export function VitalBlockCard({
   const alergias = vital.alergias ?? [];
   const medicacion = vital.medicacion ?? [];
   const condiciones = vital.condiciones ?? [];
+  // Un bloque que el paciente eligió no mostrar (ENG-149) **no viene** en la
+  // respuesta. Se dice "not shared" y no "none": un médico que lee "No known
+  // allergies" puede indicar justo lo que no debe.
+  const oculto = (clave: keyof VitalBlock) => !(clave in vital);
   const datos = [
     vital.sexo,
     typeof vital.edad === 'number' ? `${vital.edad} y` : null,
-    vital.grupoSanguineo ? `Blood type ${vital.grupoSanguineo}` : 'Blood type not recorded',
+    oculto('grupoSanguineo')
+      ? 'Blood type not shared'
+      : vital.grupoSanguineo
+        ? `Blood type ${vital.grupoSanguineo}`
+        : 'Blood type not recorded',
     vital.pais,
   ].filter(Boolean);
 
@@ -52,7 +60,9 @@ export function VitalBlockCard({
         {/* Las alergias van primero y en rojo: es el dato que cambia lo que el
             médico indica en los primeros segundos. */}
         <Bloque titulo="Allergies" destacado>
-          {alergias.length === 0 ? (
+          {oculto('alergias') ? (
+            <NoCompartido />
+          ) : alergias.length === 0 ? (
             <p className="text-[15px] font-semibold text-white">No known allergies</p>
           ) : (
             alergias.map((a) => (
@@ -64,7 +74,9 @@ export function VitalBlockCard({
         </Bloque>
 
         <Bloque titulo="Active medication">
-          {medicacion.length === 0 ? (
+          {oculto('medicacion') ? (
+            <NoCompartido />
+          ) : medicacion.length === 0 ? (
             <p className="text-[15px] font-semibold text-white">None</p>
           ) : (
             medicacion.map((m) => (
@@ -81,7 +93,9 @@ export function VitalBlockCard({
         </Bloque>
 
         <Bloque titulo="Conditions">
-          {condiciones.length === 0 ? (
+          {oculto('condiciones') ? (
+            <NoCompartido />
+          ) : condiciones.length === 0 ? (
             <p className="text-[15px] font-semibold text-white">None reported</p>
           ) : (
             condiciones.map((c) => (
@@ -94,7 +108,9 @@ export function VitalBlockCard({
         </Bloque>
 
         <Bloque titulo="Emergency contact">
-          {vital.contacto ? (
+          {oculto('contacto') ? (
+            <NoCompartido />
+          ) : vital.contacto ? (
             <>
               <p className="text-[15px] font-semibold text-white">
                 {vital.contacto.nombre} · {vital.contacto.vinculo}
@@ -142,5 +158,12 @@ function Bloque({
       </h3>
       <div className="mt-2 grid gap-1.5">{children}</div>
     </section>
+  );
+}
+
+/** Un bloque que el paciente eligió no mostrar (ENG-149). */
+function NoCompartido() {
+  return (
+    <p className="text-[14px] font-medium italic text-on-night-soft">Not shared by the patient</p>
   );
 }

@@ -3,9 +3,12 @@ import {
   getMyActiveAccesses,
   getMyMediPassCode,
   getMyMediPassHistory,
+  getMyScope,
   getMyVitalBlock,
   revokeAccess,
+  updateMyScope,
 } from '../api/medipassApi';
+import type { MediPassScope } from '../types/medipass';
 
 /**
  * El código vigente. Se vuelve a pedir justo cuando vence (ENG-72 lo rota cada
@@ -69,5 +72,33 @@ export function useRevokeAccess() {
         queryClient.invalidateQueries({ queryKey: ['medipass', 'me', 'accesses'] }),
         queryClient.invalidateQueries({ queryKey: ['medipass', 'me', 'historial'] }),
       ]),
+  });
+}
+
+const SCOPE_KEY = ['medipass', 'me', 'scope'] as const;
+
+/** Qué bloques ve un consultante externo (ENG-149). */
+export function useMyScope() {
+  return useQuery({ queryKey: SCOPE_KEY, queryFn: getMyScope });
+}
+
+/**
+ * Cambia el scope al instante en pantalla y lo guarda; si falla, vuelve atrás.
+ * Un interruptor que tarda en moverse se toca dos veces.
+ */
+export function useUpdateScope() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateMyScope,
+    onMutate: async (nuevo: MediPassScope) => {
+      await queryClient.cancelQueries({ queryKey: SCOPE_KEY });
+      const anterior = queryClient.getQueryData<MediPassScope>(SCOPE_KEY);
+      queryClient.setQueryData(SCOPE_KEY, nuevo);
+      return { anterior };
+    },
+    onError: (_error, _nuevo, contexto) => {
+      if (contexto?.anterior) queryClient.setQueryData(SCOPE_KEY, contexto.anterior);
+    },
+    onSuccess: (guardado) => queryClient.setQueryData(SCOPE_KEY, guardado),
   });
 }
