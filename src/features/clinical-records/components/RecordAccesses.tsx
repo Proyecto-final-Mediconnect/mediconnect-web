@@ -79,9 +79,23 @@ export function RecordAccesses() {
               Buscando los accesos…
             </p>
           ) : accesos.isError ? (
-            <p role="alert" className="px-5 py-4 text-[13px] text-danger">
-              {accesos.error.message}
-            </p>
+            // El mensaje del servidor puede ser técnico ("Cannot GET …"): al
+            // paciente le sirve saber que falló y cómo reintentar.
+            <div
+              role="alert"
+              className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
+            >
+              <p className="text-[13px] text-danger">
+                No pudimos cargar quién vio tu historia clínica.
+              </p>
+              <button
+                type="button"
+                onClick={() => void accesos.refetch()}
+                className="rounded-full border border-line-strong px-3.5 py-1.5 text-[13px] font-semibold text-brand-deep transition-colors hover:border-brand hover:bg-surface-teal focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                Probá de nuevo
+              </button>
+            </div>
           ) : accesos.data.accesos.length === 0 ? (
             <p className="px-5 py-5 text-[13px] leading-[1.6] text-muted">
               Todavía nadie más que vos abrió tu historia clínica.
