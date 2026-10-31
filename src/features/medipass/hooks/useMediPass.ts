@@ -1,5 +1,14 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { getMyMediPassCode, getMyMediPassHistory, getMyVitalBlock } from '../api/medipassApi';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  getMyActiveAccesses,
+  getMyMediPassCode,
+  getMyMediPassHistory,
+  getMyScope,
+  getMyVitalBlock,
+  revokeAccess,
+  updateMyScope,
+} from '../api/medipassApi';
+import type { MediPassScope } from '../types/medipass';
 
 /**
  * El código vigente. Se vuelve a pedir justo cuando vence (ENG-72 lo rota cada
@@ -37,5 +46,59 @@ export function useMyMediPassHistory(pagina: number) {
     queryKey: ['medipass', 'me', 'historial', pagina],
     queryFn: () => getMyMediPassHistory(pagina),
     placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * Quién está mirando el MediPass ahora (ENG-74). Se refresca cada 30 segundos:
+ * es "en tiempo real" en la medida en que importa, sin un socket abierto para
+ * una lista de dos o tres filas.
+ */
+export function useMyActiveAccesses() {
+  return useQuery({
+    queryKey: ['medipass', 'me', 'accesses'],
+    queryFn: getMyActiveAccesses,
+    refetchInterval: 30_000,
+  });
+}
+
+/** Corta un acceso (ENG-75) y actualiza la lista y el historial. */
+export function useRevokeAccess() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: revokeAccess,
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['medipass', 'me', 'accesses'] }),
+        queryClient.invalidateQueries({ queryKey: ['medipass', 'me', 'historial'] }),
+      ]),
+  });
+}
+
+const SCOPE_KEY = ['medipass', 'me', 'scope'] as const;
+
+/** Qué bloques ve un consultante externo (ENG-149). */
+export function useMyScope() {
+  return useQuery({ queryKey: SCOPE_KEY, queryFn: getMyScope });
+}
+
+/**
+ * Cambia el scope al instante en pantalla y lo guarda; si falla, vuelve atrás.
+ * Un interruptor que tarda en moverse se toca dos veces.
+ */
+export function useUpdateScope() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateMyScope,
+    onMutate: async (nuevo: MediPassScope) => {
+      await queryClient.cancelQueries({ queryKey: SCOPE_KEY });
+      const anterior = queryClient.getQueryData<MediPassScope>(SCOPE_KEY);
+      queryClient.setQueryData(SCOPE_KEY, nuevo);
+      return { anterior };
+    },
+    onError: (_error, _nuevo, contexto) => {
+      if (contexto?.anterior) queryClient.setQueryData(SCOPE_KEY, contexto.anterior);
+    },
+    onSuccess: (guardado) => queryClient.setQueryData(SCOPE_KEY, guardado),
   });
 }

@@ -2,6 +2,7 @@
 import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { MediPassPage } from './MediPassPage';
@@ -27,6 +28,14 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+const SCOPE = {
+  grupoSanguineo: true,
+  alergias: true,
+  medicacion: true,
+  condiciones: true,
+  contacto: true,
+};
+
 function renderPage(
   codigo: Response = json({
     codigo: 'AB12CD34',
@@ -42,6 +51,10 @@ function renderPage(
     if (url.includes('/medipass/me/historial')) {
       return Promise.resolve(json({ accesos: [], pagina: 1, hayMas: false }));
     }
+    if (url.endsWith('/medipass/me/accesses')) return Promise.resolve(json([]));
+    if (url.endsWith('/medipass/me/scope')) return Promise.resolve(json(SCOPE));
+    // El shell pide los turnos para el aviso de la sala; acá no importan.
+    if (url.includes('/appointments/me')) return Promise.resolve(json([]));
     return Promise.resolve(json(SESION));
   });
 
@@ -80,11 +93,20 @@ describe('MediPassPage (ENG-135)', () => {
     );
   });
 
-  it('muestra el bloque vital tal como lo lee quien escanea', async () => {
+  it('muestra los datos de emergencia, con la ficha del médico a un toque', async () => {
     renderPage();
 
+    expect(await screen.findByRole('heading', { name: 'Tus datos de emergencia' })).toBeVisible();
+    await userEvent.click(screen.getByRole('button', { name: /ver como lo ve un médico/i }));
     expect(await screen.findByText(MOCK_VITAL_BLOCK.nombre)).toBeVisible();
     expect(screen.getByText('Allergies')).toBeVisible();
+  });
+
+  it('muestra quién está accediendo ahora (ENG-74)', async () => {
+    renderPage();
+
+    expect(await screen.findByRole('heading', { name: 'Accediendo ahora' })).toBeInTheDocument();
+    expect(await screen.findByText(/nadie está mirando tu medipass/i)).toBeInTheDocument();
   });
 
   it('muestra el historial de accesos debajo (ENG-76)', async () => {

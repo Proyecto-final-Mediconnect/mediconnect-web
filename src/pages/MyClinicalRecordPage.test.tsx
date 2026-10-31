@@ -5,6 +5,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { MyClinicalRecordPage } from './MyClinicalRecordPage';
+import { desplegarRegistros } from '../features/clinical-records/testing/desplegarRegistros';
 
 const PATIENT = '11111111-1111-4111-8111-111111111111';
 
@@ -94,8 +95,9 @@ describe('MyClinicalRecordPage (ENG-59)', () => {
   it('muestra fecha, profesional, tipo y contenido de cada entrada', async () => {
     // Es el segundo criterio de aceptación, entero.
     renderPage([entry()]);
+    await desplegarRegistros();
 
-    const item = (await screen.findByText(/dolor lumbar/i)).closest('article');
+    const item = screen.getByRole('heading', { name: 'Dolor lumbar de 3 días' }).closest('article');
     expect(item).not.toBeNull();
 
     const card = within(item as HTMLElement);
@@ -103,7 +105,7 @@ describe('MyClinicalRecordPage (ENG-59)', () => {
     // Con nombre y todo: la tarjeta dice quién firmó el asiento, no solo que
     // alguien lo hizo. Ley 26.529 art. 15.
     expect(card.getByText(/firmada por Ana García/i)).toBeInTheDocument();
-    expect(card.getByText('CONSULTA')).toBeInTheDocument();
+    expect(card.getByText('Consulta')).toBeInTheDocument();
     // El motivo es el titular de la tarjeta: es lo que resume la consulta.
     expect(card.getByRole('heading', { name: 'Dolor lumbar de 3 días' })).toBeInTheDocument();
   });

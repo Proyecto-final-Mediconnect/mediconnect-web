@@ -1,3 +1,4 @@
+import type { MediPassScope, VitalBlock } from '../types/medipass';
 /**
  * Reglas del MediPass (EP-05). Puras y testeadas, como el resto.
  */
@@ -25,4 +26,23 @@ export function emergencyUrl(origin: string, codigo: string): string {
 export function formatCodigo(codigo: string): string {
   const limpio = codigo.replace(/[^0-9A-Za-z]/g, '').toUpperCase();
   return limpio.length === 8 ? `${limpio.slice(0, 4)}-${limpio.slice(4)}` : limpio;
+}
+
+const BLOQUES_SCOPE = [
+  'grupoSanguineo',
+  'alergias',
+  'medicacion',
+  'condiciones',
+  'contacto',
+] as const satisfies readonly (keyof MediPassScope)[];
+
+/**
+ * La ficha como la ve el consultante (ENG-149): sin los bloques apagados. Es lo
+ * mismo que hace el backend al responderle (`applyScope`).
+ */
+export function recortarPorScope(vital: VitalBlock, scope: MediPassScope | undefined): VitalBlock {
+  if (!scope) return vital;
+  const recortada: VitalBlock = { ...vital };
+  for (const bloque of BLOQUES_SCOPE) if (!scope[bloque]) delete recortada[bloque];
+  return recortada;
 }

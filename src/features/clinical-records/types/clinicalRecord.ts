@@ -94,3 +94,19 @@ export interface CorrectionPayload {
   /** Qué estaba mal en la entrada original. Obligatorio. */
   correctionReason: string;
 }
+
+/** Un acceso de un profesional a la historia clínica del paciente (ENG-165). */
+export interface ClinicalRecordAccess {
+  id: string;
+  /** `null` si la cuenta del profesional ya no tiene perfil. */
+  profesional: { nombre: string; especialidad: string | null; matricula: string } | null;
+  /** ISO-8601. */
+  el: string;
+}
+
+/** `GET /patients/me/clinical-record/accesses?pagina=N`. */
+export interface ClinicalRecordAccessPage {
+  accesos: ClinicalRecordAccess[];
+  pagina: number;
+  hayMas: boolean;
+}

@@ -34,7 +34,9 @@ const PUNTOS_POR_DEFECTO = [
   },
   {
     titulo: 'Cada acceso queda registrado',
-    texto: 'Sabés qué profesional la abrió, cuándo y qué parte miró.',
+    // Se audita la lectura de la HC entera, no por entrada (ENG-165): no se
+    // promete "qué parte miró".
+    texto: 'Sabés qué profesional la abrió y cuándo.',
   },
   {
     titulo: 'Matrículas verificadas',
