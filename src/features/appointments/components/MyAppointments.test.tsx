@@ -64,6 +64,20 @@ describe('MyAppointments (ENG-178)', () => {
     expect(within(proximos).getByText('Confirmado')).toBeInTheDocument();
   });
 
+  // ENG-174: lo que se devolvió de un turno caído se ve sin abrirlo.
+  it('un turno cancelado muestra en qué quedó su reembolso', async () => {
+    mockApi({
+      mine: () =>
+        jsonResponse([
+          UPCOMING,
+          { ...CANCELLED, refundState: { amount: 7500, status: 'PROCESADO' } },
+        ]),
+    });
+    renderMyAppointments();
+
+    expect(await screen.findByText(/^Te devolvimos \$\s7\.500$/)).toBeInTheDocument();
+  });
+
   it('el profesional ve al paciente y busca por paciente', async () => {
     mockApi({ session: () => jsonResponse(PRO_SESSION) });
     renderMyAppointments();
