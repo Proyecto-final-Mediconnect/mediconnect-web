@@ -192,7 +192,19 @@ describe('ProfessionalPublicProfilePage', () => {
     });
 
     it('muestra el estado vacío de reseñas si el profesional todavía no tiene', async () => {
-      mockFetch(200, PROFILE);
+      // El perfil y sus reseñas son dos pedidos (ENG-82): cada uno con su respuesta.
+      vi.spyOn(globalThis, 'fetch').mockImplementation((input) =>
+        Promise.resolve(
+          new Response(
+            JSON.stringify(
+              String(input).includes('/reviews')
+                ? { reviews: [], rating: null, page: 1, hasMore: false }
+                : PROFILE,
+            ),
+            { status: 200, headers: { 'Content-Type': 'application/json' } },
+          ),
+        ),
+      );
       renderPage();
 
       expect(await screen.findByText('Todavía no tiene reseñas')).toBeVisible();

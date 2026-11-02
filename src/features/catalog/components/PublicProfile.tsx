@@ -3,6 +3,9 @@ import { Button } from '../../../shared/ui/Button';
 import { formatPrice } from '../lib/formatPrice';
 import type { PublicProfessionalProfile } from '../types/catalog';
 import { ReservarTurnoCta } from './ReservarTurnoCta';
+import { ProfessionalReviews } from '../../reviews/components/ProfessionalReviews';
+import { Stars } from '../../reviews/components/Stars';
+import { ratingLabel } from '../../reviews/lib/reviews';
 import { PolicyNotice } from '../../cancellation-policy/components/PolicyNotice';
 
 type Props = {
@@ -138,7 +141,10 @@ function ProfileBody({
           <Cabecera profile={profile} fullName={fullName} precio={precio} />
           <Servicios precio={precio} />
           {profile.education.length > 0 && <Formacion education={profile.education} />}
-          <Resenas />
+          <ProfessionalReviews
+            professionalId={profile.id}
+            card={(titulo, children) => <Tarjeta titulo={titulo}>{children}</Tarjeta>}
+          />
         </div>
 
         <PanelReserva profile={profile} fullName={fullName} precio={precio} />
@@ -200,12 +206,20 @@ function Cabecera({
           </p>
         )}
 
-        {/* Sin calificación: no hay reseñas de las que sacarla. El hueco no se
-            nota porque el bloque de datos es una fila flexible, no una grilla
-            de tres columnas fijas. */}
+        {/* La calificación, solo si hay reseñas aprobadas (ENG-82). Sin ellas el
+            hueco no se nota: el bloque de datos es una fila flexible, no una
+            grilla de tres columnas fijas. */}
         <dl className="mt-5 flex flex-wrap gap-x-11 gap-y-4">
           <Dato titulo="Consulta">{precio}</Dato>
           <Dato titulo="Modalidad">{SERVICIO}</Dato>
+          {profile.rating && profile.rating.count > 0 && (
+            <Dato titulo="Calificación">
+              <span className="inline-flex items-center gap-2">
+                <Stars value={profile.rating.average} size={15} />
+                {ratingLabel(profile.rating)}
+              </span>
+            </Dato>
+          )}
         </dl>
       </div>
     </section>
@@ -277,24 +291,6 @@ function Formacion({ education }: { education: PublicProfessionalProfile['educat
           </li>
         ))}
       </ul>
-    </Tarjeta>
-  );
-}
-
-/**
- * Estado vacío, no una sección escondida: que el paciente vea que todavía no hay
- * reseñas es información en sí, y esconder el bloque haría pensar que el perfil
- * está incompleto. Cuando ENG-80/ENG-82 sirvan reseñas, se listan acá.
- */
-function Resenas() {
-  return (
-    <Tarjeta titulo="Reseñas">
-      <div className="grid justify-items-center gap-1.5 px-6 py-8 text-center">
-        <p className="text-[15px] font-semibold text-brand-deep">Todavía no tiene reseñas</p>
-        <p className="max-w-[380px] text-[13px] leading-[1.6] text-muted">
-          Solo va a poder dejar una reseña quien haya tenido una consulta con este profesional.
-        </p>
-      </div>
     </Tarjeta>
   );
 }
