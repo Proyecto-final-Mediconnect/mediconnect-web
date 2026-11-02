@@ -1,5 +1,10 @@
+import { useState } from 'react';
 import { useSession } from '../features/auth/hooks/useSession';
 import { ClinicalRecord } from '../features/clinical-records/components/ClinicalRecord';
+import { MyDocuments } from '../features/patient-documents/components/MyDocuments';
+import { UploadDocumentForm } from '../features/patient-documents/components/UploadDocumentForm';
+import { Button } from '../shared/ui/Button';
+import { Modal } from '../shared/ui/Modal';
 import { DashboardLayout } from './DashboardLayout';
 
 /**
@@ -21,19 +26,38 @@ import { DashboardLayout } from './DashboardLayout';
  *
  * El id sale de la sesión y no de la URL: la HC que un paciente puede ver es la
  * suya, y no hay nada que elegir.
+ *
+ * Lo único que el paciente sí agrega es documentación previa (ENG-164): el
+ * botón "Subir documento" va en la barra, en el mismo lugar que "Agregar
+ * entrada" en la pantalla del profesional, y abre un diálogo. Lo subido va en
+ * su propia tarjeta, separado de lo firmado.
  */
 export function MyClinicalRecordPage() {
   const { user, isLoading } = useSession();
+  const [subiendo, setSubiendo] = useState(false);
 
   return (
     <DashboardLayout
       barTitle="Mi historia clínica"
       subtitle="Todo lo que registraron los profesionales que te atendieron."
+      action={
+        user ? (
+          <Button type="button" onClick={() => setSubiendo(true)}>
+            Subir documento
+          </Button>
+        ) : undefined
+      }
     >
       {isLoading && (
         <p role="status" aria-live="polite" className="text-muted">
           Cargando tu historia clínica…
         </p>
+      )}
+
+      {user && (
+        <div className="mb-6">
+          <MyDocuments onUpload={() => setSubiendo(true)} />
+        </div>
       )}
 
       {/* `RequireAuth` ya garantiza la sesión; el guard es para no montar la
@@ -45,6 +69,20 @@ export function MyClinicalRecordPage() {
           emptyText="Todavía no hay entradas en tu historia clínica. Aparecen acá cuando un profesional registra algo de una consulta."
         />
       )}
+
+      <Modal
+        open={subiendo}
+        titulo="Subir un documento"
+        descripcion="Un estudio, informe o receta que traés de otro lugar. Lo ven los profesionales que te atienden."
+        onClose={() => setSubiendo(false)}
+      >
+        {subiendo && (
+          <UploadDocumentForm
+            onDone={() => setSubiendo(false)}
+            onCancel={() => setSubiendo(false)}
+          />
+        )}
+      </Modal>
     </DashboardLayout>
   );
 }
