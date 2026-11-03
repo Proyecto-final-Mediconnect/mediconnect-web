@@ -64,6 +64,57 @@ describe('MyAppointments (ENG-178)', () => {
     expect(within(proximos).getByText('Confirmado')).toBeInTheDocument();
   });
 
+  // ENG-174: lo que se devolvió de un turno caído se ve sin abrirlo.
+  it('un turno cancelado muestra en qué quedó su reembolso', async () => {
+    mockApi({
+      mine: () =>
+        jsonResponse([
+          UPCOMING,
+          { ...CANCELLED, refundState: { amount: 7500, status: 'PROCESADO' } },
+        ]),
+    });
+    renderMyAppointments();
+
+    expect(await screen.findByText(/^Te devolvimos \$\s7\.500$/)).toHaveClass('text-brand-hover');
+  });
+
+  it('un reembolso pendiente o rechazado se ve con su color', async () => {
+    mockApi({
+      mine: () =>
+        jsonResponse([
+          UPCOMING,
+          { ...CANCELLED, refundState: { amount: 7500, status: 'PENDIENTE' } },
+          {
+            ...CANCELLED,
+            id: '77777777-7777-4777-8777-777777777777',
+            refundState: { amount: 7500, status: 'RECHAZADO' },
+          },
+        ]),
+    });
+    renderMyAppointments();
+
+    expect(await screen.findByText(/^Reembolso de \$\s7\.500 en curso$/)).toHaveClass(
+      'text-tag-warm-ink',
+    );
+    expect(screen.getByText(/^Hubo un problema con el reembolso/)).toHaveClass('text-danger');
+  });
+
+  // El backend no le manda `refundState` al profesional: con el campo en `null`
+  // o ausente, la fila se ve como siempre.
+  it.each([
+    ['null', { ...CANCELLED, refundState: null }],
+    ['ausente', CANCELLED],
+  ])('el profesional no ve nada de reembolso (refundState %s)', async (_, cancelado) => {
+    mockApi({
+      session: () => jsonResponse(PRO_SESSION),
+      mine: () => jsonResponse([UPCOMING, cancelado]),
+    });
+    renderMyAppointments();
+
+    expect((await screen.findAllByText(/Juan Paciente/)).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/reembolso|devolvimos/i)).not.toBeInTheDocument();
+  });
+
   it('el profesional ve al paciente y busca por paciente', async () => {
     mockApi({ session: () => jsonResponse(PRO_SESSION) });
     renderMyAppointments();

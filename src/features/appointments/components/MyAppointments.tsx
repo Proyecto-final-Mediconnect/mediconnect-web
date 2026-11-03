@@ -14,6 +14,7 @@ import {
   type AgendaFilters,
 } from '../lib/agenda';
 import { canCancel, counterpartOf, formatLongDate, isActive } from '../lib/myAppointments';
+import { refundStep } from '../lib/timeline';
 import { formatPrice } from '../lib/weeks';
 import type { Appointment } from '../types/appointment';
 import { AppointmentDetail } from './AppointmentDetail';
@@ -428,6 +429,9 @@ function HistoryRow({ appointment, userId, wide, selectedId, onSelect }: ListIte
   const name = personName(appointment, userId);
   const muted = !isActive(appointment);
   const selected = wide && selectedId === appointment.id;
+  // Lo que se devolvió de un turno caído se ve sin abrirlo (ENG-174). Solo al
+  // paciente: es el único al que el backend le manda el reembolso.
+  const reembolso = appointment.patient?.id === userId ? refundStep(appointment) : null;
 
   return (
     <OpenLink
@@ -449,6 +453,14 @@ function HistoryRow({ appointment, userId, wide, selectedId, onSelect }: ListIte
         </span>
         <span className="block text-sm text-muted-soft">
           {appointment.startTime} · {formatPrice(appointment.price, appointment.currency)}
+          {reembolso && (
+            <>
+              {' · '}
+              <span className={`font-semibold ${REFUND_TONE[reembolso.tone]}`}>
+                {reembolso.title}
+              </span>
+            </>
+          )}
         </span>
       </span>
       <StatusChip status={appointment.status} />
@@ -458,3 +470,11 @@ function HistoryRow({ appointment, userId, wide, selectedId, onSelect }: ListIte
     </OpenLink>
   );
 }
+
+/** El color del reembolso en la fila: igual que su paso en la línea de tiempo. */
+const REFUND_TONE = {
+  done: 'text-brand-hover',
+  current: 'text-tag-warm-ink',
+  pending: 'text-muted',
+  bad: 'text-danger',
+} as const;
