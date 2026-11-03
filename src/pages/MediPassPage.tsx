@@ -29,12 +29,10 @@ const CODIGO_MS = 5 * 60_000;
 
 export function MediPassPage() {
   const { user } = useSession();
-  const now = useNow(1000);
   const codigo = useMyMediPassCode();
   const vital = useMyVitalBlock();
 
   const nombre = user?.firstName ? `${user.firstName} ${user.lastName ?? ''}`.trim() : '';
-  const restante = codigo.data ? new Date(codigo.data.expiraEl).getTime() - now.getTime() : 0;
 
   return (
     <DashboardLayout barTitle="MediPass" subtitle="Tu pasaporte médico para una emergencia.">
@@ -88,36 +86,7 @@ export function MediPassPage() {
                 </p>
               </div>
 
-              {codigo.data && (
-                <div className="grid gap-2">
-                  <div className="h-1.5 overflow-hidden rounded-full bg-line-soft">
-                    <div
-                      className="h-full rounded-full bg-brand transition-[width] duration-1000 ease-linear"
-                      style={{
-                        width: `${Math.max(0, Math.min(100, (restante / CODIGO_MS) * 100))}%`,
-                      }}
-                    />
-                  </div>
-                  {/* El contador explica por qué el código cambia: sin él, alguien
-                      que vuelve a mirar cree que se rompió algo. */}
-                  <p
-                    role="timer"
-                    aria-label={`El código se renueva en ${cuentaRegresiva(restante)}`}
-                    className="text-[13px] text-muted"
-                  >
-                    {restante > 0 ? (
-                      <>
-                        Se renueva en{' '}
-                        <span className="font-semibold tabular-nums text-brand-deep">
-                          {cuentaRegresiva(restante)}
-                        </span>
-                      </>
-                    ) : (
-                      'Renovando…'
-                    )}
-                  </p>
-                </div>
-              )}
+              {codigo.data && <CodeCountdown expiraEl={codigo.data.expiraEl} />}
 
               <p className="text-[14px] leading-[1.6] text-muted">
                 Mostraselo a un médico de guardia: lo escanea con la cámara y ve tu información
@@ -164,5 +133,46 @@ export function MediPassPage() {
         </div>
       </div>
     </DashboardLayout>
+  );
+}
+
+/**
+ * La barra y el contador del código. Tienen su propio reloj para que el tic de
+ * cada segundo re-renderice solo esto y no toda la página (el QR, los datos de
+ * emergencia y los accesos no cambian con el segundero).
+ */
+function CodeCountdown({ expiraEl }: { expiraEl: string }) {
+  const now = useNow(1000);
+  const restante = new Date(expiraEl).getTime() - now.getTime();
+
+  return (
+    <div className="grid gap-2">
+      <div className="h-1.5 overflow-hidden rounded-full bg-line-soft">
+        <div
+          className="h-full rounded-full bg-brand transition-[width] duration-1000 ease-linear"
+          style={{
+            width: `${Math.max(0, Math.min(100, (restante / CODIGO_MS) * 100))}%`,
+          }}
+        />
+      </div>
+      {/* El contador explica por qué el código cambia: sin él, alguien
+          que vuelve a mirar cree que se rompió algo. */}
+      <p
+        role="timer"
+        aria-label={`El código se renueva en ${cuentaRegresiva(restante)}`}
+        className="text-[13px] text-muted"
+      >
+        {restante > 0 ? (
+          <>
+            Se renueva en{' '}
+            <span className="font-semibold tabular-nums text-brand-deep">
+              {cuentaRegresiva(restante)}
+            </span>
+          </>
+        ) : (
+          'Renovando…'
+        )}
+      </p>
+    </div>
   );
 }

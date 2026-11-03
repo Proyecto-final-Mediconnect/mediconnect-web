@@ -99,7 +99,11 @@ export function ActiveAccesses() {
                 </span>
                 <span className="block truncate text-[13px] text-muted">
                   Entró con tu código
-                  {acceso.matricula ? ` · Matrícula ${acceso.matricula}` : ''}
+                  {/* La matrícula la escribe quien escanea y nadie la verifica:
+                      dicho así, no se lee como la de un profesional validado. */}
+                  {acceso.matricula
+                    ? ` · Matrícula ${acceso.matricula} (declarada, sin verificar)`
+                    : ''}
                 </span>
                 <span className="block text-xs text-muted-soft">
                   Se corta solo en{' '}

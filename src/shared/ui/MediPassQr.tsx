@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 
 type MediPassQrProps = {
@@ -23,8 +24,15 @@ const LOGO_RATIO = 0.22;
  * módulos, así que va con nivel de corrección `H` —el que más daño tolera— y
  * `excavate`, que despeja los módulos de abajo en vez de dibujar encima: el
  * lector los da por perdidos y los recupera con la redundancia.
+ *
+ * Memoizado: con nivel `H` y logo es lo más caro de la página del MediPass, y
+ * solo tiene que recalcularse cuando rota el código.
  */
-export function MediPassQr({ value, size = 148, className = '' }: MediPassQrProps) {
+export const MediPassQr = memo(function MediPassQr({
+  value,
+  size = 148,
+  className = '',
+}: MediPassQrProps) {
   const contenido = value ?? `${window.location.origin}/medipass/emergencia`;
   const logo = Math.round(size * LOGO_RATIO);
   return (
@@ -42,4 +50,4 @@ export function MediPassQr({ value, size = 148, className = '' }: MediPassQrProp
       data-qr-value={contenido}
     />
   );
-}
+});
