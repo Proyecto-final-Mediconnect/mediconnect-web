@@ -26,7 +26,26 @@ export function AppointmentReview({
   const [abierto, setAbierto] = useState(false);
   const resena = mias.data?.find((r) => r.appointmentId === appointmentId);
 
-  if (mias.isPending || mias.isError) return null;
+  if (mias.isPending) return null;
+
+  if (mias.isError) {
+    return (
+      <div
+        role="alert"
+        className="flex flex-wrap items-center justify-between gap-2 rounded-[12px] border border-danger/30 bg-danger/5 px-4 py-3 text-[13px] text-danger"
+      >
+        <span>{mias.error.message}</span>
+        <button
+          type="button"
+          disabled={mias.isFetching}
+          onClick={() => void mias.refetch()}
+          className="rounded-[9px] px-3 py-1.5 font-semibold transition-colors hover:bg-danger/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
+        >
+          {mias.isFetching ? 'Reintentando…' : 'Reintentar'}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-2 rounded-[12px] border border-line-soft bg-surface px-4 py-3.5">

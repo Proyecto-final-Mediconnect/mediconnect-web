@@ -28,12 +28,15 @@ export function ModerationQueue() {
 
   function decidir(review: ModerationReview, decision: 'APROBADA' | 'RECHAZADA', reason?: string) {
     setAviso(null);
+    // Si era la última de una página que no es la primera, al recargar quedaría vacía.
+    const eraLaUltima = cola.data?.reviews.length === 1 && pagina > 1;
     moderar.mutate(
       { id: review.id, decision: { decision, reason } },
       {
         onSuccess: () => {
           setARechazar(null);
           setMotivo('');
+          if (eraLaUltima) setPagina((p) => p - 1);
           setAviso(
             decision === 'APROBADA'
               ? `Aprobaste la reseña sobre ${review.professional.name}: ya se ve en su perfil.`
@@ -131,7 +134,7 @@ export function ModerationQueue() {
                   <p className="text-[12.5px] text-danger">Motivo: {r.moderationReason}</p>
                 )}
               </div>
-              {r.status === 'PENDIENTE_MODERACION' && (
+              {r.status === 'PENDIENTE_MODERACION' && !cola.isPlaceholderData && (
                 <div className="flex justify-end gap-2 border-t border-line-soft bg-surface/60 px-5 py-3">
                   <button
                     type="button"

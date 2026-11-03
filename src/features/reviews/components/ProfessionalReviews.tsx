@@ -1,7 +1,5 @@
-import { useState } from 'react';
 import { useProfessionalReviews } from '../hooks/useReviews';
 import { formatAverage, formatReviewDate } from '../lib/reviews';
-import type { PublicReview } from '../types';
 import { Stars } from './Stars';
 
 /**
@@ -16,17 +14,12 @@ export function ProfessionalReviews({
   /** La tarjeta del perfil, para que la sección se vea como las demás. */
   card: (titulo: string, children: React.ReactNode) => React.ReactNode;
 }) {
-  const [pagina, setPagina] = useState(1);
-  const [anteriores, setAnteriores] = useState<PublicReview[]>([]);
-  const resenas = useProfessionalReviews(professionalId, pagina);
+  const resenas = useProfessionalReviews(professionalId);
+  const paginas = resenas.data?.pages ?? [];
+  const lista = paginas.flatMap((p) => p.reviews);
+  const rating = paginas[0]?.rating;
 
-  // Mientras llega la página nueva, `keepPreviousData` muestra la anterior: no
-  // se suma, o quedaría repetida.
-  const actuales = resenas.isPlaceholderData ? [] : (resenas.data?.reviews ?? []);
-  const lista = [...anteriores, ...actuales];
-  const rating = resenas.data?.rating;
-
-  if (resenas.isPending && pagina === 1) {
+  if (resenas.isPending) {
     return card(
       'Reseñas',
       <p role="status" className="px-6 py-6 text-[13px] text-muted">
@@ -35,7 +28,7 @@ export function ProfessionalReviews({
     );
   }
 
-  if (resenas.isError && lista.length === 0) {
+  if (resenas.isError && !resenas.data) {
     return card(
       'Reseñas',
       <p role="alert" className="px-6 py-6 text-[13px] text-danger">
@@ -96,17 +89,23 @@ export function ProfessionalReviews({
           </li>
         ))}
       </ul>
-      {resenas.data?.hasMore && (
+      {resenas.isFetchNextPageError && (
+        <p role="alert" className="border-t border-line-soft px-6 pt-3 text-[13px] text-danger">
+          {resenas.error.message}
+        </p>
+      )}
+      {resenas.hasNextPage && (
         <button
           type="button"
-          disabled={resenas.isFetching}
-          onClick={() => {
-            setAnteriores(lista);
-            setPagina((p) => p + 1);
-          }}
+          disabled={resenas.isFetchingNextPage}
+          onClick={() => void resenas.fetchNextPage()}
           className="w-full border-t border-line-soft px-6 py-3 text-left text-[13px] font-semibold text-brand-hover hover:bg-surface disabled:opacity-60"
         >
-          {resenas.isFetching ? 'Cargando…' : 'Ver más reseñas'}
+          {resenas.isFetchingNextPage
+            ? 'Cargando…'
+            : resenas.isFetchNextPageError
+              ? 'Reintentar'
+              : 'Ver más reseñas'}
         </button>
       )}
     </>,

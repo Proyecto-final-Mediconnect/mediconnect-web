@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isClientError } from '../../../shared/api/apiError';
 import {
   createReview,
@@ -14,11 +14,17 @@ const retryServerErrorsOnly = (failureCount: number, error: Error) =>
 
 const MINE = ['reviews', 'me'] as const;
 
-export function useProfessionalReviews(professionalId: string, page: number) {
-  return useQuery({
-    queryKey: ['reviews', 'professional', professionalId, page],
-    queryFn: () => getProfessionalReviews(professionalId, page),
-    placeholderData: keepPreviousData,
+/**
+ * Paginado infinito: las páginas viven en la cache bajo el profesional, así que
+ * cambiar de perfil no arrastra las reseñas del anterior, y si falla "ver más"
+ * las ya cargadas se quedan.
+ */
+export function useProfessionalReviews(professionalId: string) {
+  return useInfiniteQuery({
+    queryKey: ['reviews', 'professional', professionalId],
+    queryFn: ({ pageParam }) => getProfessionalReviews(professionalId, pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (ultima) => (ultima.hasMore ? ultima.page + 1 : undefined),
     retry: retryServerErrorsOnly,
   });
 }
@@ -41,7 +47,10 @@ export function useModerationQueue(status: ReviewStatus, page: number) {
   return useQuery({
     queryKey: ['reviews', 'moderation', status, page],
     queryFn: () => getModerationQueue(status, page),
-    placeholderData: keepPreviousData,
+    // La página anterior se mantiene solo al paginar dentro de la misma pestaña:
+    // al cambiar de estado se mostrarían reseñas de otra pestaña con sus acciones.
+    placeholderData: (previa, consultaPrevia) =>
+      consultaPrevia?.queryKey[2] === status ? previa : undefined,
     retry: retryServerErrorsOnly,
   });
 }
@@ -52,6 +61,7 @@ export function useModerateReview() {
     mutationFn: ({ id, decision }: { id: string; decision: ModerationDecision }) =>
       moderateReview(id, decision),
     retry: false,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['reviews', 'moderation'] }),
+    // También si falla: si otro moderador ya la decidió, la lista queda al día.
+    onSettled: () => queryClient.invalidateQueries({ queryKey: ['reviews', 'moderation'] }),
   });
 }
