@@ -11,7 +11,11 @@ type Props = {
   onChange: (filters: CatalogFilters) => void;
   /** Rango inválido detectado en el padre (ver lib/priceRange). */
   priceRangeError?: string;
-  /** Filtros que resuelve el cliente porque el backend no los soporta. */
+  /**
+   * Filtros que resuelve el cliente porque el backend no los soporta. Hoy es
+   * solo la búsqueda por texto, que vive en otro componente: llega acá para que
+   * "Limpiar" la cuente y la borre junto con el resto.
+   */
   localFilters: LocalCatalogFilters;
   onLocalChange: (filters: LocalCatalogFilters) => void;
 };
@@ -30,11 +34,13 @@ type Props = {
  * Se puede marcar más de una (ENG-49): entran los profesionales que tengan
  * ALGUNA de las elegidas. Por eso ya no hay opción "Todas" — con casillas,
  * ninguna marcada ES "todas", y una opción aparte para eso sobraría.
+ *
+ * No hay filtros de disponibilidad ni de calificación (ENG-150): filtraban sobre
+ * datos inventados. Solo se ofrece lo que el dato real permite filtrar.
  */
 
 const SECTION = 'border-b border-line-soft px-[22px] py-5 last:border-b-0';
-const SECTION_TITLE =
-  'text-[11px] font-semibold uppercase tracking-[0.12em] text-muted';
+const SECTION_TITLE = 'text-[11px] font-semibold uppercase tracking-[0.12em] text-muted';
 const PRICE_FIELD =
   'w-full rounded-[9px] border border-line-strong bg-white px-3 py-2.5 text-sm font-medium text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/25';
 
@@ -127,8 +133,8 @@ export function CatalogFiltersPanel({
             es evidente, y una línea fija sería ruido en cada carga. */}
         {filters.specialtyIds.length > 1 && (
           <p className="mt-3 text-[13px] leading-snug text-muted">
-            Entran los profesionales que trabajen en alguna de las{' '}
-            {filters.specialtyIds.length} elegidas.
+            Entran los profesionales que trabajen en alguna de las {filters.specialtyIds.length}{' '}
+            elegidas.
           </p>
         )}
 
@@ -183,53 +189,6 @@ export function CatalogFiltersPanel({
           </p>
         )}
       </div>
-
-      <div className={SECTION}>
-        <label htmlFor="filtro-disponibilidad" className={SECTION_TITLE}>
-          Disponibilidad
-        </label>
-        <select
-          id="filtro-disponibilidad"
-          className={`mt-3 ${PRICE_FIELD}`}
-          value={localFilters.withinDays ?? ''}
-          onChange={(e) =>
-            onLocalChange({
-              ...localFilters,
-              withinDays: e.target.value === '' ? null : Number(e.target.value),
-            })
-          }
-        >
-          <option value="">Cualquier fecha</option>
-          <option value="0">Hoy</option>
-          <option value="2">Próximos 3 días</option>
-          <option value="7">Próximos 7 días</option>
-        </select>
-      </div>
-
-      <fieldset className={SECTION}>
-        <legend className={SECTION_TITLE}>Calificación mínima</legend>
-        <div className="mt-3 flex gap-2">
-          {[null, 4, 4.5].map((value) => {
-            const active = localFilters.minRating === value;
-
-            return (
-              <button
-                key={String(value)}
-                type="button"
-                aria-pressed={active}
-                onClick={() => onLocalChange({ ...localFilters, minRating: value })}
-                className={`rounded-[9px] border px-3 py-2 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${
-                  active
-                    ? 'border-brand-deep bg-brand-deep text-white'
-                    : 'border-line-strong bg-white text-brand-deep hover:border-brand'
-                }`}
-              >
-                {value === null ? 'Todas' : `${value}+`}
-              </button>
-            );
-          })}
-        </div>
-      </fieldset>
     </section>
   );
 }

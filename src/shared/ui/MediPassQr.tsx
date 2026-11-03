@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 
 type MediPassQrProps = {
@@ -11,21 +12,36 @@ type MediPassQrProps = {
   className?: string;
 };
 
+/** Lado del logo respecto del QR. Con nivel `H` se puede tapar hasta ~30 %. */
+const LOGO_RATIO = 0.22;
+
 /**
  * El QR del MediPass. Es un QR de verdad: lo lee la cámara de cualquier
  * celular y abre la vista de emergencia con el código cargado.
  *
- * Nivel de corrección `M`: aguanta un reflejo o una pantalla rayada sin volver
- * el código tan denso que cueste leerlo de lejos.
+ * Lleva el corazón de MediConnect en el centro, en el azul del QR
+ * (`qr-logo.png`; el de la marca es teal). El logo tapa
+ * módulos, así que va con nivel de corrección `H` —el que más daño tolera— y
+ * `excavate`, que despeja los módulos de abajo en vez de dibujar encima: el
+ * lector los da por perdidos y los recupera con la redundancia.
+ *
+ * Memoizado: con nivel `H` y logo es lo más caro de la página del MediPass, y
+ * solo tiene que recalcularse cuando rota el código.
  */
-export function MediPassQr({ value, size = 148, className = '' }: MediPassQrProps) {
+export const MediPassQr = memo(function MediPassQr({
+  value,
+  size = 148,
+  className = '',
+}: MediPassQrProps) {
   const contenido = value ?? `${window.location.origin}/medipass/emergencia`;
+  const logo = Math.round(size * LOGO_RATIO);
   return (
     <QRCodeSVG
       value={contenido}
       size={size}
-      level="M"
+      level="H"
       marginSize={0}
+      imageSettings={{ src: '/qr-logo.png', height: logo, width: logo, excavate: true }}
       fgColor="#0b4f6c"
       bgColor="#ffffff"
       className={className}
@@ -34,4 +50,4 @@ export function MediPassQr({ value, size = 148, className = '' }: MediPassQrProp
       data-qr-value={contenido}
     />
   );
-}
+});

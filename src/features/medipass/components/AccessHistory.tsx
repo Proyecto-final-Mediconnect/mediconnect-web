@@ -110,8 +110,10 @@ function AccessItem({ acceso }: { acceso: MediPassAccess }) {
         <div className="min-w-0">
           <p className="text-[15px] font-bold text-brand-deep">{quien}</p>
           <p className="mt-0.5 text-[13px] text-muted">
+            {/* Declarada por quien escaneó, no verificada (como en los
+                accesos activos). */}
             {acceso.consultante.matricula
-              ? `Matrícula ${acceso.consultante.matricula}`
+              ? `Matrícula ${acceso.consultante.matricula} (declarada, sin verificar)`
               : 'No dio matrícula'}{' '}
             · {WHEN.format(new Date(acceso.inicio))}
           </p>

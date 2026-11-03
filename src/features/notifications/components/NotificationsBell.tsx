@@ -101,6 +101,11 @@ export function NotificationsBell() {
                         if (n.conversationId) {
                           setOpen(false);
                           navigate(`/mensajes/${n.conversationId}`);
+                        } else if (n.type === 'MEDIPASS_ACCESO') {
+                          // Alguien abrió el MediPass (ENG-177): se va a donde
+                          // se ve quién está mirando y se le puede cortar.
+                          setOpen(false);
+                          navigate('/medipass');
                         }
                       }}
                       aria-label={`${unreadItem ? 'Sin leer: ' : ''}${n.title}. ${n.body}`}

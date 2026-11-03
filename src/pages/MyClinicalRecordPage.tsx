@@ -6,6 +6,7 @@ import { UploadDocumentForm } from '../features/patient-documents/components/Upl
 import { useIsUploadingDocument } from '../features/patient-documents/hooks/usePatientDocuments';
 import { Button } from '../shared/ui/Button';
 import { Modal } from '../shared/ui/Modal';
+import { RecordAccesses } from '../features/clinical-records/components/RecordAccesses';
 import { DashboardLayout } from './DashboardLayout';
 
 /**
@@ -66,6 +67,14 @@ export function MyClinicalRecordPage() {
 
       {/* `RequireAuth` ya garantiza la sesión; el guard es para no montar la
           lista con un id vacío mientras `GET /me` está en vuelo. */}
+      {/* Quién la abrió (ENG-165): arriba y colapsado, para chequear de vez en
+          cuando sin empujar la historia hacia abajo. */}
+      {user && (
+        <div className="mb-6">
+          <RecordAccesses />
+        </div>
+      )}
+
       {user && (
         <ClinicalRecord
           patientId={user.id}

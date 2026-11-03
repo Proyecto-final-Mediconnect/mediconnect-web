@@ -64,6 +64,7 @@ function renderBell(initial: InAppInbox = INBOX) {
         <Routes>
           <Route path="/paciente" element={<NotificationsBell />} />
           <Route path="/mensajes/:conversationId" element={<p>Pantalla del chat</p>} />
+          <Route path="/medipass" element={<p>Pantalla del MediPass</p>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -112,6 +113,29 @@ describe('NotificationsBell', () => {
       expect.objectContaining({ method: 'PATCH' }),
     );
     expect(screen.getByRole('button', { name: 'Avisos' })).toBeInTheDocument();
+  });
+
+  it('el aviso de que abrieron el MediPass lleva a MediPass (ENG-177)', async () => {
+    const user = userEvent.setup();
+    renderBell({
+      unreadCount: 1,
+      notifications: [
+        {
+          id: 'n-mp',
+          type: 'MEDIPASS_ACCESO',
+          appointmentId: null,
+          title: 'Abrieron tu MediPass',
+          body: 'Dra. Paula Ferrer abrió tu MediPass con tu código. Si no lo reconocés, cortale el acceso.',
+          createdAt: new Date().toISOString(),
+          readAt: null,
+        },
+      ],
+    });
+
+    await user.click(await screen.findByRole('button', { name: 'Avisos, 1 sin leer' }));
+    await user.click(screen.getByRole('button', { name: /^Sin leer: Abrieron tu MediPass/ }));
+
+    expect(await screen.findByText('Pantalla del MediPass')).toBeInTheDocument();
   });
 
   it('tocar uno ya leído no vuelve a pedir nada', async () => {

@@ -10,19 +10,38 @@ import type { VitalBlock } from '../types/medipass';
  * por lo mismo — un diagnóstico escrito en otro idioma sigue siendo legible por
  * su código.
  */
-export function VitalBlockCard({ vital, footer }: { vital: VitalBlock; footer?: ReactNode }) {
+export function VitalBlockCard({
+  vital,
+  footer,
+  fill = false,
+}: {
+  vital: VitalBlock;
+  footer?: ReactNode;
+  /** Ocupa todo el ancho de su columna en vez de centrarse con un tope. */
+  fill?: boolean;
+}) {
   const alergias = vital.alergias ?? [];
   const medicacion = vital.medicacion ?? [];
   const condiciones = vital.condiciones ?? [];
+  // Un bloque que el paciente eligió no mostrar (ENG-149) **no viene** en la
+  // respuesta. Se dice "not shared" y no "none": un médico que lee "No known
+  // allergies" puede indicar justo lo que no debe.
+  const oculto = (clave: keyof VitalBlock) => !(clave in vital);
   const datos = [
     vital.sexo,
     typeof vital.edad === 'number' ? `${vital.edad} y` : null,
-    vital.grupoSanguineo ? `Blood type ${vital.grupoSanguineo}` : 'Blood type not recorded',
+    oculto('grupoSanguineo')
+      ? 'Blood type not shared'
+      : vital.grupoSanguineo
+        ? `Blood type ${vital.grupoSanguineo}`
+        : 'Blood type not recorded',
     vital.pais,
   ].filter(Boolean);
 
   return (
-    <article className="mx-auto w-full max-w-[560px] overflow-hidden rounded-[14px] border border-night bg-night text-white">
+    <article
+      className={`${fill ? 'w-full' : 'mx-auto w-full max-w-[560px]'} overflow-hidden rounded-[14px] border border-night bg-night text-white`}
+    >
       <header className="border-b border-white/10 px-6 py-6 sm:px-7">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-[15px] font-bold text-white">MediPass</p>
@@ -41,7 +60,9 @@ export function VitalBlockCard({ vital, footer }: { vital: VitalBlock; footer?: 
         {/* Las alergias van primero y en rojo: es el dato que cambia lo que el
             médico indica en los primeros segundos. */}
         <Bloque titulo="Allergies" destacado>
-          {alergias.length === 0 ? (
+          {oculto('alergias') ? (
+            <NoCompartido />
+          ) : alergias.length === 0 ? (
             <p className="text-[15px] font-semibold text-white">No known allergies</p>
           ) : (
             alergias.map((a) => (
@@ -53,7 +74,9 @@ export function VitalBlockCard({ vital, footer }: { vital: VitalBlock; footer?: 
         </Bloque>
 
         <Bloque titulo="Active medication">
-          {medicacion.length === 0 ? (
+          {oculto('medicacion') ? (
+            <NoCompartido />
+          ) : medicacion.length === 0 ? (
             <p className="text-[15px] font-semibold text-white">None</p>
           ) : (
             medicacion.map((m) => (
@@ -70,7 +93,9 @@ export function VitalBlockCard({ vital, footer }: { vital: VitalBlock; footer?: 
         </Bloque>
 
         <Bloque titulo="Conditions">
-          {condiciones.length === 0 ? (
+          {oculto('condiciones') ? (
+            <NoCompartido />
+          ) : condiciones.length === 0 ? (
             <p className="text-[15px] font-semibold text-white">None reported</p>
           ) : (
             condiciones.map((c) => (
@@ -83,7 +108,9 @@ export function VitalBlockCard({ vital, footer }: { vital: VitalBlock; footer?: 
         </Bloque>
 
         <Bloque titulo="Emergency contact">
-          {vital.contacto ? (
+          {oculto('contacto') ? (
+            <NoCompartido />
+          ) : vital.contacto ? (
             <>
               <p className="text-[15px] font-semibold text-white">
                 {vital.contacto.nombre} · {vital.contacto.vinculo}
@@ -131,5 +158,12 @@ function Bloque({
       </h3>
       <div className="mt-2 grid gap-1.5">{children}</div>
     </section>
+  );
+}
+
+/** Un bloque que el paciente eligió no mostrar (ENG-149). */
+function NoCompartido() {
+  return (
+    <p className="text-[14px] font-medium italic text-on-night-soft">Not shared by the patient</p>
   );
 }
