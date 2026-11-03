@@ -51,6 +51,11 @@ export function initialsOf(name: string): string {
   return letters.map((w) => w[0]!.toLocaleUpperCase('es-AR')).join('');
 }
 
+/** El día de hoy en Argentina: cambia a medianoche, y con él "Hoy" y "Ayer". */
+export function todayKey(now: Date = new Date()): string {
+  return dayKey(now);
+}
+
 export function formatHour(iso: string): string {
   return HOUR.format(new Date(iso));
 }
@@ -96,25 +101,21 @@ export function layoutMessages(
   myId: string,
   now: Date = new Date(),
 ): MessageRow[] {
-  return messages.map((message, i) => {
-    const prev = messages[i - 1];
-    const next = messages[i + 1];
-    const day = dayKey(new Date(message.enviadoEl));
-    const sameGroup = (a: ChatMessage | undefined, b: ChatMessage) =>
-      a !== undefined &&
-      a.autorId === b.autorId &&
-      dayKey(new Date(a.enviadoEl)) === dayKey(new Date(b.enviadoEl)) &&
-      Math.abs(new Date(b.enviadoEl).getTime() - new Date(a.enviadoEl).getTime()) < GROUP_GAP_MS;
+  // Una sola conversión por mensaje: `dayKey` formatea con Intl, que no es gratis.
+  const days = messages.map((m) => dayKey(new Date(m.enviadoEl)));
+  const times = messages.map((m) => new Date(m.enviadoEl).getTime());
+  const sameGroup = (i: number, j: number) =>
+    j >= 0 &&
+    j < messages.length &&
+    messages[i]!.autorId === messages[j]!.autorId &&
+    days[i] === days[j] &&
+    Math.abs(times[i]! - times[j]!) < GROUP_GAP_MS;
 
-    return {
-      message,
-      mine: message.autorId === myId,
-      dayLabel:
-        prev && dayKey(new Date(prev.enviadoEl)) === day
-          ? null
-          : formatDayLabel(message.enviadoEl, now),
-      groupStart: !sameGroup(prev, message),
-      groupEnd: !(next && sameGroup(message, next)),
-    };
-  });
+  return messages.map((message, i) => ({
+    message,
+    mine: message.autorId === myId,
+    dayLabel: i > 0 && days[i - 1] === days[i] ? null : formatDayLabel(message.enviadoEl, now),
+    groupStart: !sameGroup(i, i - 1),
+    groupEnd: !sameGroup(i, i + 1),
+  }));
 }

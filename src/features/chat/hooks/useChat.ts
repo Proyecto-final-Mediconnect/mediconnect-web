@@ -95,13 +95,32 @@ export function useMessages(conversationId: string | undefined, live: boolean) {
  * Vuelve a pedir la página más reciente y la funde con la caché. Trae los
  * mensajes nuevos y también los "Leído" que cambiaron.
  */
+/**
+ * Con uno en vuelo no se pide otro: se anota y se repite una sola vez al
+ * terminar. Así un "leí" que llega junto con la reconciliación de fondo no
+ * duplica pedidos, y un cliente que mande "leí" en loop no hace refetchear al
+ * otro sin parar.
+ */
+const inFlight = new Map<string, { again: boolean }>();
+
 function reconcileLatest(queryClient: QueryClient, conversationId: string) {
+  const running = inFlight.get(conversationId);
+  if (running) {
+    running.again = true;
+    return;
+  }
+  const state = { again: false };
+  inFlight.set(conversationId, state);
   getMessages(conversationId)
     .then((page) => {
       for (const message of page.mensajes) addToCache(queryClient, conversationId, message);
     })
     // Un fallo de red no pisa lo que ya se ve: se reintenta en el próximo ciclo.
-    .catch(() => {});
+    .catch(() => {})
+    .finally(() => {
+      inFlight.delete(conversationId);
+      if (state.again) reconcileLatest(queryClient, conversationId);
+    });
 }
 
 /** Suma un mensaje a la página más reciente de la caché, sin duplicarlo. */

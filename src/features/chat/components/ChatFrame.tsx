@@ -5,6 +5,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
   type ReactNode,
+  type Ref,
 } from 'react';
 import { Link } from 'react-router-dom';
 import type { Appointment } from '../../appointments/types/appointment';
@@ -94,6 +95,8 @@ type FrameProps = {
   children: ReactNode;
   composer: ReactNode;
   busy?: boolean;
+  /** La caja que scrollea los mensajes: la conversación mira si el usuario está al fondo. */
+  bodyRef?: Ref<HTMLDivElement>;
 };
 
 /**
@@ -112,6 +115,7 @@ export function ChatFrame({
   children,
   composer,
   busy,
+  bodyRef,
 }: FrameProps) {
   const who = (
     <>
@@ -176,7 +180,11 @@ export function ChatFrame({
         </Link>
       )}
 
-      <div className="flex-1 overflow-y-auto bg-surface px-3 py-4 sm:px-6 sm:py-5" aria-busy={busy}>
+      <div
+        ref={bodyRef}
+        className="flex-1 overflow-y-auto bg-surface px-3 py-4 sm:px-6 sm:py-5"
+        aria-busy={busy}
+      >
         {children}
       </div>
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog';
 import {
@@ -10,7 +10,7 @@ import {
   useChatSignals,
 } from '../hooks/useChat';
 import { useCounterpartAppointments } from '../hooks/useCounterpartAppointments';
-import { formatHour, layoutMessages } from '../lib/format';
+import { formatHour, layoutMessages, todayKey } from '../lib/format';
 import type { ChatCounterpart } from '../types/chat';
 import { ChatFrame, MessageComposer } from './ChatFrame';
 import { ChatInfoPanel } from './ChatInfoPanel';
@@ -58,10 +58,17 @@ export function ConversationView({ conversationId, counterpart, myId }: Props) {
   const [infoOpen, setInfoOpen] = useState(false);
   const [confirmingHide, setConfirmingHide] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
+  /** Si el usuario está al fondo del chat. Leyendo historial, no se lo mueve. */
+  const atBottom = useRef(true);
   const markedUpTo = useRef<string | null>(null);
 
   const list = messages.messages;
-  const lastId = list.at(-1)?.id;
+  const last = list.at(-1);
+  const lastId = last?.id;
+  // Con el día en las deps, "Hoy" y "Ayer" se corren solos al pasar la medianoche.
+  const today = todayKey();
+  const rows = useMemo(() => layoutMessages(list, myId), [list, myId, today]); // eslint-disable-line react-hooks/exhaustive-deps
   const newestUnread = list.findLast((m) => m.autorId !== myId && m.leidoEl === null)?.id;
 
   // Solo se marca leído con la pestaña a la vista: con Realtime el mensaje entra
@@ -89,10 +96,29 @@ export function ConversationView({ conversationId, counterpart, myId }: Props) {
     if (lastFromOther) clearTyping();
   }, [lastFromOther, clearTyping]);
 
-  // `scrollIntoView` no existe en jsdom: el `?.` evita que los tests lo necesiten.
+  // Se mide al scrollear, no después de pintar: un mensaje nuevo agranda la caja
+  // y haría parecer que el usuario ya no estaba al fondo.
   useEffect(() => {
-    bottomRef.current?.scrollIntoView?.({ block: 'end' });
-  }, [lastId, othersTyping]);
+    const box = bodyRef.current;
+    if (!box) return;
+    const onScroll = () => {
+      atBottom.current = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+    };
+    box.addEventListener('scroll', onScroll, { passive: true });
+    return () => box.removeEventListener('scroll', onScroll);
+  }, []);
+
+  // Se baja al último solo si el usuario ya estaba al fondo, o si el mensaje es
+  // suyo. Leyendo mensajes viejos, ni lo que llega ni la burbuja de "escribiendo"
+  // lo mueven. `scrollIntoView` no existe en jsdom: el `?.` evita que los tests
+  // lo necesiten.
+  const lastIsMine = last?.autorId === myId;
+  useEffect(() => {
+    if (atBottom.current || lastIsMine) bottomRef.current?.scrollIntoView?.({ block: 'end' });
+  }, [lastId, lastIsMine]);
+  useEffect(() => {
+    if (atBottom.current) bottomRef.current?.scrollIntoView?.({ block: 'end' });
+  }, [othersTyping]);
 
   function confirmHide() {
     hide.mutate(conversationId, {
@@ -107,6 +133,7 @@ export function ConversationView({ conversationId, counterpart, myId }: Props) {
         onOpenInfo={() => setInfoOpen(true)}
         nextAppointment={next}
         busy={messages.isFetching}
+        bodyRef={bodyRef}
         composer={
           <MessageComposer
             counterpartName={counterpart.nombre}
@@ -150,46 +177,44 @@ export function ConversationView({ conversationId, counterpart, myId }: Props) {
               <p className="text-[14px] text-muted">Todavía no hay mensajes. Escribí el primero.</p>
             ) : (
               <ol aria-label={`Mensajes con ${counterpart.nombre}`} className="flex flex-col">
-                {layoutMessages(list, myId).map(
-                  ({ message: m, mine, dayLabel, groupStart, groupEnd }) => (
-                    <li
-                      key={m.id}
-                      className={`flex flex-col ${mine ? 'items-end' : 'items-start'} ${
-                        groupStart ? 'mt-3 first:mt-0' : 'mt-1'
+                {rows.map(({ message: m, mine, dayLabel, groupStart, groupEnd }) => (
+                  <li
+                    key={m.id}
+                    className={`flex flex-col ${mine ? 'items-end' : 'items-start'} ${
+                      groupStart ? 'mt-3 first:mt-0' : 'mt-1'
+                    }`}
+                  >
+                    {dayLabel && (
+                      <span className="mb-2 self-center rounded-full border border-line bg-white px-3 py-1 text-[12px] font-bold text-[#475569] first-letter:uppercase">
+                        {dayLabel}
+                      </span>
+                    )}
+                    <div
+                      className={`max-w-[85%] rounded-[16px] px-3.5 py-2.5 sm:max-w-[70%] ${
+                        mine ? 'bg-brand-deep text-white' : 'border border-line bg-white text-ink'
                       }`}
                     >
-                      {dayLabel && (
-                        <span className="mb-2 self-center rounded-full border border-line bg-white px-3 py-1 text-[12px] font-bold text-[#475569] first-letter:uppercase">
-                          {dayLabel}
-                        </span>
-                      )}
-                      <div
-                        className={`max-w-[85%] rounded-[16px] px-3.5 py-2.5 sm:max-w-[70%] ${
-                          mine ? 'bg-brand-deep text-white' : 'border border-line bg-white text-ink'
-                        }`}
-                      >
-                        <span className="sr-only">{mine ? 'Vos' : counterpart.nombre}: </span>
-                        <p className="whitespace-pre-wrap break-words text-[14px] leading-[1.5]">
-                          {m.contenido}
-                        </p>
-                      </div>
-                      {groupEnd && (
-                        <p className="mx-1 mt-1 flex items-center gap-1 text-[11px] text-muted">
-                          {formatHour(m.enviadoEl)}
-                          {mine && m.leidoEl && (
-                            <>
-                              <span aria-hidden="true">·</span>
-                              <span className="text-brand-hover">
-                                <ReadIcon />
-                              </span>
-                              <span>Leído</span>
-                            </>
-                          )}
-                        </p>
-                      )}
-                    </li>
-                  ),
-                )}
+                      <span className="sr-only">{mine ? 'Vos' : counterpart.nombre}: </span>
+                      <p className="whitespace-pre-wrap break-words text-[14px] leading-[1.5]">
+                        {m.contenido}
+                      </p>
+                    </div>
+                    {groupEnd && (
+                      <p className="mx-1 mt-1 flex items-center gap-1 text-[11px] text-muted">
+                        {formatHour(m.enviadoEl)}
+                        {mine && m.leidoEl && (
+                          <>
+                            <span aria-hidden="true">·</span>
+                            <span className="text-brand-hover">
+                              <ReadIcon />
+                            </span>
+                            <span>Leído</span>
+                          </>
+                        )}
+                      </p>
+                    )}
+                  </li>
+                ))}
               </ol>
             )}
           </>

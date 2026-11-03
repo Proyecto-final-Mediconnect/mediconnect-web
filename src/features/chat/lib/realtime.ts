@@ -183,6 +183,11 @@ export function subscribeToChatSignals(
 
   let stopped = false;
   let lastTyping = 0;
+  /** Recién con el canal unido se manda: antes, `send` cae al REST y con un canal
+   *  privado puede perderse sin aviso. */
+  let ready = false;
+  /** Un "leí" pedido antes de estar unido: es justo el de abrir el chat. */
+  let pendingRead = false;
   let send: ((event: string) => void) | null = null;
   let stop = () => {};
 
@@ -191,20 +196,38 @@ export function subscribeToChatSignals(
     const channel = supabase
       .channel(`typing:${conversationId}`, { config: { private: true } })
       .on('broadcast', { event: 'escribiendo' }, () => handlers.onTyping())
-      .on('broadcast', { event: 'leido' }, () => handlers.onRead())
-      .subscribe();
+      .on('broadcast', { event: 'leido' }, () => handlers.onRead());
     send = (event) => void channel.send({ type: 'broadcast', event, payload: {} });
     stop = () => void supabase.removeChannel(channel);
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        ready = true;
+        if (pendingRead) {
+          pendingRead = false;
+          send?.('leido');
+        }
+        return;
+      }
+      ready = false;
+      // Sin datos del chat: solo que el canal no se unió (¿las políticas del
+      // backend lo rechazaron?). El chat sigue andando, sin los avisos.
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn(`Realtime: el canal de avisos del chat quedó en ${status}.`);
+      }
+    });
   });
 
   return {
     notifyTyping: () => {
       const now = Date.now();
-      if (!send || now - lastTyping < TYPING_SEND_EVERY_MS) return;
+      if (!send || !ready || now - lastTyping < TYPING_SEND_EVERY_MS) return;
       lastTyping = now;
       send('escribiendo');
     },
-    notifyRead: () => send?.('leido'),
+    notifyRead: () => {
+      if (send && ready) send('leido');
+      else pendingRead = true;
+    },
     stop: () => {
       stopped = true;
       send = null;

@@ -423,6 +423,29 @@ describe('MessagesPage (ENG-70)', () => {
     );
   });
 
+  it('varios "leí" seguidos no disparan un pedido por cada uno', async () => {
+    const { calls } = fakeBackend();
+    renderAt(`/mensajes/${CONV}`);
+    await screen.findByText('Hola, doctora');
+
+    const before = calls.length;
+    act(() => {
+      for (let i = 0; i < 10; i++) realtime.read?.();
+    });
+    await waitFor(() =>
+      expect(
+        calls.slice(before).filter((c) => c.url.includes(`/conversations/${CONV}/messages`)).length,
+      ).toBeGreaterThan(0),
+    );
+    await new Promise((r) => setTimeout(r, 50));
+    // Uno en vuelo y, como llegaron más mientras tanto, uno más: nunca diez.
+    expect(
+      calls
+        .slice(before)
+        .filter((c) => c.method === 'GET' && c.url.includes(`/conversations/${CONV}/messages`)),
+    ).toHaveLength(2);
+  });
+
   it('al escribir avisa a la otra persona; con espacios solos, no', async () => {
     const user = userEvent.setup();
     fakeBackend();

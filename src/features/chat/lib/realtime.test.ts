@@ -209,6 +209,36 @@ describe('realtime', () => {
     expect(channel.send).toHaveBeenCalledTimes(3);
   });
 
+  it('un "leí" pedido antes de unirse al canal se manda apenas queda unido', async () => {
+    let joined: ((status: string) => void) | undefined;
+    supabase.createClient.mockImplementation((_u, _k, options) => {
+      supabase.accessToken = options.accessToken;
+      const channel = {
+        on: vi.fn(() => channel),
+        send: vi.fn(),
+        subscribe: vi.fn((cb: (status: string) => void) => {
+          joined = cb;
+          return channel;
+        }),
+      };
+      return { channel: vi.fn(() => channel), removeChannel: vi.fn() };
+    });
+    const { subscribeToChatSignals } = await load({ url: 'https://x.supabase.co', key: 'k' });
+
+    const signals = subscribeToChatSignals('c-1', { onTyping: vi.fn(), onRead: vi.fn() });
+    await settled();
+    const channel = supabase.createClient.mock.results[0]!.value.channel.mock.results[0]!.value;
+
+    // Todavía uniéndose: ni "escribiendo" ni "leí" salen.
+    signals.notifyRead();
+    signals.notifyTyping();
+    expect(channel.send).not.toHaveBeenCalled();
+
+    joined?.('SUBSCRIBED');
+    expect(channel.send).toHaveBeenCalledTimes(1);
+    expect(channel.send).toHaveBeenCalledWith({ type: 'broadcast', event: 'leido', payload: {} });
+  });
+
   it('sin variables de Supabase no hay indicador de escribiendo', async () => {
     const { subscribeToChatSignals } = await load({});
 
