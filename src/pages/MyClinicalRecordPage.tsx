@@ -3,6 +3,7 @@ import { useSession } from '../features/auth/hooks/useSession';
 import { ClinicalRecord } from '../features/clinical-records/components/ClinicalRecord';
 import { MyDocuments } from '../features/patient-documents/components/MyDocuments';
 import { UploadDocumentForm } from '../features/patient-documents/components/UploadDocumentForm';
+import { useIsUploadingDocument } from '../features/patient-documents/hooks/usePatientDocuments';
 import { Button } from '../shared/ui/Button';
 import { Modal } from '../shared/ui/Modal';
 import { DashboardLayout } from './DashboardLayout';
@@ -35,6 +36,9 @@ import { DashboardLayout } from './DashboardLayout';
 export function MyClinicalRecordPage() {
   const { user, isLoading } = useSession();
   const [subiendo, setSubiendo] = useState(false);
+  // Con la subida en vuelo, Esc, el fondo y la X no cierran: desmontar el
+  // formulario escondería si falló, y el paciente lo volvería a subir.
+  const subidaEnCurso = useIsUploadingDocument();
 
   return (
     <DashboardLayout
@@ -75,6 +79,7 @@ export function MyClinicalRecordPage() {
         titulo="Subir un documento"
         descripcion="Un estudio, informe o receta que traés de otro lugar. Lo ven los profesionales que te atienden."
         onClose={() => setSubiendo(false)}
+        pendiente={subidaEnCurso}
       >
         {subiendo && (
           <UploadDocumentForm

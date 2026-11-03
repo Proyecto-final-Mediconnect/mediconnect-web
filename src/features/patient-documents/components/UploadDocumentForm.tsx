@@ -5,6 +5,7 @@ import {
   ACCEPTED_MIME,
   fileProblem,
   formatSize,
+  hoyLocal,
   suggestedTitle,
   TYPE_LABELS,
 } from '../lib/documents';
@@ -31,7 +32,12 @@ export function UploadDocumentForm({
   const [documentDate, setDocumentDate] = useState('');
   const [sourceInstitution, setSourceInstitution] = useState('');
   const [titleError, setTitleError] = useState<string | null>(null);
+  const [dateError, setDateError] = useState<string | null>(null);
   const inputId = useId();
+  const tipoName = useId();
+  // El backend rechaza fechas futuras; el `max` lo evita en el selector y el
+  // chequeo de `subir` cubre la fecha tipeada a mano. Es UX: valida el backend.
+  const hoy = hoyLocal();
 
   function elegir(elegido: File | undefined) {
     if (!elegido) return;
@@ -49,6 +55,10 @@ export function UploadDocumentForm({
     }
     if (!title.trim()) {
       setTitleError('Ponele un nombre al documento.');
+      return;
+    }
+    if (documentDate && documentDate > hoy) {
+      setDateError('La fecha no puede ser futura.');
       return;
     }
     upload.mutate(
@@ -93,7 +103,7 @@ export function UploadDocumentForm({
             e.preventDefault();
             elegir(e.dataTransfer.files[0]);
           }}
-          className={`grid cursor-pointer justify-items-center gap-1.5 rounded-[12px] border-2 border-dashed px-4 py-7 text-center transition-colors hover:border-brand hover:bg-surface-teal ${
+          className={`grid cursor-pointer justify-items-center gap-1.5 rounded-[12px] border-2 border-dashed px-4 py-7 text-center transition-colors hover:border-brand hover:bg-surface-teal focus-within:border-brand focus-within:ring-2 focus-within:ring-brand ${
             fileError ? 'border-danger/50' : 'border-line-strong'
           }`}
         >
@@ -119,7 +129,6 @@ export function UploadDocumentForm({
             type="file"
             accept={ACCEPTED_MIME.join(',')}
             className="sr-only"
-            aria-label="Archivo"
             onChange={(e) => elegir(e.target.files?.[0])}
           />
         </label>
@@ -134,22 +143,28 @@ export function UploadDocumentForm({
         <span id="tipo-doc" className={ROTULO}>
           Qué es
         </span>
+        {/* Radios de verdad, escondidos detrás de la píldora: traen el
+            teclado resuelto (un solo tab-stop y flechas para moverse). */}
         <div role="radiogroup" aria-labelledby="tipo-doc" className="flex flex-wrap gap-2">
           {DOCUMENT_TYPES.map((t) => (
-            <button
+            <label
               key={t}
-              type="button"
-              role="radio"
-              aria-checked={type === t}
-              onClick={() => setType(t)}
-              className={`rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+              className={`cursor-pointer rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand ${
                 type === t
                   ? 'bg-brand-deep text-white'
                   : 'bg-white text-brand-deep ring-1 ring-line-strong hover:ring-brand'
               }`}
             >
+              <input
+                type="radio"
+                name={tipoName}
+                value={t}
+                checked={type === t}
+                onChange={() => setType(t)}
+                className="sr-only"
+              />
               {TYPE_LABELS[t]}
-            </button>
+            </label>
           ))}
         </div>
       </div>
@@ -176,9 +191,15 @@ export function UploadDocumentForm({
           <input
             type="date"
             value={documentDate}
-            onChange={(e) => setDocumentDate(e.target.value)}
-            className={CAMPO}
+            max={hoy}
+            onChange={(e) => {
+              setDocumentDate(e.target.value);
+              setDateError(null);
+            }}
+            aria-invalid={!!dateError}
+            className={`${CAMPO} ${dateError ? 'border-danger' : ''}`}
           />
+          {dateError && <span className="text-[12px] text-danger">{dateError}</span>}
         </label>
         <label className="grid gap-1.5">
           <span className={ROTULO}>Institución (opcional)</span>
