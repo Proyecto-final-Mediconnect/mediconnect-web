@@ -17,8 +17,9 @@ vi.mock('../api/chatApi', () => ({ getRealtimeToken }));
 function fakeChannel() {
   const channel = {
     on: vi.fn(() => channel),
-    subscribe: vi.fn((cb: (status: string) => void) => {
-      cb('SUBSCRIBED');
+    send: vi.fn(),
+    subscribe: vi.fn((cb?: (status: string) => void) => {
+      cb?.('SUBSCRIBED');
       return channel;
     }),
   };
@@ -169,5 +170,81 @@ describe('realtime', () => {
     disconnectRealtime();
     await supabase.accessToken!();
     expect(getRealtimeToken).toHaveBeenCalledTimes(3);
+  });
+
+  it('"escribiendo" va por un canal privado y se avisa como mucho cada tanto', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    const { subscribeToChatSignals, TYPING_SEND_EVERY_MS } = await load({
+      url: 'https://x.supabase.co',
+      key: 'k',
+    });
+
+    const signals = subscribeToChatSignals('c-1', { onTyping: vi.fn(), onRead: vi.fn() });
+    await settled();
+
+    const client = supabase.createClient.mock.results[0]!.value;
+    expect(client.channel).toHaveBeenCalledWith('typing:c-1', { config: { private: true } });
+    const channel = client.channel.mock.results[0]!.value;
+
+    signals.notifyTyping();
+    signals.notifyTyping();
+    expect(channel.send).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(TYPING_SEND_EVERY_MS);
+    signals.notifyTyping();
+    expect(channel.send).toHaveBeenCalledTimes(2);
+
+    // "Leí" no se espacia: se manda cada vez que se marca leído.
+    signals.notifyRead();
+    expect(channel.send).toHaveBeenLastCalledWith({
+      type: 'broadcast',
+      event: 'leido',
+      payload: {},
+    });
+    expect(channel.send).toHaveBeenCalledTimes(3);
+
+    signals.stop();
+    vi.advanceTimersByTime(TYPING_SEND_EVERY_MS);
+    signals.notifyTyping();
+    expect(channel.send).toHaveBeenCalledTimes(3);
+  });
+
+  it('un "leí" pedido antes de unirse al canal se manda apenas queda unido', async () => {
+    let joined: ((status: string) => void) | undefined;
+    supabase.createClient.mockImplementation((_u, _k, options) => {
+      supabase.accessToken = options.accessToken;
+      const channel = {
+        on: vi.fn(() => channel),
+        send: vi.fn(),
+        subscribe: vi.fn((cb: (status: string) => void) => {
+          joined = cb;
+          return channel;
+        }),
+      };
+      return { channel: vi.fn(() => channel), removeChannel: vi.fn() };
+    });
+    const { subscribeToChatSignals } = await load({ url: 'https://x.supabase.co', key: 'k' });
+
+    const signals = subscribeToChatSignals('c-1', { onTyping: vi.fn(), onRead: vi.fn() });
+    await settled();
+    const channel = supabase.createClient.mock.results[0]!.value.channel.mock.results[0]!.value;
+
+    // Todavía uniéndose: ni "escribiendo" ni "leí" salen.
+    signals.notifyRead();
+    signals.notifyTyping();
+    expect(channel.send).not.toHaveBeenCalled();
+
+    joined?.('SUBSCRIBED');
+    expect(channel.send).toHaveBeenCalledTimes(1);
+    expect(channel.send).toHaveBeenCalledWith({ type: 'broadcast', event: 'leido', payload: {} });
+  });
+
+  it('sin variables de Supabase no hay indicador de escribiendo', async () => {
+    const { subscribeToChatSignals } = await load({});
+
+    expect(() =>
+      subscribeToChatSignals('c-1', { onTyping: vi.fn(), onRead: vi.fn() }).notifyTyping(),
+    ).not.toThrow();
+    expect(supabase.createClient).not.toHaveBeenCalled();
   });
 });

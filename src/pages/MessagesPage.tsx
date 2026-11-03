@@ -59,8 +59,10 @@ export function MessagesPage() {
         </div>
       ) : (
         <>
-          <div className="grid items-start gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
-            <div className={showingChat ? 'hidden lg:block' : ''}>
+          <div className="h-[min(720px,calc(100dvh-180px))] min-h-[480px] overflow-hidden rounded-[16px] border border-line bg-white lg:grid lg:grid-cols-[340px_minmax(0,1fr)]">
+            <div
+              className={`h-full min-h-0 border-line lg:border-r ${showingChat ? 'hidden lg:block' : ''}`}
+            >
               <ConversationList
                 inbox={inbox.data}
                 selectedId={conversationId}
@@ -69,24 +71,26 @@ export function MessagesPage() {
               />
             </div>
 
-            {selected ? (
-              <ConversationView
-                key={selected.id}
-                conversationId={selected.id}
-                counterpart={selected.contraparte}
-                myId={user.id}
-              />
-            ) : draftWith ? (
-              <DraftConversationView key={draftWith.id} counterpart={draftWith} />
-            ) : showingChat ? (
-              <p className="rounded-[14px] border border-line bg-white px-5 py-4 text-[14px] text-muted">
-                Esa conversación no existe o no es tuya.
-              </p>
-            ) : (
-              <p className="hidden rounded-[14px] border border-line bg-white px-5 py-4 text-[14px] text-muted lg:block">
-                Elegí una conversación para leerla, o empezá un chat nuevo.
-              </p>
-            )}
+            <div className={`h-full min-h-0 ${showingChat ? '' : 'hidden lg:block'}`}>
+              {selected ? (
+                <ConversationView
+                  key={selected.id}
+                  conversationId={selected.id}
+                  counterpart={selected.contraparte}
+                  myId={user.id}
+                />
+              ) : draftWith ? (
+                <DraftConversationView key={draftWith.id} counterpart={draftWith} />
+              ) : (
+                <div className="flex h-full items-center justify-center bg-surface px-6 text-center">
+                  <p className="max-w-[320px] text-[14px] text-muted">
+                    {showingChat
+                      ? 'Esa conversación no existe o no es tuya.'
+                      : 'Elegí una conversación para leerla, o empezá un chat nuevo.'}
+                  </p>
+                </div>
+              )}
+            </div>
           </div>
 
           <NewChatDialog

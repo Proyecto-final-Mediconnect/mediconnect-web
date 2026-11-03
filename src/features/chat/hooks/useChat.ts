@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   useInfiniteQuery,
   useMutation,
@@ -17,7 +17,12 @@ import {
   sendMessage,
 } from '../api/chatApi';
 import { mergeMessages } from '../lib/messages';
-import { subscribeToConversation, type RealtimeStatus } from '../lib/realtime';
+import {
+  subscribeToConversation,
+  subscribeToChatSignals,
+  type ChatSignals,
+  type RealtimeStatus,
+} from '../lib/realtime';
 import type { ChatMessage, MessagesPage } from '../types/chat';
 
 export const CHAT_INBOX_KEY = ['chat', 'inbox'] as const;
@@ -68,13 +73,7 @@ export function useMessages(conversationId: string | undefined, live: boolean) {
   useEffect(() => {
     if (!conversationId) return;
     const reconcile = () => {
-      if (document.visibilityState !== 'visible') return;
-      getMessages(conversationId)
-        .then((page) => {
-          for (const message of page.mensajes) addToCache(queryClient, conversationId, message);
-        })
-        // Un fallo de red no pisa lo que ya se ve: se reintenta en el próximo ciclo.
-        .catch(() => {});
+      if (document.visibilityState === 'visible') reconcileLatest(queryClient, conversationId);
     };
     const timer = setInterval(reconcile, live ? LIVE_RECONCILE_MS : POLL_INTERVAL_MS);
     document.addEventListener('visibilitychange', reconcile);
@@ -90,6 +89,38 @@ export function useMessages(conversationId: string | undefined, live: boolean) {
   );
 
   return { ...query, messages };
+}
+
+/**
+ * Vuelve a pedir la página más reciente y la funde con la caché. Trae los
+ * mensajes nuevos y también los "Leído" que cambiaron.
+ */
+/**
+ * Con uno en vuelo no se pide otro: se anota y se repite una sola vez al
+ * terminar. Así un "leí" que llega junto con la reconciliación de fondo no
+ * duplica pedidos, y un cliente que mande "leí" en loop no hace refetchear al
+ * otro sin parar.
+ */
+const inFlight = new Map<string, { again: boolean }>();
+
+function reconcileLatest(queryClient: QueryClient, conversationId: string) {
+  const running = inFlight.get(conversationId);
+  if (running) {
+    running.again = true;
+    return;
+  }
+  const state = { again: false };
+  inFlight.set(conversationId, state);
+  getMessages(conversationId)
+    .then((page) => {
+      for (const message of page.mensajes) addToCache(queryClient, conversationId, message);
+    })
+    // Un fallo de red no pisa lo que ya se ve: se reintenta en el próximo ciclo.
+    .catch(() => {})
+    .finally(() => {
+      inFlight.delete(conversationId);
+      if (state.again) reconcileLatest(queryClient, conversationId);
+    });
 }
 
 /** Suma un mensaje a la página más reciente de la caché, sin duplicarlo. */
@@ -136,6 +167,46 @@ export function useConversationRealtime(conversationId: string | undefined): Rea
   }, [conversationId, queryClient]);
 
   return status;
+}
+
+/** Cuánto sigue la burbuja de "escribiendo" sin un aviso nuevo. Un poco más que el espaciado de los avisos. */
+export const TYPING_VISIBLE_MS = 4_000;
+
+/**
+ * Los avisos en vivo entre los dos navegadores del chat.
+ *
+ * - "Escribiendo": la burbuja se apaga sola si dejan de llegar avisos, o con
+ *   `clearTyping` cuando entra su mensaje.
+ * - "Leí": cuando la otra persona lee, se vuelven a pedir los mensajes y mis
+ *   "Leído" aparecen al momento, sin esperar la reconciliación de fondo.
+ */
+export function useChatSignals(conversationId: string) {
+  const queryClient = useQueryClient();
+  const [othersTyping, setOthersTyping] = useState(false);
+  const signals = useRef<ChatSignals | null>(null);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    signals.current = subscribeToChatSignals(conversationId, {
+      onTyping: () => {
+        setOthersTyping(true);
+        clearTimeout(timer);
+        timer = setTimeout(() => setOthersTyping(false), TYPING_VISIBLE_MS);
+      },
+      onRead: () => reconcileLatest(queryClient, conversationId),
+    });
+    return () => {
+      clearTimeout(timer);
+      signals.current?.stop();
+      signals.current = null;
+    };
+  }, [conversationId, queryClient]);
+
+  const notifyTyping = useCallback(() => signals.current?.notifyTyping(), []);
+  const notifyRead = useCallback(() => signals.current?.notifyRead(), []);
+  const clearTyping = useCallback(() => setOthersTyping(false), []);
+
+  return { othersTyping, notifyTyping, notifyRead, clearTyping };
 }
 
 export function useSendMessage(conversationId: string) {

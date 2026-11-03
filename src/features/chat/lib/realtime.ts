@@ -147,6 +147,95 @@ export function subscribeToConversation(
   };
 }
 
+/** Como mucho un aviso de "escribiendo" cada tanto, no uno por tecla. */
+export const TYPING_SEND_EVERY_MS = 2_500;
+
+export interface ChatSignals {
+  /** Avisa que estoy escribiendo. Se puede llamar en cada tecla: se espacia solo. */
+  notifyTyping: () => void;
+  /** Avisa que acabo de leer la conversación, para que el "Leído" del otro no espere al refetch. */
+  notifyRead: () => void;
+  stop: () => void;
+}
+
+/**
+ * Avisos entre los dos navegadores de una conversación, por Broadcast de
+ * Realtime: "está escribiendo…" y "leí".
+ *
+ * El canal es **privado** (`typing:<id>`): Realtime deja escuchar y avisar solo a
+ * quien las políticas de `realtime.messages` se lo permiten, y esas piden ser
+ * participante de la conversación (migración `eng70_chat_typing` del backend).
+ * Un canal público lo podría escuchar cualquiera que sepa el id.
+ *
+ * Los avisos no llevan datos: "leí" solo hace que el otro vuelva a pedir los
+ * mensajes al backend, que es de donde sale el "Leído". Un aviso falso no puede
+ * marcar nada.
+ *
+ * Sin Realtime no hay avisos: el refetch cada pocos segundos trae el "Leído" y
+ * el "escribiendo" llegaría tarde para servir.
+ */
+export function subscribeToChatSignals(
+  conversationId: string,
+  handlers: { onTyping: () => void; onRead: () => void },
+): ChatSignals {
+  const none = { notifyTyping: () => {}, notifyRead: () => {}, stop: () => {} };
+  if (!isRealtimeConfigured()) return none;
+
+  let stopped = false;
+  let lastTyping = 0;
+  /** Recién con el canal unido se manda: antes, `send` cae al REST y con un canal
+   *  privado puede perderse sin aviso. */
+  let ready = false;
+  /** Un "leí" pedido antes de estar unido: es justo el de abrir el chat. */
+  let pendingRead = false;
+  let send: ((event: string) => void) | null = null;
+  let stop = () => {};
+
+  void realtimeClient().then((supabase) => {
+    if (stopped || !supabase) return;
+    const channel = supabase
+      .channel(`typing:${conversationId}`, { config: { private: true } })
+      .on('broadcast', { event: 'escribiendo' }, () => handlers.onTyping())
+      .on('broadcast', { event: 'leido' }, () => handlers.onRead());
+    send = (event) => void channel.send({ type: 'broadcast', event, payload: {} });
+    stop = () => void supabase.removeChannel(channel);
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        ready = true;
+        if (pendingRead) {
+          pendingRead = false;
+          send?.('leido');
+        }
+        return;
+      }
+      ready = false;
+      // Sin datos del chat: solo que el canal no se unió (¿las políticas del
+      // backend lo rechazaron?). El chat sigue andando, sin los avisos.
+      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+        console.warn(`Realtime: el canal de avisos del chat quedó en ${status}.`);
+      }
+    });
+  });
+
+  return {
+    notifyTyping: () => {
+      const now = Date.now();
+      if (!send || !ready || now - lastTyping < TYPING_SEND_EVERY_MS) return;
+      lastTyping = now;
+      send('escribiendo');
+    },
+    notifyRead: () => {
+      if (send && ready) send('leido');
+      else pendingRead = true;
+    },
+    stop: () => {
+      stopped = true;
+      send = null;
+      stop();
+    },
+  };
+}
+
 /**
  * Corta el socket y olvida el token. Se llama al cerrar sesión, o cuando la
  * sesión muere por cualquier otro motivo.

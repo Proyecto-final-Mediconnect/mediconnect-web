@@ -1,52 +1,190 @@
-import { useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+import {
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+  type Ref,
+} from 'react';
 import { Link } from 'react-router-dom';
+import type { Appointment } from '../../appointments/types/appointment';
+import { initialsOf } from '../lib/format';
 import type { ChatCounterpart } from '../types/chat';
 
 /** El mismo límite que valida el backend (`MESSAGE_MAX_LENGTH`). */
 export const MESSAGE_MAX_LENGTH = 2000;
+
+/** Hasta dónde crece el campo antes de scrollear: unas 5 líneas. */
+const COMPOSER_MAX_HEIGHT = 132;
 
 const ROLE: Record<ChatCounterpart['rol'], string> = {
   PACIENTE: 'Paciente',
   PROFESIONAL: 'Profesional',
 };
 
+const NEXT_DATE = new Intl.DateTimeFormat('es-AR', {
+  timeZone: 'America/Argentina/Buenos_Aires',
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+});
+
+/** "jue 6 nov, 10:30": lo justo para el chip del encabezado. */
+function nextAppointmentLabel(appointment: Appointment): string {
+  const date = NEXT_DATE.format(new Date(appointment.scheduledAt)).replace(/[.,]/g, '');
+  return `${date}, ${appointment.startTime}`;
+}
+
+export function Avatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' | 'lg' }) {
+  const sizes = {
+    sm: 'size-10 text-[13px]',
+    md: 'size-11 text-[14px]',
+    lg: 'size-[72px] text-[22px]',
+  };
+  return (
+    <span
+      aria-hidden="true"
+      className={`flex flex-none items-center justify-center rounded-full bg-tag-consulta font-extrabold text-brand-deep ${sizes[size]}`}
+    >
+      {initialsOf(name)}
+    </span>
+  );
+}
+
+function CalendarIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className="size-4 flex-none"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+    >
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M16 3v4M8 3v4M3 11h18" />
+    </svg>
+  );
+}
+
+function Chevron({ className = 'size-4' }: { className?: string }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 24 24"
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+}
+
 type FrameProps = {
   counterpart: ChatCounterpart;
-  /** Lo que va a la derecha del nombre: el estado de la conexión, el botón de borrar. */
-  aside?: ReactNode;
+  /** Abre el panel con los datos de la otra persona. Sin esto, el nombre no se toca. */
+  onOpenInfo?: () => void;
+  /** El próximo turno con la otra persona, para el chip del encabezado. */
+  nextAppointment?: Appointment | null;
   children: ReactNode;
   composer: ReactNode;
   busy?: boolean;
+  /** La caja que scrollea los mensajes: la conversación mira si el usuario está al fondo. */
+  bodyRef?: Ref<HTMLDivElement>;
 };
 
 /**
  * El marco de un chat (ENG-70): encabezado con la otra persona, los mensajes y
- * el campo para escribir. Lo comparten la conversación abierta y el borrador de
- * una nueva, así las dos se ven igual.
+ * el campo para escribir. Lo comparten la
+ * conversación abierta y el borrador de una nueva, así las dos se ven igual.
+ *
+ * El nombre del encabezado es el botón que abre el panel de información (sus
+ * turnos, su perfil, borrar el chat). Lleva la flecha y "Ver turnos y perfil"
+ * debajo porque, si no, nada dice que se puede tocar.
  */
-export function ChatFrame({ counterpart, aside, children, composer, busy }: FrameProps) {
+export function ChatFrame({
+  counterpart,
+  onOpenInfo,
+  nextAppointment,
+  children,
+  composer,
+  busy,
+  bodyRef,
+}: FrameProps) {
+  const who = (
+    <>
+      <Avatar name={counterpart.nombre} />
+      <span className="flex min-w-0 flex-col gap-0.5 text-left">
+        <span className="flex items-center gap-1 text-[16px] font-extrabold text-brand-deep">
+          <span className="truncate">{counterpart.nombre}</span>
+          {onOpenInfo && <Chevron className="size-4 flex-none" />}
+        </span>
+        <span className="text-[12px] font-semibold text-muted">
+          {onOpenInfo ? 'Ver turnos y perfil' : ROLE[counterpart.rol]}
+        </span>
+      </span>
+    </>
+  );
+
   return (
-    <section
-      aria-labelledby="chat-contraparte"
-      className="flex h-[min(640px,calc(100dvh-220px))] min-h-[420px] flex-col overflow-hidden rounded-[14px] border border-line bg-white"
-    >
-      <header className="flex items-center justify-between gap-3 border-b border-line px-5 py-3.5">
-        <div className="min-w-0">
+    <section aria-labelledby="chat-contraparte" className="flex h-full min-h-0 flex-col">
+      <header className="flex items-center justify-between gap-3 border-b border-line px-3 py-2.5 sm:px-5">
+        <div className="flex min-w-0 items-center gap-1">
           <Link
             to="/mensajes"
-            className="mb-1 inline-block text-[12px] font-semibold text-brand-deep lg:hidden"
+            aria-label="Volver a las conversaciones"
+            className="flex size-11 flex-none items-center justify-center rounded-[10px] text-brand-deep hover:bg-surface focus:outline-none focus-visible:ring-2 focus-visible:ring-brand lg:hidden"
           >
-            ← Conversaciones
+            <Chevron className="size-5 rotate-180" />
           </Link>
-          <h2 id="chat-contraparte" className="truncate text-[15px] font-bold text-brand-deep">
-            {counterpart.nombre}
+          <h2 id="chat-contraparte" className="min-w-0">
+            {onOpenInfo ? (
+              <button
+                type="button"
+                onClick={onOpenInfo}
+                aria-label={`Ver información de ${counterpart.nombre}`}
+                className="flex min-w-0 items-center gap-3 rounded-[12px] py-1.5 pl-1.5 pr-3 transition-colors hover:bg-surface-teal focus:outline-none focus-visible:ring-2 focus-visible:ring-brand lg:-ml-1.5"
+              >
+                {who}
+              </button>
+            ) : (
+              <span className="flex min-w-0 items-center gap-3 py-1.5">{who}</span>
+            )}
           </h2>
-          <p className="text-[12px] text-muted">{ROLE[counterpart.rol]}</p>
         </div>
-        {aside && <div className="flex flex-none items-center gap-3">{aside}</div>}
+        {nextAppointment && (
+          <Link
+            to={`/turnos/${nextAppointment.id}`}
+            className="hidden flex-none items-center gap-2 rounded-[10px] bg-surface-teal px-3 py-2 text-[13px] font-bold text-brand-deep hover:bg-tag-consulta focus:outline-none focus-visible:ring-2 focus-visible:ring-brand md:flex"
+          >
+            <CalendarIcon />
+            Próximo turno: {nextAppointmentLabel(nextAppointment)}
+          </Link>
+        )}
       </header>
 
-      <div className="flex-1 overflow-y-auto bg-surface px-5 py-4" aria-busy={busy}>
+      {nextAppointment && (
+        <Link
+          to={`/turnos/${nextAppointment.id}`}
+          className="flex items-center gap-2 bg-surface-teal px-4 py-2.5 text-[13px] font-bold text-brand-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand md:hidden"
+        >
+          <CalendarIcon />
+          <span className="flex-1">Próximo turno: {nextAppointmentLabel(nextAppointment)}</span>
+          <Chevron />
+        </Link>
+      )}
+
+      <div
+        ref={bodyRef}
+        className="flex-1 overflow-y-auto bg-surface px-3 py-4 sm:px-6 sm:py-5"
+        aria-busy={busy}
+      >
         {children}
       </div>
 
@@ -61,18 +199,37 @@ type ComposerProps = {
   error: Error | null;
   /** Manda el mensaje; `onSent` se llama cuando quedó guardado, para limpiar el borrador. */
   onSend: (content: string, onSent: () => void) => void;
+  /** Se llama mientras hay texto escrito, para el "está escribiendo…" de la otra persona. */
+  onTyping?: () => void;
 };
 
 /**
- * El campo para escribir. Enter envía y Shift + Enter hace un salto de línea.
+ * El campo para escribir. Arranca en una línea y crece con el texto hasta unas
+ * cinco; Enter envía y Shift + Enter hace un salto de línea.
  *
  * El borrador se limpia recién cuando el mensaje quedó guardado: si falla, lo
  * escrito sigue ahí para reintentar.
  */
-export function MessageComposer({ counterpartName, pending, error, onSend }: ComposerProps) {
+export function MessageComposer({
+  counterpartName,
+  pending,
+  error,
+  onSend,
+  onTyping,
+}: ComposerProps) {
   const [draft, setDraft] = useState('');
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
   const content = draft.trim();
   const canSend = content.length > 0 && content.length <= MESSAGE_MAX_LENGTH && !pending;
+  const firstName = counterpartName.split(' ')[0];
+
+  // Alto según el contenido: se resetea y se mide el `scrollHeight`, con tope.
+  useLayoutEffect(() => {
+    const field = fieldRef.current;
+    if (!field) return;
+    field.style.height = 'auto';
+    field.style.height = `${Math.min(field.scrollHeight, COMPOSER_MAX_HEIGHT)}px`;
+  }, [draft]);
 
   function submit(event?: FormEvent) {
     event?.preventDefault();
@@ -87,36 +244,57 @@ export function MessageComposer({ counterpartName, pending, error, onSend }: Com
   }
 
   return (
-    <form onSubmit={submit} className="grid gap-2 border-t border-line px-4 py-3">
+    <form
+      onSubmit={submit}
+      className="grid gap-1.5 border-t border-line bg-white px-3 pb-3 pt-2.5 sm:px-5"
+    >
       {error && (
         <p role="alert" className="text-[13px] text-danger">
           {error.message}
         </p>
       )}
-      <div className="flex items-end gap-2">
+      <div className="flex items-end gap-2 rounded-[14px] border border-line-strong py-1.5 pl-3.5 pr-1.5 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/30">
         <label htmlFor="chat-borrador" className="sr-only">
           Mensaje para {counterpartName}
         </label>
         <textarea
+          ref={fieldRef}
           id="chat-borrador"
-          rows={2}
+          rows={1}
           value={draft}
-          onChange={(e) => setDraft(e.target.value)}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            if (e.target.value.trim()) onTyping?.();
+          }}
           onKeyDown={onKeyDown}
           maxLength={MESSAGE_MAX_LENGTH}
-          placeholder="Escribí un mensaje"
-          className="min-h-[44px] flex-1 resize-none rounded-[10px] border border-line-strong px-3 py-2 text-[14px] text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
+          placeholder={`Escribile a ${firstName}…`}
+          className="max-h-[132px] min-h-[32px] flex-1 resize-none bg-transparent py-2 text-[14px] leading-[1.45] text-ink focus:outline-none"
         />
         <button
           type="submit"
           disabled={!canSend}
-          className="h-[44px] rounded-[10px] bg-brand px-5 text-[14px] font-bold text-ink-deep disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-deep"
+          aria-label="Enviar mensaje"
+          aria-busy={pending}
+          className="flex size-11 flex-none items-center justify-center rounded-[12px] bg-brand text-ink-deep transition-opacity disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-deep"
         >
-          {pending ? 'Enviando…' : 'Enviar'}
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 24 24"
+            className="size-[18px]"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M5 12h14" />
+            <path d="m13 6 6 6-6 6" />
+          </svg>
         </button>
       </div>
-      <p className="text-[11px] text-muted">
-        Enter para enviar, Shift + Enter para un salto de línea. Para una urgencia, llamá al 107.
+      <p className="hidden text-[11px] text-muted sm:block">
+        Enter envía · Shift + Enter hace un salto de línea
       </p>
     </form>
   );

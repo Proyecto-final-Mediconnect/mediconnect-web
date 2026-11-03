@@ -18,6 +18,10 @@ import type { RealtimeStatus } from '../features/chat/lib/realtime';
 const realtime = vi.hoisted(() => ({
   status: 'sin-conexion' as RealtimeStatus,
   push: null as ((m: ChatMessage) => void) | null,
+  typing: null as (() => void) | null,
+  read: null as (() => void) | null,
+  notify: vi.fn(),
+  notifyRead: vi.fn(),
 }));
 vi.mock('../features/chat/lib/realtime', () => ({
   isRealtimeConfigured: () => false,
@@ -31,6 +35,18 @@ vi.mock('../features/chat/lib/realtime', () => ({
     onStatus(realtime.status);
     return () => {
       realtime.push = null;
+    };
+  },
+  subscribeToChatSignals: (_id: string, handlers: { onTyping: () => void; onRead: () => void }) => {
+    realtime.typing = handlers.onTyping;
+    realtime.read = handlers.onRead;
+    return {
+      notifyTyping: realtime.notify,
+      notifyRead: realtime.notifyRead,
+      stop: () => {
+        realtime.typing = null;
+        realtime.read = null;
+      },
     };
   },
 }));
@@ -65,6 +81,29 @@ function inbox(): ConversationInbox {
   };
 }
 
+function appointment(id: string, date: string, status: string, professionalId = PRO) {
+  return {
+    id,
+    scheduledAt: `${date}T13:30:00.000Z`,
+    date,
+    startTime: '10:30',
+    durationMinutes: 30,
+    price: 15000,
+    currency: 'ARS',
+    status,
+    professional: { id: professionalId, firstName: 'Ana', lastName: 'García' },
+    patient: { id: ME, firstName: 'Julián', lastName: 'Sosa' },
+  };
+}
+
+/** Los turnos del paciente: el panel del chat muestra solo los de la contraparte. */
+const APPOINTMENTS = [
+  appointment('t-old', '2026-08-01', 'COMPLETADO', 'pro-otro'),
+  appointment('t-past', '2026-09-02', 'COMPLETADO'),
+  appointment('t-cancel', '2026-09-20', 'CANCELADO'),
+  appointment('t-next', '2099-01-15', 'CONFIRMADO'),
+];
+
 function json(body: unknown, status = 200): Response {
   return new Response(body === null ? null : JSON.stringify(body), {
     status,
@@ -72,10 +111,16 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+/** Lo que hace la otra persona al leer: marca leídos los mensajes de `author`. */
+let readEverything: (author: string) => void = () => {};
+
 /** Un backend falso con estado: lo enviado queda guardado y la marca de leído se aplica. */
 function fakeBackend(options: { failSend?: boolean } = {}) {
   const messages = [message('m-1', ME, 'Hola, doctora'), message('m-2', PRO, 'Hola, Julián')];
   const calls: { method: string; url: string; body?: unknown }[] = [];
+  readEverything = (author) => {
+    for (const m of messages) if (m.autorId === author) m.leidoEl ??= new Date().toISOString();
+  };
 
   const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
     const url = String(input);
@@ -107,6 +152,7 @@ function fakeBackend(options: { failSend?: boolean } = {}) {
     if (url.includes(`/conversations/${CONV}/messages`)) {
       return Promise.resolve(json({ mensajes: structuredClone(messages), hayMas: false }));
     }
+    if (url.endsWith('/appointments/me')) return Promise.resolve(json(APPOINTMENTS));
     return Promise.resolve(json({ message: 'no encontrado' }, 404));
   });
 
@@ -143,6 +189,10 @@ function renderAt(path: string) {
 beforeEach(() => {
   realtime.status = 'sin-conexion';
   realtime.push = null;
+  realtime.typing = null;
+  realtime.read = null;
+  realtime.notify.mockReset();
+  realtime.notifyRead.mockReset();
 });
 
 afterEach(() => {
@@ -158,7 +208,7 @@ describe('MessagesPage (ENG-70)', () => {
     const list = await screen.findByRole('list', { name: 'Conversaciones' });
     expect(within(list).getByText('Ana García')).toBeInTheDocument();
     expect(within(list).getByText('1')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '+ Nuevo chat' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Nuevo chat' })).toBeInTheDocument();
   });
 
   it('Nuevo chat ofrece a todos con quienes hubo turno, y marca con quién ya hay chat', async () => {
@@ -166,7 +216,7 @@ describe('MessagesPage (ENG-70)', () => {
     fakeBackend();
     renderAt('/mensajes');
 
-    await user.click(await screen.findByRole('button', { name: '+ Nuevo chat' }));
+    await user.click(await screen.findByRole('button', { name: 'Nuevo chat' }));
 
     const options = within(screen.getByRole('list', { name: 'Elegí con quién hablar' }));
     expect(options.getByRole('button', { name: 'Diego Ferreyra' })).toBeInTheDocument();
@@ -178,7 +228,7 @@ describe('MessagesPage (ENG-70)', () => {
     fakeBackend();
     renderAt('/mensajes');
 
-    await user.click(await screen.findByRole('button', { name: '+ Nuevo chat' }));
+    await user.click(await screen.findByRole('button', { name: 'Nuevo chat' }));
     await user.click(screen.getByRole('button', { name: /Ana García/ }));
 
     expect(screen.getByRole('status', { name: 'ruta' })).toHaveTextContent(`/mensajes/${CONV}`);
@@ -189,7 +239,7 @@ describe('MessagesPage (ENG-70)', () => {
     const { calls } = fakeBackend();
     renderAt('/mensajes');
 
-    await user.click(await screen.findByRole('button', { name: '+ Nuevo chat' }));
+    await user.click(await screen.findByRole('button', { name: 'Nuevo chat' }));
     await user.click(screen.getByRole('button', { name: 'Diego Ferreyra' }));
 
     expect(
@@ -216,7 +266,12 @@ describe('MessagesPage (ENG-70)', () => {
     renderAt(`/mensajes/${CONV}`);
 
     await screen.findByText('Hola, Julián');
-    await user.click(screen.getByRole('button', { name: 'Borrar chat' }));
+    await user.click(screen.getByRole('button', { name: 'Ver información de Ana García' }));
+    await user.click(
+      within(screen.getByRole('dialog', { name: 'Información del chat' })).getByRole('button', {
+        name: 'Borrar chat',
+      }),
+    );
 
     const dialog = screen.getByRole('dialog', { name: '¿Borrar este chat?' });
     expect(dialog).toHaveTextContent('Ana García lo sigue viendo');
@@ -287,11 +342,33 @@ describe('MessagesPage (ENG-70)', () => {
     vi.useRealTimers();
   });
 
-  it('sin Realtime dice que se actualiza cada pocos segundos', async () => {
+  it('el nombre abre el panel con el próximo turno y los anteriores con esa persona', async () => {
+    const user = userEvent.setup();
     fakeBackend();
     renderAt(`/mensajes/${CONV}`);
 
-    expect(await screen.findByText('Se actualiza cada pocos segundos')).toBeInTheDocument();
+    // El próximo turno también se ve en el encabezado, sin abrir nada.
+    expect(
+      (await screen.findAllByRole('link', { name: /Próximo turno: .* 10:30/ }))[0],
+    ).toHaveAttribute('href', '/turnos/t-next');
+
+    await user.click(screen.getByRole('button', { name: 'Ver información de Ana García' }));
+
+    const panel = within(screen.getByRole('dialog', { name: 'Información del chat' }));
+    expect(panel.getByRole('link', { name: 'Ver el turno' })).toHaveAttribute(
+      'href',
+      '/turnos/t-next',
+    );
+    expect(
+      panel.getByRole('link', { name: /2 de septiembre de 2026.*Completado/ }),
+    ).toBeInTheDocument();
+    // Los cancelados y los turnos con otras personas no van.
+    expect(panel.queryByText(/Cancelado/)).not.toBeInTheDocument();
+    expect(panel.queryByText(/1 de agosto/)).not.toBeInTheDocument();
+    expect(panel.getByRole('link', { name: 'Ver perfil' })).toHaveAttribute(
+      'href',
+      `/profesionales/${PRO}`,
+    );
   });
 
   it('en vivo, un mensaje que llega por el socket aparece sin duplicarse', async () => {
@@ -299,7 +376,6 @@ describe('MessagesPage (ENG-70)', () => {
     fakeBackend();
     renderAt(`/mensajes/${CONV}`);
 
-    expect(await screen.findByText('En vivo')).toBeInTheDocument();
     await screen.findByText('Hola, Julián');
 
     realtime.push?.(message('m-4', PRO, '¿Cómo seguís?'));
@@ -307,6 +383,80 @@ describe('MessagesPage (ENG-70)', () => {
 
     expect(await screen.findByText('¿Cómo seguís?')).toBeInTheDocument();
     expect(screen.getAllByText('¿Cómo seguís?')).toHaveLength(1);
+  });
+
+  it('muestra cuando la otra persona escribe, y lo saca cuando llega su mensaje', async () => {
+    realtime.status = 'en-vivo';
+    fakeBackend();
+    renderAt(`/mensajes/${CONV}`);
+    await screen.findByText('Hola, Julián');
+
+    act(() => realtime.typing?.());
+    expect(await screen.findByText('Ana García está escribiendo')).toBeInTheDocument();
+
+    act(() => realtime.push?.(message('m-5', PRO, 'Ya te paso el estudio')));
+    await screen.findByText('Ya te paso el estudio');
+    expect(screen.queryByText('Ana García está escribiendo')).not.toBeInTheDocument();
+  });
+
+  it('al marcar leído se lo avisa a la otra persona', async () => {
+    fakeBackend();
+    renderAt(`/mensajes/${CONV}`);
+
+    await waitFor(() => expect(realtime.notifyRead).toHaveBeenCalledTimes(1));
+  });
+
+  it('cuando la otra persona lee, el "Leído" aparece sin esperar la reconciliación', async () => {
+    const { calls } = fakeBackend();
+    renderAt(`/mensajes/${CONV}`);
+    await screen.findByText('Hola, doctora');
+    expect(screen.queryByText('Leído')).not.toBeInTheDocument();
+
+    // Del lado de Ana: lee el chat (el backend guarda read_at) y avisa.
+    const before = calls.length;
+    readEverything(ME);
+    act(() => realtime.read?.());
+
+    expect(await screen.findByText('Leído')).toBeInTheDocument();
+    expect(calls.slice(before).some((c) => c.url.includes(`/conversations/${CONV}/messages`))).toBe(
+      true,
+    );
+  });
+
+  it('varios "leí" seguidos no disparan un pedido por cada uno', async () => {
+    const { calls } = fakeBackend();
+    renderAt(`/mensajes/${CONV}`);
+    await screen.findByText('Hola, doctora');
+
+    const before = calls.length;
+    act(() => {
+      for (let i = 0; i < 10; i++) realtime.read?.();
+    });
+    await waitFor(() =>
+      expect(
+        calls.slice(before).filter((c) => c.url.includes(`/conversations/${CONV}/messages`)).length,
+      ).toBeGreaterThan(0),
+    );
+    await new Promise((r) => setTimeout(r, 50));
+    // Uno en vuelo y, como llegaron más mientras tanto, uno más: nunca diez.
+    expect(
+      calls
+        .slice(before)
+        .filter((c) => c.method === 'GET' && c.url.includes(`/conversations/${CONV}/messages`)),
+    ).toHaveLength(2);
+  });
+
+  it('al escribir avisa a la otra persona; con espacios solos, no', async () => {
+    const user = userEvent.setup();
+    fakeBackend();
+    renderAt(`/mensajes/${CONV}`);
+    const field = await screen.findByLabelText('Mensaje para Ana García');
+
+    await user.type(field, '   ');
+    expect(realtime.notify).not.toHaveBeenCalled();
+
+    await user.type(field, 'Hola');
+    expect(realtime.notify).toHaveBeenCalled();
   });
 
   it('enviar con Enter guarda el mensaje recortado y limpia el borrador', async () => {
@@ -346,7 +496,7 @@ describe('MessagesPage (ENG-70)', () => {
 
     await user.type(await screen.findByLabelText('Mensaje para Ana García'), '   ');
 
-    expect(screen.getByRole('button', { name: 'Enviar' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Enviar mensaje' })).toBeDisabled();
   });
 
   it('una conversación que no está en mi bandeja no se abre', async () => {
