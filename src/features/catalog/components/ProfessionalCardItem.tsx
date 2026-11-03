@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 import { formatPrice } from '../lib/formatPrice';
-import { describeNextSlot, mockDetailsFor } from '../lib/mockProfessionalDetails';
 import type { ProfessionalCard } from '../types/catalog';
 import { ReservarTurnoCta } from './ReservarTurnoCta';
 
@@ -17,10 +16,19 @@ function initials(firstName: string, lastName: string): string {
  * mejor para lectores de pantalla: un enlace que envuelve a otros controles
  * obliga a recorrer todo el contenido para llegar a ellos.
  *
- * **Matrícula, experiencia, bio, calificación, reseñas, modalidad y próximo
- * turno son datos inventados** (ver `lib/mockProfessionalDetails`). El endpoint
- * del catálogo no los devuelve. Están para que la pantalla se vea como el
- * diseño; se reemplazan cuando existan los campos reales.
+ * **Todo lo que se ve sale de `GET /catalog/professionals` o es un hecho de la
+ * plataforma** (ENG-150). El diseño pedía además años de experiencia, bio,
+ * calificación y próximo turno; el endpoint no los trae y antes se inventaban.
+ * Se sacaron en vez de rellenarlos:
+ *
+ * - "Videoconsulta" no es un dato del profesional sino de MediConnect, que solo
+ *   atiende así. Por eso se puede afirmar sin preguntarle a la API.
+ * - "MATRÍCULA VERIFICADA" también es cierto: el backend solo lista
+ *   profesionales con `status = 'VALIDADO'`.
+ * - La calificación dice que no hay reseñas porque no las hay: ENG-80/ENG-82
+ *   todavía no existen. Un número ahí sería mentirle al paciente que elige.
+ * - El próximo turno pediría la disponibilidad de cada tarjeta, una consulta por
+ *   profesional en el listado. Se ve en el calendario de reserva.
  */
 export function ProfessionalCardItem({
   professional,
@@ -31,7 +39,9 @@ export function ProfessionalCardItem({
   basePath: string;
 }) {
   const fullName = `${professional.firstName} ${professional.lastName}`;
-  const mock = mockDetailsFor(professional);
+  const otherSpecialties = professional.specialties.filter(
+    (s) => s.id !== professional.primarySpecialty?.id,
+  );
 
   return (
     <li className="rounded-[14px] border border-line bg-white p-6 transition-colors hover:border-brand/40">
@@ -62,34 +72,28 @@ export function ProfessionalCardItem({
           </div>
 
           <p className="mt-1.5 text-sm font-medium text-muted">
-            <span>{professional.primarySpecialty?.name ?? 'Especialidad a confirmar'}</span>
-            <span> · {mock.yearsOfExperience} años de experiencia</span>
+            {professional.primarySpecialty?.name ?? 'Especialidad a confirmar'}
           </p>
 
-          <p className="mt-2.5 max-w-[520px] text-sm leading-[1.6] text-muted">{mock.bio}</p>
-
-          <div className="mt-3 flex flex-wrap items-center gap-x-[18px] gap-y-2">
-            <span className="text-[13px] font-medium text-ink">
-              <span className="font-bold text-brand-deep">{mock.rating.toFixed(1)}</span>{' '}
-              ({mock.reviewCount} consultas)
-            </span>
-            <span className="text-[13px] font-medium text-muted">{mock.modality}</span>
-          </div>
-
-          {professional.specialties.length > 1 && (
-            <ul className="mt-3 flex flex-wrap gap-1.5">
-              {professional.specialties
-                .filter((s) => s.id !== professional.primarySpecialty?.id)
-                .map((specialty) => (
-                  <li
-                    key={specialty.id}
-                    className="rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-muted"
-                  >
-                    {specialty.name}
-                  </li>
-                ))}
-            </ul>
-          )}
+          {/* Sin bio ni números, la fila de datos pasa a ser de píldoras: dos
+              hechos ciertos con el mismo peso visual que las especialidades, en
+              vez de un renglón suelto que deja la columna vacía. */}
+          <ul className="mt-3.5 flex flex-wrap items-center gap-1.5">
+            <li className="rounded-full bg-surface-teal px-2.5 py-1 text-xs font-semibold text-brand-hover">
+              Videoconsulta
+            </li>
+            <li className="rounded-full border border-dashed border-line-strong px-2.5 py-1 text-xs font-medium text-muted">
+              Sin reseñas todavía
+            </li>
+            {otherSpecialties.map((specialty) => (
+              <li
+                key={specialty.id}
+                className="rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-muted"
+              >
+                {specialty.name}
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div className="grid content-start gap-1.5 border-line-soft lg:border-l lg:pl-[22px]">
@@ -98,13 +102,6 @@ export function ProfessionalCardItem({
           </span>
           <span className="text-2xl font-bold text-brand-deep">
             {formatPrice(professional.price, professional.currency)}
-          </span>
-
-          <span className="mt-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-soft">
-            Próximo turno
-          </span>
-          <span className="text-[15px] font-semibold text-brand-hover">
-            {describeNextSlot(mock.nextSlotInDays)}
           </span>
 
           <ReservarTurnoCta

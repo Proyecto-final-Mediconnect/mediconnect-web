@@ -80,4 +80,53 @@ describe('ProfessionalCardItem', () => {
       `/profesionales/${base.id}`,
     );
   });
+
+  describe('solo muestra lo que sirve la API (ENG-150)', () => {
+    it('no muestra calificación si la API no trae ninguna', () => {
+      const { container } = renderCard();
+
+      expect(screen.getByText('Sin reseñas todavía')).toBeVisible();
+      expect(screen.queryByText(/consultas\)/)).not.toBeInTheDocument();
+      // Ni un puntaje suelto tipo "4.7": no hay reseñas de las que sacarlo.
+      expect(container.textContent).not.toMatch(/\b[1-5][.,]\d\b/);
+    });
+
+    it('no inventa experiencia, bio ni próximo turno', () => {
+      renderCard();
+
+      expect(screen.queryByText(/años de experiencia/)).not.toBeInTheDocument();
+      expect(screen.queryByText('Próximo turno')).not.toBeInTheDocument();
+      expect(screen.queryByText(/^(Hoy|Mañana|En \d+ días)$/)).not.toBeInTheDocument();
+    });
+
+    it('la modalidad es la de la plataforma: videoconsulta', () => {
+      renderCard();
+
+      expect(screen.getByText('Videoconsulta')).toBeVisible();
+    });
+
+    it('sin foto, sin especialidad y sin precio se ve completa', () => {
+      const { container } = renderCard({
+        photoUrl: null,
+        primarySpecialty: null,
+        specialties: [],
+        price: null,
+      });
+
+      expect(screen.getByText('Precio a consultar')).toBeVisible();
+      expect(container.textContent).not.toMatch(/undefined|null|NaN/);
+    });
+
+    it('las especialidades secundarias van como píldoras, sin repetir la principal', () => {
+      renderCard({
+        specialties: [
+          { id: 'spec-1', name: 'Cardiología' },
+          { id: 'spec-2', name: 'Clínica Médica' },
+        ],
+      });
+
+      expect(screen.getAllByText('Cardiología')).toHaveLength(1);
+      expect(screen.getByText('Clínica Médica')).toBeVisible();
+    });
+  });
 });

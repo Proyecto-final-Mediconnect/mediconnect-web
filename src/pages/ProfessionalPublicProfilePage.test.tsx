@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { ProfessionalPublicProfilePage } from './ProfessionalPublicProfilePage';
@@ -148,7 +148,11 @@ describe('ProfessionalPublicProfilePage', () => {
     mockFetch(200, { ...PROFILE, price: null });
     renderPage();
 
-    expect(await screen.findByText('Precio a consultar')).toBeVisible();
+    // Cabecera, servicio y total: el mismo texto en los tres, sin un "A
+    // confirmar" suelto en algún lado.
+    const sinPrecio = await screen.findAllByText('Precio a consultar');
+    expect(sinPrecio).toHaveLength(3);
+    expect(screen.queryByText('A confirmar')).not.toBeInTheDocument();
   });
 
   it('omite las secciones vacías en vez de mostrarlas sin contenido', async () => {
@@ -158,5 +162,66 @@ describe('ProfessionalPublicProfilePage', () => {
     await screen.findByRole('heading', { name: 'Ana Álvarez' });
     expect(screen.queryByText('Sobre mí')).not.toBeInTheDocument();
     expect(screen.queryByText('Formación')).not.toBeInTheDocument();
+  });
+
+  describe('solo muestra lo que sirve la API (ENG-150)', () => {
+    it('muestra la bio que cargó el profesional, no una inventada', async () => {
+      mockFetch(200, { ...PROFILE, bio: 'Atiendo adultos.\nControles y seguimiento.' });
+      renderPage();
+
+      expect(
+        await screen.findByText(/Atiendo adultos\.\s+Controles y seguimiento\./),
+      ).toBeVisible();
+    });
+
+    it('sin bio, foto, formación ni precio se ve completo: sin "undefined" ni "null"', async () => {
+      mockFetch(200, { ...PROFILE, bio: null, photoUrl: null, education: [], price: null });
+      const { container } = renderPage();
+
+      await screen.findByRole('heading', { name: 'Ana Álvarez' });
+      expect(container.textContent).not.toMatch(/undefined|null|NaN/);
+      expect(screen.getByText('AÁ')).toBeInTheDocument();
+    });
+
+    it('no muestra años de experiencia', async () => {
+      mockFetch(200, { ...PROFILE, bio: null });
+      renderPage();
+
+      await screen.findByRole('heading', { name: 'Ana Álvarez' });
+      expect(screen.queryByText(/años de experiencia/)).not.toBeInTheDocument();
+    });
+
+    it('muestra el estado vacío de reseñas si el profesional todavía no tiene', async () => {
+      mockFetch(200, PROFILE);
+      renderPage();
+
+      expect(await screen.findByText('Todavía no tiene reseñas')).toBeVisible();
+      expect(screen.getByRole('heading', { name: 'Reseñas' })).toBeVisible();
+      expect(screen.queryByText(/reseñas en total/)).not.toBeInTheDocument();
+    });
+
+    it('no muestra calificación si la API no trae ninguna', async () => {
+      mockFetch(200, PROFILE);
+      const { container } = renderPage();
+
+      await screen.findByRole('heading', { name: 'Ana Álvarez' });
+      expect(screen.queryByText('Calificación')).not.toBeInTheDocument();
+      // Ni un puntaje suelto tipo "4,7" o "4.7": no hay reseñas de las que sacarlo.
+      expect(container.textContent).not.toMatch(/\b[1-5][.,]\d\b/);
+    });
+
+    it('ofrece un único servicio, la videoconsulta, con el precio publicado', async () => {
+      mockFetch(200, PROFILE);
+      renderPage();
+
+      const servicios = await screen.findByRole('heading', { name: 'Servicios' });
+      const tarjeta = servicios.closest('section')!;
+      expect(within(tarjeta).getByText('Videoconsulta')).toBeVisible();
+      expect(within(tarjeta).getByText(/12\.000/)).toBeVisible();
+      expect(within(tarjeta).queryByRole('button')).not.toBeInTheDocument();
+      expect(screen.queryByText('Primera consulta')).not.toBeInTheDocument();
+      expect(screen.queryByText('Plan de seguimiento mensual')).not.toBeInTheDocument();
+      expect(screen.queryByText('30 min')).not.toBeInTheDocument();
+    });
   });
 });
