@@ -94,6 +94,12 @@ export function EmergencyData({ vital }: { vital: VitalBlock }) {
   // Se pide ya: el panel de edición arranca de los datos del perfil.
   const perfil = useMyProfile();
   const [editando, setEditando] = useState<Bloque | null>(null);
+  // El PUT reemplaza el bloque vital entero, así que el formulario tiene que
+  // arrancar del perfil recién pedido y no de la caché, que puede estar vieja
+  // (se editó desde otra pestaña u otro dispositivo): si no, guardar una sección
+  // pisaría en silencio las demás con la versión anterior.
+  const [perfilFresco, setPerfilFresco] = useState<'cargando' | 'listo' | Error>('cargando');
+  const pedido = useRef(0);
   const [vistaPrevia, setVistaPrevia] = useState(false);
   const [guardado, setGuardado] = useState(false);
   const ref = useRef<HTMLElement>(null);
@@ -103,6 +109,18 @@ export function EmergencyData({ vital }: { vital: VitalBlock }) {
   useEffect(() => {
     if (hash === '#emergencias') ref.current?.scrollIntoView?.({ block: 'start' });
   }, [hash]);
+
+  function editar(bloque: Bloque) {
+    setGuardado(false);
+    setEditando(bloque);
+    setPerfilFresco('cargando');
+    // Si se cierra y se vuelve a abrir antes de que llegue, manda el último.
+    const id = ++pedido.current;
+    void perfil.refetch().then((r) => {
+      if (id !== pedido.current) return;
+      setPerfilFresco(r.isError ? (r.error ?? new Error('No pudimos cargar tus datos.')) : 'listo');
+    });
+  }
 
   const vacio = BLOQUES.every(({ clave }) => contenido(vital, clave).length === 0);
 
@@ -214,10 +232,7 @@ export function EmergencyData({ vital }: { vital: VitalBlock }) {
                 )}
                 <button
                   type="button"
-                  onClick={() => {
-                    setGuardado(false);
-                    setEditando(bloque);
-                  }}
+                  onClick={() => editar(bloque)}
                   aria-label={`${hayDatos ? 'Editar' : 'Agregar'} ${titulo.toLowerCase()}`}
                   className="ml-0.5 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[13px] font-semibold text-brand-hover transition-colors hover:bg-surface-teal focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                 >
@@ -260,7 +275,7 @@ export function EmergencyData({ vital }: { vital: VitalBlock }) {
         onClose={() => setEditando(null)}
       >
         {editando &&
-          (perfil.data ? (
+          (perfilFresco === 'listo' && perfil.data ? (
             <VitalInfoForm
               key={editando.clave}
               seccion={editando.seccion}
@@ -269,9 +284,9 @@ export function EmergencyData({ vital }: { vital: VitalBlock }) {
                 setGuardado(ok);
               }}
             />
-          ) : perfil.isError ? (
+          ) : perfilFresco instanceof Error ? (
             <p role="alert" className="text-[13px] text-danger">
-              {perfil.error.message}
+              {perfilFresco.message}
             </p>
           ) : (
             <p role="status" className="text-[13px] text-muted">
@@ -290,8 +305,21 @@ export function EmergencyData({ vital }: { vital: VitalBlock }) {
             Está en inglés por si la guardia es en el exterior. Lo que apagaste aparece como “not
             shared”; tus consultas y estudios no se ven nunca.
           </p>
-          {/* La ficha recortada: exactamente lo que ve el médico (ENG-149). */}
-          <VitalBlockCard vital={recortarPorScope(vital, scope.data)} fill />
+          {/* La ficha recortada: exactamente lo que ve el médico (ENG-149).
+              Sin el scope no se sabe qué apagó el paciente, y mostrar todo le
+              diría lo contrario de lo que ve quien escanea. */}
+          {scope.data ? (
+            <VitalBlockCard vital={recortarPorScope(vital, scope.data)} fill />
+          ) : scope.isError ? (
+            <p role="alert" className="px-1 text-[13px] text-danger">
+              No pudimos cargar qué se muestra, así que no podemos armar la ficha tal como la ve un
+              médico. Probá de nuevo en un rato.
+            </p>
+          ) : (
+            <p role="status" className="px-1 text-[13px] text-muted">
+              Cargando…
+            </p>
+          )}
         </div>
       </SideDrawer>
     </section>

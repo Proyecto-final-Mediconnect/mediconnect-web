@@ -53,19 +53,28 @@ const PERFIL = {
   emergencyContact: { nombre: 'Marina', vinculo: 'Hermana', telefono: '+54 351 555' },
 };
 
-function renderData({ fallaGuardar = false } = {}) {
+function renderData({
+  fallaGuardar = false,
+  fallaScope = false,
+  perfiles = [PERFIL],
+}: { fallaGuardar?: boolean; fallaScope?: boolean; perfiles?: unknown[] } = {}) {
+  // Cada GET del perfil devuelve el siguiente de la lista (y después el último).
+  let pedidosPerfil = 0;
   const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
     const url = String(input);
     if (url.endsWith('/patients/me/vital')) {
       return Promise.resolve(json({ ...PERFIL, ...JSON.parse(String(init?.body)) }));
     }
-    if (url.endsWith('/patients/me')) return Promise.resolve(json(PERFIL));
+    if (url.endsWith('/patients/me')) {
+      const perfil = perfiles[Math.min(pedidosPerfil++, perfiles.length - 1)];
+      return Promise.resolve(json(perfil));
+    }
     if (init?.method === 'PUT') {
       return Promise.resolve(
         fallaGuardar ? json({ message: 'boom' }, 500) : json(JSON.parse(String(init.body))),
       );
     }
-    return Promise.resolve(json(TODO));
+    return Promise.resolve(fallaScope ? json({ message: 'boom' }, 500) : json(TODO));
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
@@ -155,7 +164,35 @@ describe('EmergencyData', () => {
     await userEvent.click(await screen.findByRole('button', { name: /ver como lo ve un médico/i }));
 
     const panel = await screen.findByRole('dialog', { name: 'Lo que ve un médico' });
-    expect(within(panel).getByText('Allergies')).toBeVisible();
+    expect(await within(panel).findByText('Allergies')).toBeVisible();
+  });
+
+  it('sin saber qué se muestra, la vista previa no inventa la ficha completa', async () => {
+    renderData({ fallaScope: true });
+
+    await userEvent.click(await screen.findByRole('button', { name: /ver como lo ve un médico/i }));
+
+    const panel = await screen.findByRole('dialog', { name: 'Lo que ve un médico' });
+    expect(await within(panel).findByRole('alert')).toHaveTextContent(
+      /no pudimos cargar qué se muestra/i,
+    );
+    expect(within(panel).queryByText('Allergies')).not.toBeInTheDocument();
+  });
+
+  it('el panel arranca del perfil recién pedido, no del que quedó en caché', async () => {
+    // Entre que se cargó la página y se abrió el panel, se agregó una alergia
+    // desde otro dispositivo: guardar no la puede pisar.
+    const actualizado = {
+      ...PERFIL,
+      allergies: [...PERFIL.allergies, { que: 'Látex' }],
+    };
+    renderData({ perfiles: [PERFIL, actualizado] });
+    await screen.findByText('Penicilina');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Editar alergias' }));
+
+    const panel = await screen.findByRole('dialog', { name: 'Alergias' });
+    expect(await within(panel).findByDisplayValue('Látex')).toBeVisible();
   });
 });
 
