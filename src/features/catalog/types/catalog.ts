@@ -1,4 +1,5 @@
 import type { CancellationPolicy } from '../../cancellation-policy/types/cancellationPolicy';
+import type { RatingSummary } from '../../reviews/types';
 
 export type Specialty = {
   id: string;
@@ -17,6 +18,8 @@ export type ProfessionalCard = {
   /** `null` si no cargó su precio de consulta. */
   price: number | null;
   currency: string;
+  /** Promedio de reseñas aprobadas (ENG-82). `null` sin reseñas; falta con un backend anterior. */
+  rating?: RatingSummary | null;
 };
 
 /** Un título del profesional, tal como se expone en el perfil público. */
@@ -53,6 +56,8 @@ export type PublicProfessionalProfile = {
    * backend anterior.
    */
   cancellationPolicy?: CancellationPolicy;
+  /** Promedio de reseñas aprobadas (ENG-82). `null` sin reseñas; falta con un backend anterior. */
+  rating?: RatingSummary | null;
 };
 
 export type PaginationMeta = {

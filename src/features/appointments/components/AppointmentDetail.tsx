@@ -17,6 +17,7 @@ import type { Appointment } from '../types/appointment';
 import { CancelAppointmentDialog } from './agenda/CancelAppointmentDialog';
 import { RefundOutcomeBanner } from './agenda/RefundOutcomeBanner';
 import { StatusChip } from './agenda/StatusChip';
+import { AppointmentReview } from '../../reviews/components/AppointmentReview';
 
 const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
@@ -226,6 +227,18 @@ export function AppointmentDetail({
           >
             Acciones
           </h2>
+
+          {/* La reseña de una consulta que ya se hizo (ENG-80). */}
+          {isPatient && appointment.status === 'COMPLETADO' && (
+            <AppointmentReview
+              appointmentId={appointment.id}
+              professionalName={
+                appointment.professional
+                  ? `${appointment.professional.firstName} ${appointment.professional.lastName}`
+                  : 'el profesional'
+              }
+            />
+          )}
 
           {reschedulable && !reprogramacionCerrada && (
             <Link

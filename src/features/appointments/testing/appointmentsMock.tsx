@@ -88,6 +88,7 @@ export interface ApiHandlers {
   profile?: () => Response;
   quote?: () => Response;
   payment?: () => Response;
+  reviews?: () => Response;
 }
 
 export function mockApi(handlers: ApiHandlers = {}) {
@@ -109,6 +110,10 @@ export function mockApi(handlers: ApiHandlers = {}) {
     }
     if (url.includes(`/professionals/${PRO_ID}`)) {
       return Promise.resolve(handlers.profile?.() ?? jsonResponse({}, 404));
+    }
+    // Las reseñas propias (ENG-80): antes que "/me", que también la matchea.
+    if (url.includes('/reviews/me')) {
+      return Promise.resolve(handlers.reviews?.() ?? jsonResponse([]));
     }
     if (url.includes('/appointments/me')) {
       return Promise.resolve(handlers.mine?.() ?? jsonResponse([PAST, UPCOMING]));

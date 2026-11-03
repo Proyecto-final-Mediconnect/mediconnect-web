@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { formatPrice } from '../lib/formatPrice';
 import type { ProfessionalCard } from '../types/catalog';
 import { ReservarTurnoCta } from './ReservarTurnoCta';
+import { ratingLabel } from '../../reviews/lib/reviews';
 
 function initials(firstName: string, lastName: string): string {
   return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -25,7 +26,7 @@ function initials(firstName: string, lastName: string): string {
  *   atiende así. Por eso se puede afirmar sin preguntarle a la API.
  * - "MATRÍCULA VERIFICADA" también es cierto: el backend solo lista
  *   profesionales con `status = 'VALIDADO'`.
- * - La calificación dice que no hay reseñas porque no las hay: ENG-80/ENG-82
+ * - La calificación sale de las reseñas aprobadas (ENG-82), y sin reseñas lo dice
  *   todavía no existen. Un número ahí sería mentirle al paciente que elige.
  * - El próximo turno pediría la disponibilidad de cada tarjeta, una consulta por
  *   profesional en el listado. Se ve en el calendario de reserva.
@@ -82,9 +83,18 @@ export function ProfessionalCardItem({
             <li className="rounded-full bg-surface-teal px-2.5 py-1 text-xs font-semibold text-brand-hover">
               Videoconsulta
             </li>
-            <li className="rounded-full border border-dashed border-line-strong px-2.5 py-1 text-xs font-medium text-muted">
-              Sin reseñas todavía
-            </li>
+            {/* La calificación sale de las reseñas aprobadas (ENG-82); sin
+                reseñas lo dice, en vez de inventar un número. */}
+            {professional.rating && professional.rating.count > 0 ? (
+              <li className="inline-flex items-center gap-1 rounded-full bg-tag-warm px-2.5 py-1 text-xs font-semibold text-tag-warm-ink">
+                <span aria-hidden="true">★</span>
+                {ratingLabel(professional.rating)}
+              </li>
+            ) : (
+              <li className="rounded-full border border-dashed border-line-strong px-2.5 py-1 text-xs font-medium text-muted">
+                Sin reseñas todavía
+              </li>
+            )}
             {otherSpecialties.map((specialty) => (
               <li
                 key={specialty.id}
