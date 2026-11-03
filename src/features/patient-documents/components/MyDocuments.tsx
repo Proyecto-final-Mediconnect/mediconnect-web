@@ -103,7 +103,10 @@ export function MyDocuments({ onUpload }: { onUpload: () => void }) {
                     </button>
                     <button
                       type="button"
-                      onClick={() => setARetirar(doc)}
+                      onClick={() => {
+                        retirar.reset();
+                        setARetirar(doc);
+                      }}
                       aria-label={`Retirar ${doc.title}`}
                       className={`${ROW_ACTION} text-muted hover:bg-danger/10 hover:text-danger`}
                     >
@@ -144,6 +147,11 @@ export function MyDocuments({ onUpload }: { onUpload: () => void }) {
         }
       >
         Deja de verse para vos y para tus profesionales, pero queda registrado que lo subiste.
+        {retirar.isError && (
+          <p role="alert" className="mt-3 text-[13px] font-semibold text-danger">
+            {retirar.error.message}
+          </p>
+        )}
       </ConfirmDialog>
     </section>
   );

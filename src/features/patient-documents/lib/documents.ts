@@ -3,6 +3,22 @@ import type { DocumentType, PatientDocument } from '../types';
 /** El tope del backend y del bucket. */
 export const MAX_DOCUMENT_BYTES = 10 * 1024 * 1024;
 
+/**
+ * Cuántos documentos vigentes puede tener un paciente (backend#90). Es también
+ * lo que se pide por página: con eso entran todos en una sola respuesta.
+ */
+export const MAX_ACTIVE_DOCUMENTS = 50;
+
+/**
+ * Hoy en `AAAA-MM-DD`, en hora local: el `max` del input de fecha. No con
+ * `toISOString()`, que es UTC y de noche en Argentina ya es mañana.
+ */
+export function hoyLocal(now = new Date()): string {
+  const mes = `${now.getMonth() + 1}`.padStart(2, '0');
+  const dia = `${now.getDate()}`.padStart(2, '0');
+  return `${now.getFullYear()}-${mes}-${dia}`;
+}
+
 export const ACCEPTED_MIME = ['application/pdf', 'image/jpeg', 'image/png'] as const;
 
 export const TYPE_LABELS: Record<DocumentType, string> = {
