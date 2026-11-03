@@ -101,6 +101,17 @@ export function IconPerfil(p: IconProps) {
   );
 }
 
+/** Privacidad y datos (ENG-86): un escudo con candado. */
+export function IconPrivacidad(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M12 3 5 6v5c0 4.4 3 8.3 7 9.5 4-1.2 7-5.1 7-9.5V6l-7-3Z" />
+      <rect x="9.5" y="10.5" width="5" height="4.5" rx="1" />
+      <path d="M10.5 10.5V9a1.5 1.5 0 0 1 3 0v1.5" />
+    </Svg>
+  );
+}
+
 /** Agenda: reloj, que es lo que se configura — horarios, no fechas. */
 export function IconAgenda(p: IconProps) {
   return (

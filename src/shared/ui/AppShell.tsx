@@ -20,6 +20,7 @@ import {
   IconPerfil,
   IconTurnos,
   IconVideo,
+  IconPrivacidad,
 } from './NavIcons';
 
 /**
@@ -93,6 +94,7 @@ const NAV_PACIENTE: NavItem[][] = [
     { to: '/mi-historia-clinica', label: 'Mi historia clínica', Icon: IconHistoria },
     { to: '/medipass', label: 'MediPass', Icon: IconMediPass },
     { to: '/perfil/paciente', label: 'Mi perfil', Icon: IconPerfil },
+    { to: '/privacidad', label: 'Privacidad y datos', Icon: IconPrivacidad },
   ],
 ];
 
@@ -103,7 +105,10 @@ const NAV_PROFESIONAL: NavItem[][] = [
     { to: '/mis-turnos', label: 'Mis consultas', Icon: IconTurnos },
     { to: '/mensajes', label: 'Mensajes', Icon: IconMensajes },
   ],
-  [{ to: '/perfil', label: 'Mi perfil público', Icon: IconPerfil }],
+  [
+    { to: '/perfil', label: 'Mi perfil público', Icon: IconPerfil },
+    { to: '/privacidad', label: 'Privacidad y datos', Icon: IconPrivacidad },
+  ],
 ];
 
 /**
@@ -116,6 +121,7 @@ const NAV_MODERADOR: NavItem[][] = [
     { to: '/moderacion', label: 'Moderación', end: true, Icon: IconModeracion },
     { to: '/buscar', label: 'Buscar profesionales', Icon: IconBuscar },
   ],
+  [{ to: '/privacidad', label: 'Privacidad y datos', Icon: IconPrivacidad }],
 ];
 
 const NAV_POR_ROL: Record<string, NavItem[][]> = {
