@@ -16,7 +16,15 @@ on:
       - 'release/**'
       - 'main'
   pull_request:
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened]
+  # Semanal, para enterarse de un advisory nuevo sin esperar al próximo PR
+  # (que quedaría frenado por algo ajeno a su cambio).
+  schedule:
+    - cron: '0 11 * * 1'
+
+# Los dos jobs solo leen el código.
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -62,8 +70,13 @@ jobs:
       # El binario y no la action oficial: la action pide una licencia paga en
       # repos de organizaciones. Se escanean solo los commits del PR (base..head),
       # con los secretos tapados en el log.
+      # Los refs van por `env` y no interpolados en el script: el nombre de la
+      # rama lo elige quien abre el PR y se expandiría antes de llegar al shell.
       - name: gitleaks
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           docker run --rm -v "$PWD:/repo" -w /repo ghcr.io/gitleaks/gitleaks:v8.21.2 \
             git /repo --redact --verbose \
-            --log-opts="origin/${{ github.base_ref }}..${{ github.event.pull_request.head.sha }}"
+            --log-opts="origin/${BASE_REF}..${HEAD_SHA}"
