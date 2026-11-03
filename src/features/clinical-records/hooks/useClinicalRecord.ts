@@ -1,6 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isClientError } from '../../../shared/api/apiError';
 import {
+  getMyClinicalRecordAccesses,
   addClinicalEntry,
   correctClinicalEntry,
   getClinicalRecord,
@@ -59,5 +60,18 @@ export function useCorrectClinicalEntry(patientId: string) {
       // original— se calculan sobre la lista completa.
       void queryClient.invalidateQueries({ queryKey: recordKey(patientId) });
     },
+  });
+}
+
+/**
+ * Quién abrió mi historia clínica (ENG-165), de a una página. Al cambiar de
+ * página se queda la anterior a la vista hasta que llega la nueva.
+ */
+export function useMyClinicalRecordAccesses(pagina: number, enabled = true) {
+  return useQuery({
+    queryKey: ['clinical-record', 'me', 'accesses', pagina],
+    queryFn: () => getMyClinicalRecordAccesses(pagina),
+    placeholderData: keepPreviousData,
+    enabled,
   });
 }

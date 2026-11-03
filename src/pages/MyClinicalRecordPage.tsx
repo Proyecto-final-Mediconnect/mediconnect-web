@@ -1,5 +1,6 @@
 import { useSession } from '../features/auth/hooks/useSession';
 import { ClinicalRecord } from '../features/clinical-records/components/ClinicalRecord';
+import { RecordAccesses } from '../features/clinical-records/components/RecordAccesses';
 import { DashboardLayout } from './DashboardLayout';
 
 /**
@@ -38,6 +39,14 @@ export function MyClinicalRecordPage() {
 
       {/* `RequireAuth` ya garantiza la sesión; el guard es para no montar la
           lista con un id vacío mientras `GET /me` está en vuelo. */}
+      {/* Quién la abrió (ENG-165): arriba y colapsado, para chequear de vez en
+          cuando sin empujar la historia hacia abajo. */}
+      {user && (
+        <div className="mb-6">
+          <RecordAccesses />
+        </div>
+      )}
+
       {user && (
         <ClinicalRecord
           patientId={user.id}

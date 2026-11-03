@@ -11,7 +11,38 @@ export type PatientProfile = {
   dni: string | null;
   phone: string | null;
   completed: boolean;
+} & Partial<VitalInfo>;
+
+/**
+ * Los datos vitales del MediPass (ENG-134, ENG-136): lo que ve un médico que no
+ * te conoce cuando escanea tu código. Mismas claves que guarda el backend.
+ */
+export type VitalAllergy = { que: string; gravedad?: string };
+export type VitalMedication = { droga: string; dosis?: string; nota?: string };
+export type VitalCondition = { nombre: string; codigo?: string };
+export type VitalContact = { nombre: string; vinculo?: string; telefono: string };
+
+export type VitalInfo = {
+  sex: string | null;
+  bloodType: string | null;
+  allergies: VitalAllergy[] | null;
+  medications: VitalMedication[] | null;
+  conditions: VitalCondition[] | null;
+  emergencyContact: VitalContact | null;
 };
+
+/** `PUT /patients/me/vital`: reemplaza el bloque entero; lo que no viene queda vacío. */
+export type VitalInfoInput = {
+  sex?: string;
+  bloodType?: string;
+  allergies?: VitalAllergy[];
+  medications?: VitalMedication[];
+  conditions?: VitalCondition[];
+  emergencyContact?: VitalContact;
+};
+
+export const BLOOD_TYPES = ['0+', '0-', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-'] as const;
+export const SEXES = ['Femenino', 'Masculino', 'Otro'] as const;
 
 /** Deja solo los dígitos de un DNI ("12.345.678" → "12345678"). */
 export function normalizeDni(value: string): string {

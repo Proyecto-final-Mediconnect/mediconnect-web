@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ClinicalRecord } from './ClinicalRecord';
 import type { ClinicalEntry } from '../types/clinicalRecord';
+import { desplegarRegistros } from '../testing/desplegarRegistros';
 
 const PATIENT = '11111111-1111-4111-8111-111111111111';
 
@@ -88,8 +89,9 @@ describe('ClinicalRecord', () => {
         makeEntry({ id: 'nueva', sequenceNumber: 2, content: { description: 'La nueva' } }),
       ];
       renderRecord();
+      await desplegarRegistros();
 
-      await screen.findByText('La nueva');
+      await screen.findByRole('heading', { name: 'La nueva' });
       const items = screen.getAllByRole('article');
       expect(items[0]).toHaveTextContent('La nueva');
     });
@@ -111,33 +113,71 @@ describe('ClinicalRecord', () => {
         }),
       ];
       renderRecord();
+      await desplegarRegistros();
 
       // El enlace dice a dónde lleva. Antes decía "entrada #1", que es la
       // posición en la cadena: un dato interno que obliga a buscar a mano.
-      const correccion = (await screen.findByText('La corrige')).closest('article')!;
+      const correccion = (await screen.findByRole('heading', { name: 'La corrige' })).closest(
+        'article',
+      )!;
       expect(
-        within(correccion).getByRole('link', { name: /ver el registro original/i }),
-      ).toHaveAttribute('href', '#entrada-1');
+        within(correccion).getByRole('button', { name: /ver el registro original/i }),
+      ).toBeInTheDocument();
 
-      const original = screen.getByText('La original').closest('article')!;
-      expect(within(original).getByRole('link', { name: /ver la corrección/i })).toHaveAttribute(
-        'href',
-        '#entrada-2',
-      );
+      const original = screen.getByRole('heading', { name: 'La original' }).closest('article')!;
+      expect(
+        within(original).getByRole('button', { name: /ver la corrección/i }),
+      ).toBeInTheDocument();
       expect(original).toHaveTextContent(/se conserva como se escribió/i);
+    });
+
+    /**
+     * En angosto el vínculo despliega la otra punta debajo de su fila. Si un
+     * filtro la esconde, la fila no está dibujada: se limpian los filtros para
+     * que el click lleve a algún lado.
+     */
+    it('ir a la original con un filtro que la esconde limpia los filtros y la despliega', async () => {
+      const scroll = vi.fn();
+      Element.prototype.scrollIntoView = scroll;
+      entries = [
+        makeEntry({ id: 'vieja', sequenceNumber: 1, content: { description: 'La original' } }),
+        makeEntry({
+          id: 'correccion',
+          sequenceNumber: 2,
+          entryType: 'CORRECCION',
+          correctsEntryId: 'vieja',
+          content: { description: 'La corrige' },
+        }),
+      ];
+      renderRecord();
+      await screen.findByText('La original');
+
+      await userEvent.click(
+        within(screen.getByRole('radiogroup', { name: /tipo de registro/i })).getByRole('radio', {
+          name: 'Correcciones',
+        }),
+      );
+      expect(screen.queryByText('La original')).not.toBeInTheDocument();
+      await desplegarRegistros();
+      await userEvent.click(screen.getByRole('button', { name: /ver el registro original/i }));
+
+      expect(await screen.findByRole('heading', { name: 'La original' })).toBeInTheDocument();
+      expect(scroll).toHaveBeenCalled();
+      delete (Element.prototype as Partial<Element>).scrollIntoView;
     });
 
     /** La corregida puede no estar en la lista que se recibió. */
     it('si no tiene a qué enlazar, lo dice sin romperse', async () => {
       entries = [makeEntry({ entryType: 'CORRECCION', correctsEntryId: 'fuera-de-la-lista' })];
       renderRecord();
+      await desplegarRegistros();
 
       // Sin destino no se ofrece el enlace, pero el hecho se sigue diciendo.
       expect(
         await screen.findByText(/corrige un registro anterior, que se conserva sin cambios/i),
       ).toBeInTheDocument();
       expect(
-        screen.queryByRole('link', { name: /ver el registro original/i }),
+        screen.queryByRole('button', { name: /ver el registro original/i }),
       ).not.toBeInTheDocument();
     });
 
@@ -156,6 +196,7 @@ describe('ClinicalRecord', () => {
         }),
       ];
       renderRecord();
+      await desplegarRegistros();
 
       // El primer campo del recurso es el titular de la tarjeta: el medicamento
       // es lo que resume una prescripción, igual que el motivo resume una
@@ -170,12 +211,13 @@ describe('ClinicalRecord', () => {
     it('no rompe con un content de forma inesperada', async () => {
       entries = [makeEntry({ content: 'texto suelto' })];
       renderRecord();
+      await desplegarRegistros();
 
       // La entrada se sigue mostrando —fecha y firma— aunque no haya nada
       // legible adentro: es una historia clínica, y perder el registro es peor
       // que mostrarlo sin contenido.
       expect(await screen.findByText(/no tiene contenido legible/i)).toBeInTheDocument();
-      expect(screen.getByText(/firmada por Ana García/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/firmada por Ana García/i).length).toBeGreaterThan(0);
     });
   });
 
@@ -249,7 +291,11 @@ describe('ClinicalRecord', () => {
       await screen.findByText('La consulta');
       const antes = fetchSpy.mock.calls.length;
 
-      await userEvent.selectOptions(screen.getByLabelText(/tipo de registro/i), 'PRESCRIPCION');
+      await userEvent.click(
+        within(screen.getByRole('radiogroup', { name: /tipo de registro/i })).getByRole('radio', {
+          name: 'Prescripciones',
+        }),
+      );
 
       expect(screen.queryByText('La consulta')).not.toBeInTheDocument();
       expect(screen.getByText('La prescripción')).toBeInTheDocument();
@@ -278,8 +324,30 @@ describe('ClinicalRecord', () => {
 
       expect(screen.getByText(/ninguna entrada coincide con esos filtros/i)).toBeInTheDocument();
 
-      await userEvent.click(screen.getByRole('button', { name: /limpiar filtros/i }));
+      // Está arriba, junto al contador, y también en el aviso del vacío.
+      await userEvent.click(screen.getAllByRole('button', { name: /limpiar filtros/i })[0]);
       expect(screen.getByText('La consulta')).toBeInTheDocument();
+    });
+
+    it('busca en el contenido sin tildes ni mayúsculas', async () => {
+      renderRecord();
+      await screen.findByText('La consulta');
+
+      await userEvent.type(screen.getByRole('searchbox'), 'PRESCRIPCION');
+
+      expect(screen.queryByText('La consulta')).not.toBeInTheDocument();
+      expect(screen.getByText('La prescripción')).toBeInTheDocument();
+    });
+
+    it('agrupa los registros por mes', async () => {
+      entries = [
+        makeEntry({ id: 'e1', sequenceNumber: 1, createdAt: '2026-08-27T12:00:00.000Z' }),
+        makeEntry({ id: 'e2', sequenceNumber: 2, createdAt: '2026-09-03T12:00:00.000Z' }),
+      ];
+      renderRecord();
+
+      expect(await screen.findByRole('heading', { name: /septiembre 2026/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /agosto 2026/i })).toBeInTheDocument();
     });
 
     it('no ofrece un desplegable con una sola opción', async () => {
@@ -288,7 +356,9 @@ describe('ClinicalRecord', () => {
       await screen.findByText('Dolor lumbar de 3 días');
 
       // Un filtro con un único valor no filtra nada y ocupa lo mismo.
-      expect(screen.queryByLabelText(/tipo de registro/i)).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('radiogroup', { name: /tipo de registro/i }),
+      ).not.toBeInTheDocument();
       expect(screen.queryByLabelText(/profesional/i)).not.toBeInTheDocument();
     });
 
@@ -340,8 +410,9 @@ describe('ClinicalRecord', () => {
     it('lo ofrece sobre la entrada propia', async () => {
       entries = [makeEntry({ professionalId: AUTOR })];
       renderRecord({ viewerId: AUTOR, onCorregir: vi.fn() });
+      await desplegarRegistros();
 
-      await screen.findByText('Dolor lumbar de 3 días');
+      await screen.findByRole('heading', { name: 'Dolor lumbar de 3 días' });
       expect(boton()).toBeInTheDocument();
     });
 
@@ -363,13 +434,16 @@ describe('ClinicalRecord', () => {
         }),
       ];
       renderRecord({ viewerId: AUTOR, onCorregir: vi.fn() });
+      await desplegarRegistros();
 
-      await screen.findByText('Dolor lumbar de 3 dias, corregido');
+      await screen.findByRole('heading', { name: 'Dolor lumbar de 3 dias, corregido' });
 
       // El único botón que queda es el de la corrección, que todavía no fue
       // corregida.
       expect(screen.getAllByRole('button', { name: /corregir esta entrada/i })).toHaveLength(1);
-      const original = screen.getByText('Dolor lumbar de 3 días').closest('article');
+      const original = screen
+        .getByRole('heading', { name: 'Dolor lumbar de 3 días' })
+        .closest('article');
       expect(
         within(original as HTMLElement).queryByRole('button', { name: /corregir esta entrada/i }),
       ).not.toBeInTheDocument();
@@ -379,8 +453,9 @@ describe('ClinicalRecord', () => {
       const onCorregir = vi.fn();
       entries = [makeEntry({ id: 'e1', professionalId: AUTOR })];
       renderRecord({ viewerId: AUTOR, onCorregir });
+      await desplegarRegistros();
 
-      await screen.findByText('Dolor lumbar de 3 días');
+      await screen.findByRole('heading', { name: 'Dolor lumbar de 3 días' });
       await userEvent.click(boton() as HTMLElement);
 
       expect(onCorregir).toHaveBeenCalledWith(expect.objectContaining({ id: 'e1' }));
@@ -401,10 +476,10 @@ describe('ClinicalRecord', () => {
         }),
       ];
       renderRecord({ viewerId: AUTOR, onCorregir: vi.fn() });
-      await screen.findByLabelText(/tipo de registro/i);
+      const tipos = await screen.findByRole('radiogroup', { name: /tipo de registro/i });
 
       // Se deja solo CONSULTA, así la corrección sale de la lista.
-      await userEvent.selectOptions(screen.getByLabelText(/tipo de registro/i), 'CONSULTA');
+      await userEvent.click(within(tipos).getByRole('radio', { name: 'Consultas' }));
 
       expect(boton()).not.toBeInTheDocument();
     });

@@ -1,6 +1,7 @@
 import { apiFetch } from '../../../shared/api/apiFetch';
 import { toApiError } from '../../../shared/api/apiError';
 import type {
+  ClinicalRecordAccessPage,
   ClinicalEntry,
   CorrectionPayload,
   NewClinicalEntryPayload,
@@ -68,18 +69,26 @@ export async function correctClinicalEntry(
   entryId: string,
   payload: CorrectionPayload,
 ): Promise<ClinicalEntry> {
-  const response = await apiFetch(
-    `${base(patientId)}/${encodeURIComponent(entryId)}/corrections`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    },
-  );
+  const response = await apiFetch(`${base(patientId)}/${encodeURIComponent(entryId)}/corrections`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
 
   if (!response.ok) {
     throw await toApiError(response, 'No se pudo guardar la corrección.');
   }
 
   return (await response.json()) as ClinicalEntry;
+}
+
+/**
+ * `GET /patients/me/clinical-record/accesses`: quién abrió mi historia clínica
+ * (ENG-165), de a 10. Las lecturas propias no vienen.
+ */
+export async function getMyClinicalRecordAccesses(pagina = 1): Promise<ClinicalRecordAccessPage> {
+  const response = await apiFetch(`/patients/me/clinical-record/accesses?pagina=${pagina}`);
+  if (!response.ok)
+    throw await toApiError(response, 'No pudimos cargar quién vio tu historia clínica.');
+  return (await response.json()) as ClinicalRecordAccessPage;
 }
