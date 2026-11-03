@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { flushSync } from 'react-dom';
 import { isClientError } from '../../../shared/api/apiError';
 import { useClinicalRecord } from '../hooks/useClinicalRecord';
@@ -16,7 +16,7 @@ import {
   opcionesDe,
   type FiltrosHC,
 } from '../lib/filtrarEntradas';
-import type { ClinicalEntry } from '../types/clinicalRecord';
+import { ENTRY_TYPE_LABELS, type ClinicalEntry } from '../types/clinicalRecord';
 import { EntryCard } from './EntryCard';
 import { TONO_TIPO } from '../lib/entryTone';
 import { CorrectedChip, TypeChip } from './entryType';
@@ -103,6 +103,9 @@ export function ClinicalRecord({
   }, []);
 
   const entries = useMemo(() => record.data ?? [], [record.data]);
+  // Filtrar con el valor diferido: el input sigue al instante y la línea de
+  // tiempo se recalcula cuando React tiene un hueco, no en cada tecla.
+  const filtrosAplicados = useDeferredValue(filtros);
 
   const { visibles, opciones, corregidaPor, posicionDe, porNumero } = useMemo(() => {
     // Los vínculos de corrección se calculan sobre la cadena completa y no
@@ -118,13 +121,25 @@ export function ClinicalRecord({
     }
 
     return {
-      visibles: filtrarEntradas(entries, filtros),
+      visibles: filtrarEntradas(entries, filtrosAplicados),
       opciones: opcionesDe(entries),
       corregidaPor,
       posicionDe,
       porNumero,
     };
-  }, [entries, filtros]);
+  }, [entries, filtrosAplicados]);
+
+  // La fila a la que llevó un vínculo de corrección en angosto. Se scrollea
+  // cuando ya está dibujada: si hubo que limpiar los filtros, eso pasa uno o
+  // dos renders después (los filtros se aplican diferidos).
+  const irA = useRef<number | null>(null);
+  useEffect(() => {
+    if (irA.current === null) return;
+    const fila = document.getElementById(`fila-${irA.current}`);
+    if (!fila) return;
+    irA.current = null;
+    fila.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  }, [visibles, desplegadas]);
 
   const seleccionada = abierta !== null ? porNumero.get(abierta) : undefined;
 
@@ -148,10 +163,13 @@ export function ClinicalRecord({
             : wide
               ? setAbierta
               : (seq) => {
+                  // Si los filtros esconden la otra punta, su fila no está
+                  // dibujada y no hay adónde ir: se limpian antes de desplegarla.
+                  if (!visibles.some((e) => e.sequenceNumber === seq)) {
+                    setFiltros(FILTROS_VACIOS);
+                  }
                   setDesplegadas((actual) => new Set(actual).add(seq));
-                  document
-                    .getElementById(`fila-${seq}`)
-                    ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  irA.current = seq;
                 }
         }
         onCorregir={
@@ -435,6 +453,13 @@ function EntryRow({
           {entry.professional ? `Firmada por ${nombreDe(entry)}` : 'Profesional no disponible'} ·{' '}
           {hora}
         </span>
+      </span>
+      {/* En angosto los chips no entran, pero el lector de pantalla igual
+          tiene que saber el tipo y si está corregida (el punto del riel es
+          solo visual). */}
+      <span className="sr-only sm:hidden">
+        {corregida ? 'Corregida · ' : ''}
+        {ENTRY_TYPE_LABELS[entry.entryType] ?? entry.entryType}
       </span>
       <span className="hidden flex-none items-center gap-2 sm:flex">
         {corregida && <CorrectedChip />}

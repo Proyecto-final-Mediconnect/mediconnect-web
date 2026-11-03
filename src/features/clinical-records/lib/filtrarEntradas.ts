@@ -82,8 +82,25 @@ function normalizar(texto: string): string {
     .toLowerCase();
 }
 
+/**
+ * El texto normalizado de cada entrada, calculado una sola vez. Las entradas que
+ * devuelve react-query no cambian mientras se tipea, así que no hace falta
+ * volver a leer los campos y sacar tildes en cada tecla. `WeakMap`: cuando llega
+ * una historia nueva, las entradas viejas se liberan solas.
+ */
+const textoCache = new WeakMap<ClinicalEntry, string>();
+
 /** Todo lo que se lee de una entrada, en un solo texto para buscar. */
 function textoDe(entry: ClinicalEntry): string {
+  let texto = textoCache.get(entry);
+  if (texto === undefined) {
+    texto = textoPlano(entry);
+    textoCache.set(entry, texto);
+  }
+  return texto;
+}
+
+function textoPlano(entry: ClinicalEntry): string {
   return normalizar(
     [
       ENTRY_TYPE_LABELS[entry.entryType] ?? entry.entryType,

@@ -131,6 +131,41 @@ describe('ClinicalRecord', () => {
       expect(original).toHaveTextContent(/se conserva como se escribió/i);
     });
 
+    /**
+     * En angosto el vínculo despliega la otra punta debajo de su fila. Si un
+     * filtro la esconde, la fila no está dibujada: se limpian los filtros para
+     * que el click lleve a algún lado.
+     */
+    it('ir a la original con un filtro que la esconde limpia los filtros y la despliega', async () => {
+      const scroll = vi.fn();
+      Element.prototype.scrollIntoView = scroll;
+      entries = [
+        makeEntry({ id: 'vieja', sequenceNumber: 1, content: { description: 'La original' } }),
+        makeEntry({
+          id: 'correccion',
+          sequenceNumber: 2,
+          entryType: 'CORRECCION',
+          correctsEntryId: 'vieja',
+          content: { description: 'La corrige' },
+        }),
+      ];
+      renderRecord();
+      await screen.findByText('La original');
+
+      await userEvent.click(
+        within(screen.getByRole('radiogroup', { name: /tipo de registro/i })).getByRole('radio', {
+          name: 'Correcciones',
+        }),
+      );
+      expect(screen.queryByText('La original')).not.toBeInTheDocument();
+      await desplegarRegistros();
+      await userEvent.click(screen.getByRole('button', { name: /ver el registro original/i }));
+
+      expect(await screen.findByRole('heading', { name: 'La original' })).toBeInTheDocument();
+      expect(scroll).toHaveBeenCalled();
+      delete (Element.prototype as Partial<Element>).scrollIntoView;
+    });
+
     /** La corregida puede no estar en la lista que se recibió. */
     it('si no tiene a qué enlazar, lo dice sin romperse', async () => {
       entries = [makeEntry({ entryType: 'CORRECCION', correctsEntryId: 'fuera-de-la-lista' })];
