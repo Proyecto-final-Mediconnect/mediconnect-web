@@ -8,11 +8,11 @@ import { CorrectEntryForm } from '../features/clinical-records/components/Correc
 import type { ClinicalEntry } from '../features/clinical-records/types/clinicalRecord';
 import { Button } from '../shared/ui/Button';
 import { Modal } from '../shared/ui/Modal';
+import { PatientDocumentsPanel } from '../features/patient-documents/components/PatientDocumentsPanel';
 import { DashboardLayout } from './DashboardLayout';
 
 /** Espeja el `@IsUUID('4')` del DTO del backend. */
-const UUID_V4 =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * Historia clínica de un paciente, desde el profesional (ENG-58, ENG-60).
@@ -73,6 +73,11 @@ export function PatientClinicalRecordPage() {
         </Button>
       }
     >
+      {/* Lo que trajo el paciente (ENG-164), arriba y aparte de lo firmado. */}
+      <div className="mb-6 empty:hidden">
+        <PatientDocumentsPanel patientId={patientId} />
+      </div>
+
       <ClinicalRecord
         patientId={patientId}
         // Con ENG-60 el vacío pasó a ser literal: si no hay entradas, este

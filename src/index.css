@@ -143,3 +143,13 @@ body {
     opacity: 1;
   }
 }
+
+/* Barra indeterminada mientras se sube un documento (ENG-164). */
+@keyframes subiendo {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(300%);
+  }
+}
