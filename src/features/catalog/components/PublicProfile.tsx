@@ -245,8 +245,8 @@ function Tarjeta({
 
 /**
  * El único servicio. Ya no es un botón: con una sola opción no hay nada que
- * elegir, y un control que no cambia nada confunde más de lo que ayuda. Queda
- * marcado como elegido para que se lea igual que el primer paso de la reserva.
+ * elegir, y un control que no cambia nada confunde más de lo que ayuda. Por lo
+ * mismo no lleva insignia de "elegido": haría buscar otra opción que no existe.
  */
 function Servicios({ precio }: { precio: string }) {
   return (
@@ -254,12 +254,7 @@ function Servicios({ precio }: { precio: string }) {
       <div className="px-6 py-[18px]">
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-[10px] border border-brand bg-surface-teal px-4 py-3.5">
           <div className="grid gap-1">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="text-base font-bold text-brand-deep">{SERVICIO}</span>
-              <span className="rounded-[5px] bg-brand-deep px-2 py-1 text-[10px] font-bold tracking-[0.08em] text-white">
-                ELEGIDO
-              </span>
-            </div>
+            <span className="text-base font-bold text-brand-deep">{SERVICIO}</span>
             <span className="text-sm text-muted">
               Consulta por video desde la plataforma, sin moverte de tu casa.
             </span>
@@ -347,7 +342,7 @@ function PanelReserva({
 
       <div className="grid gap-3.5 px-[22px] py-5">
         <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
-          Paso 1 de {PASOS.length} · elegí el servicio
+          Paso 1 de {PASOS.length} · revisá tu consulta
         </span>
 
         {/* La duración se fue con los servicios inventados: la define cada
