@@ -99,23 +99,26 @@ describe('appointmentTimeline (ENG-178)', () => {
       expect(pasos[3]).toMatch(/^Te devolvimos \$\s7\.500$/);
     });
 
-    it('uno pendiente se ve en curso', () => {
+    it('uno pendiente se ve en curso, sin decir que no se devolvió nada', () => {
       const [paso] = appointmentTimeline(
         { ...CANCELADO, refundState: { amount: 15000, status: 'PENDIENTE' } },
         PAGO_APROBADO,
         NOW,
       ).slice(-1);
-      expect(paso.title).toMatch(/^Pedimos el reembolso de \$\s15\.000$/);
+      expect(paso.title).toMatch(/^Reembolso de \$\s15\.000 en curso$/);
       expect(paso.tone).toBe('current');
     });
 
-    it('uno rechazado se ve mal', () => {
+    // Con uno acreditado y otro rechazado el backend manda lo acreditado como
+    // monto y RECHAZADO como estado: el texto no puede afirmar esa cifra.
+    it('uno rechazado se ve mal, sin monto y con qué hacer', () => {
       const [paso] = appointmentTimeline(
-        { ...CANCELADO, refundState: { amount: 15000, status: 'RECHAZADO' } },
+        { ...CANCELADO, refundState: { amount: 7500, status: 'RECHAZADO' } },
         PAGO_APROBADO,
         NOW,
       ).slice(-1);
-      expect(paso.title).toMatch(/^No se pudo hacer el reembolso de \$\s15\.000$/);
+      expect(paso.title).toBe('Hubo un problema con el reembolso. Escribinos y lo revisamos');
+      expect(paso.title).not.toMatch(/\$/);
       expect(paso.tone).toBe('bad');
     });
 
@@ -128,18 +131,45 @@ describe('appointmentTimeline (ENG-178)', () => {
       expect(pasos.at(-1)).toMatch(/^Te devolvimos \$\s15\.000$/);
     });
 
-    it('visto por el profesional, habla del paciente', () => {
-      expect(
-        refundStep(
-          { ...CANCELADO, refundState: { amount: 7500, status: 'PROCESADO' } },
-          'PROFESIONAL',
-        )?.title,
-      ).toMatch(/^Se le devolvieron \$\s7\.500 al paciente$/);
+    it('un liberado con reembolso lo muestra después de liberar el horario', () => {
+      const pasos = titulos(
+        { ...BASE, status: 'LIBERADO', refundState: { amount: 15000, status: 'PROCESADO' } },
+        { ...PAGO_APROBADO, appointmentStatus: 'LIBERADO' },
+      );
+      expect(pasos.at(-2)).toBe('Se liberó el horario porque no se pagó a tiempo');
+      expect(pasos.at(-1)).toMatch(/^Te devolvimos \$\s15\.000$/);
+    });
+
+    // El backend no le manda el reembolso al profesional; si algún día llegara,
+    // no se le muestra un texto pensado para el paciente.
+    it('el profesional no ve el paso del reembolso', () => {
+      const pasos = appointmentTimeline(
+        { ...CANCELADO, refundState: { amount: 7500, status: 'PROCESADO' } },
+        PAGO_APROBADO,
+        NOW,
+        'PROFESIONAL',
+      ).map((p) => p.key);
+      expect(pasos).not.toContain('reembolso');
+    });
+
+    it('un estado que no conoce no muestra nada', () => {
+      const refundState = {
+        amount: 7500,
+        status: 'NUEVO',
+      } as unknown as Appointment['refundState'];
+      expect(refundStep({ ...CANCELADO, refundState })).toBeNull();
     });
 
     it('un cancelado sin pago no muestra nada de reembolso', () => {
       const pasos = titulos({ ...CANCELADO, refundState: null });
       expect(pasos.join(' ')).not.toMatch(/reembolso|devolvi/i);
+    });
+
+    it('con un backend anterior (sin el campo) se ve como antes', () => {
+      expect('refundState' in CANCELADO).toBe(false);
+      expect(titulos(CANCELADO, { ...PAGO_APROBADO, status: 'REEMBOLSADO' })).toContain(
+        'Te devolvimos el pago',
+      );
     });
   });
 

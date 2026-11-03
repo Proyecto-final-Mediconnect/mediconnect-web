@@ -43,30 +43,35 @@ function cuando(iso: string | null | undefined): string | null {
 export type TimelineViewer = 'PACIENTE' | 'PROFESIONAL';
 
 /**
- * En qué quedó el reembolso de un turno que se cayó (ENG-174), dicho desde quien
- * mira. `null` si no hubo reembolso. Lo usan la línea de tiempo y "Mis turnos".
+ * En qué quedó el reembolso de un turno que se cayó (ENG-174), dicho al
+ * paciente. `null` si no hubo reembolso. Lo usan la línea de tiempo y "Mis
+ * turnos".
+ *
+ * Solo para el paciente: el backend manda `refundState` únicamente a quien pagó
+ * el turno, y al profesional le llega `null`.
+ *
+ * Con más de un reembolso el backend suma los no rechazados y manda el estado
+ * más urgente (PENDIENTE > RECHAZADO > PROCESADO). Por eso el pendiente habla
+ * del total "en curso" (parte puede estar acreditada) y el rechazado no dice
+ * monto: con uno acreditado y otro rechazado, el que llega es lo acreditado.
  */
-export function refundStep(
-  appointment: Appointment,
-  viewer: TimelineViewer = 'PACIENTE',
-): { title: string; tone: StepTone } | null {
+export function refundStep(appointment: Appointment): { title: string; tone: StepTone } | null {
   const refund = appointment.refundState;
   if (!refund) return null;
   const monto = formatPrice(refund.amount, appointment.currency);
-  const paciente = viewer === 'PACIENTE';
   switch (refund.status) {
     case 'PENDIENTE':
-      return {
-        title: paciente ? `Pedimos el reembolso de ${monto}` : `Reembolso de ${monto} en curso`,
-        tone: 'current',
-      };
+      return { title: `Reembolso de ${monto} en curso`, tone: 'current' };
     case 'PROCESADO':
-      return {
-        title: paciente ? `Te devolvimos ${monto}` : `Se le devolvieron ${monto} al paciente`,
-        tone: 'done',
-      };
+      return { title: `Te devolvimos ${monto}`, tone: 'done' };
     case 'RECHAZADO':
-      return { title: `No se pudo hacer el reembolso de ${monto}`, tone: 'bad' };
+      return {
+        title: 'Hubo un problema con el reembolso. Escribinos y lo revisamos',
+        tone: 'bad',
+      };
+    default:
+      // Un estado nuevo del backend: mejor nada que un texto que no corresponde.
+      return null;
   }
 }
 
@@ -92,7 +97,7 @@ export function appointmentTimeline(
   // va en su propio paso después de la cancelación: así un parcial no se lee
   // como "te devolvimos el pago" ni uno pendiente desaparece.
   const pago = payment?.status;
-  const reembolso = refundStep(appointment, viewer);
+  const reembolso = paciente ? refundStep(appointment) : null;
   if (
     pago === 'APROBADO' ||
     (reembolso && pago !== 'RECHAZADO') ||

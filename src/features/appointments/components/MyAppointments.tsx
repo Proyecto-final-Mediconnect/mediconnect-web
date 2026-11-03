@@ -429,11 +429,9 @@ function HistoryRow({ appointment, userId, wide, selectedId, onSelect }: ListIte
   const name = personName(appointment, userId);
   const muted = !isActive(appointment);
   const selected = wide && selectedId === appointment.id;
-  // Lo que se devolvió de un turno caído se ve sin abrirlo (ENG-174).
-  const reembolso = refundStep(
-    appointment,
-    appointment.patient?.id === userId ? 'PACIENTE' : 'PROFESIONAL',
-  );
+  // Lo que se devolvió de un turno caído se ve sin abrirlo (ENG-174). Solo al
+  // paciente: es el único al que el backend le manda el reembolso.
+  const reembolso = appointment.patient?.id === userId ? refundStep(appointment) : null;
 
   return (
     <OpenLink
