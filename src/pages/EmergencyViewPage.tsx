@@ -1,13 +1,13 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   getEmergencySession,
   openEmergencySession,
   SESION_VENCIDA,
 } from '../features/medipass/api/medipassApi';
 import { VitalBlockCard } from '../features/medipass/components/VitalBlockCard';
-import { cuentaRegresiva, formatCodigo } from '../features/medipass/lib/medipass';
+import { cuentaRegresiva, formatCodigo, tarjetaDelHash } from '../features/medipass/lib/medipass';
 import type { EmergencySession } from '../features/medipass/types/medipass';
 import type { ApiError } from '../shared/api/apiError';
 import { useNow } from '../shared/hooks/useNow';
@@ -45,17 +45,26 @@ function guardarSesion(id: string | null): void {
  *    no quede en el historial del navegador.
  * 3. Si el acceso vence (410), vuelve a pedir el código.
  *
+ * **Con la tarjeta de emergencia (ENG-176)** el QR trae el token en el
+ * fragmento (`#tarjeta=`), que el navegador no manda a ningún servidor. No hay
+ * código que tipear: el médico pone su nombre y entra. El fragmento también sale
+ * de la URL apenas se usa.
+ *
  * Código inexistente y código vencido muestran el mismo mensaje: distinguirlos
  * le diría a quien prueba códigos cuáles existieron.
  */
 export function EmergencyViewPage() {
   const [params] = useSearchParams();
+  const { hash } = useLocation();
   const navigate = useNavigate();
-  // Con un código en la URL es un escaneo nuevo: el acceso que hubiera quedado
-  // guardado en la pestaña puede ser de **otro paciente**, y mostrarlo sería
-  // darle al médico las alergias y la medicación equivocadas.
+  // Se lee una vez: después de abrir el acceso la URL se limpia, y el token no
+  // tiene por qué seguir en memoria más allá del formulario.
+  const [tarjeta] = useState(() => tarjetaDelHash(hash));
+  // Con un código o una tarjeta en la URL es un escaneo nuevo: el acceso que
+  // hubiera quedado guardado en la pestaña puede ser de **otro paciente**, y
+  // mostrarlo sería darle al médico las alergias y la medicación equivocadas.
   const [sesionId, setSesionId] = useState<string | null>(() => {
-    if (params.get('codigo')) {
+    if (params.get('codigo') || tarjeta) {
       guardarSesion(null);
       return null;
     }
@@ -83,12 +92,13 @@ export function EmergencyViewPage() {
         ) : (
           <PedirAcceso
             codigoInicial={params.get('codigo') ?? ''}
+            tarjeta={tarjeta}
             aviso={aviso}
             onAbierto={(sesion) => {
               guardarSesion(sesion.sesionId);
               setAviso(null);
               setSesionId(sesion.sesionId);
-              // El código no se queda en la barra ni en el historial.
+              // El código (o la tarjeta) no se queda en la barra ni en el historial.
               navigate('/medipass/emergencia', { replace: true });
             }}
           />
@@ -100,10 +110,13 @@ export function EmergencyViewPage() {
 
 function PedirAcceso({
   codigoInicial,
+  tarjeta,
   aviso,
   onAbierto,
 }: {
   codigoInicial: string;
+  /** El token de la tarjeta de emergencia, si el QR lo trajo (ENG-176). */
+  tarjeta: string | null;
   aviso: string | null;
   onAbierto: (sesion: EmergencySession) => void;
 }) {
@@ -115,16 +128,18 @@ function PedirAcceso({
 
   function enviar(e: FormEvent) {
     e.preventDefault();
-    if (!codigo.trim() || !nombre.trim()) {
+    if ((!tarjeta && !codigo.trim()) || !nombre.trim()) {
       setFaltan(true);
       return;
     }
     setFaltan(false);
-    abrir.mutate({ codigo, nombre, matricula });
+    abrir.mutate(tarjeta ? { tarjeta, nombre, matricula } : { codigo, nombre, matricula });
   }
 
   const error = faltan
-    ? 'Completá el código y tu nombre.'
+    ? tarjeta
+      ? 'Completá tu nombre.'
+      : 'Completá el código y tu nombre.'
     : abrir.isError
       ? abrir.error.message
       : aviso;
@@ -143,21 +158,29 @@ function PedirAcceso({
       </p>
 
       <form onSubmit={enviar} noValidate className="mt-6 grid gap-4">
-        <Campo
-          id="codigo"
-          label="Código MediPass"
-          value={codigo}
-          onChange={setCodigo}
-          autoComplete="off"
-          mono
-        />
+        {tarjeta ? (
+          // Con la tarjeta no hay nada que tipear: el QR ya trajo la credencial.
+          <p className="flex items-center gap-2 rounded-[10px] bg-surface-teal px-4 py-3 text-[14px] font-semibold text-brand-hover">
+            <span aria-hidden="true" className="size-2 rounded-full bg-brand" />
+            Tarjeta de emergencia del paciente
+          </p>
+        ) : (
+          <Campo
+            id="codigo"
+            label="Código MediPass"
+            value={codigo}
+            onChange={setCodigo}
+            autoComplete="off"
+            mono
+          />
+        )}
         <Campo
           id="nombre"
           label="Tu nombre y apellido"
           value={nombre}
           onChange={setNombre}
           autoComplete="name"
-          autoFocus={codigoInicial !== ''}
+          autoFocus={codigoInicial !== '' || tarjeta !== null}
         />
         <Campo
           id="matricula"

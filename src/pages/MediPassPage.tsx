@@ -1,6 +1,7 @@
 import { useSession } from '../features/auth/hooks/useSession';
 import { AccessHistory } from '../features/medipass/components/AccessHistory';
 import { ActiveAccesses } from '../features/medipass/components/ActiveAccesses';
+import { EmergencyCard } from '../features/medipass/components/EmergencyCard';
 import { EmergencyData } from '../features/medipass/components/EmergencyData';
 import { useMyMediPassCode, useMyVitalBlock } from '../features/medipass/hooks/useMediPass';
 import { cuentaRegresiva, emergencyUrl, formatCodigo } from '../features/medipass/lib/medipass';
@@ -114,6 +115,9 @@ export function MediPassPage() {
           {/* Al lado del pase: quien lo escaneó aparece acá, y se puede cortar. */}
           <ActiveAccesses />
         </div>
+
+        {/* Para cuando el paciente no puede mostrar el código (ENG-176). */}
+        <EmergencyCard nombre={nombre} />
 
         {/* Abajo: tus datos de emergencia (qué se ve y editarlos) y quién entró. */}
         <div className="grid items-start gap-6 lg:grid-cols-2">

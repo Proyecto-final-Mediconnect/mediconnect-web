@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { EmergencyViewPage } from './EmergencyViewPage';
@@ -24,8 +24,13 @@ const EXPIRA = () => new Date(Date.now() + 30 * 60_000).toISOString();
 type Respuestas = { abrir?: () => Response; consultar?: () => Response };
 
 function Ubicacion() {
-  const { search } = useLocation();
-  return <p data-testid="search">{search}</p>;
+  const { search, hash } = useLocation();
+  return (
+    <p data-testid="search">
+      {search}
+      {hash}
+    </p>
+  );
 }
 
 function renderPage(url: string, respuestas: Respuestas = {}) {
@@ -98,7 +103,7 @@ describe('EmergencyViewPage (ENG-135)', () => {
     completar('Dra. Laura Pérez');
 
     await screen.findByText(MOCK_VITAL_BLOCK.nombre);
-    expect(screen.getByTestId('search')).toHaveTextContent(/^$/);
+    await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent(/^$/));
   });
 
   it('sin código en la URL, se puede tipear', async () => {
@@ -216,5 +221,59 @@ describe('EmergencyViewPage con datos incompletos', () => {
     expect(screen.getByText('No known allergies')).toBeVisible();
     expect(screen.getByText('Not recorded')).toBeVisible();
     expect(screen.queryByText(/undefined/)).not.toBeInTheDocument();
+  });
+});
+
+/**
+ * La tarjeta de emergencia (ENG-176): el QR fijo trae el token en el fragmento
+ * de la URL, así que no hay código que tipear.
+ */
+describe('EmergencyViewPage con la tarjeta de emergencia', () => {
+  const TOKEN = 'Ab3_-Ab3_-Ab3_-Ab3_-Ab3_-Ab3_-Ab3_-Ab3_-Ab3';
+
+  it('no pide código: abre con la tarjeta y el nombre', async () => {
+    const enviados = renderPage(`/medipass/emergencia#tarjeta=${TOKEN}`);
+
+    expect(screen.queryByLabelText('Código MediPass')).not.toBeInTheDocument();
+    expect(screen.getByText('Tarjeta de emergencia del paciente')).toBeVisible();
+    completar('Dr. Pablo Rivas');
+
+    expect(await screen.findByText(MOCK_VITAL_BLOCK.nombre)).toBeVisible();
+    // El token va tal cual: es base64url y distingue mayúsculas.
+    expect(enviados).toEqual([{ tarjeta: TOKEN, nombre: 'Dr. Pablo Rivas' }]);
+  });
+
+  it('saca la tarjeta de la URL apenas se usa', async () => {
+    renderPage(`/medipass/emergencia#tarjeta=${TOKEN}`);
+
+    completar('Dr. Pablo Rivas');
+
+    await screen.findByText(MOCK_VITAL_BLOCK.nombre);
+    await waitFor(() => expect(screen.getByTestId('search')).toHaveTextContent(/^$/));
+  });
+
+  it('una tarjeta desactivada dice que no es válida, sin más detalle', async () => {
+    renderPage(`/medipass/emergencia#tarjeta=${TOKEN}`, {
+      abrir: () => json({ message: 'Código inválido o vencido.' }, 404),
+    });
+
+    completar('Dr. Pablo Rivas');
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Esta tarjeta de emergencia no es válida o el paciente la desactivó.',
+    );
+  });
+
+  it('con una tarjeta en la URL descarta el acceso guardado de la pestaña', async () => {
+    sessionStorage.setItem('medipass.sesion', 'sesion-de-otro-paciente');
+    renderPage(`/medipass/emergencia#tarjeta=${TOKEN}`);
+
+    expect(screen.getByLabelText('Tu nombre y apellido')).toBeVisible();
+    expect(sessionStorage.getItem('medipass.sesion')).toBeNull();
+  });
+
+  it('un fragmento que no es una tarjeta se ignora y pide el código', () => {
+    renderPage('/medipass/emergencia#tarjeta=<script>');
+    expect(screen.getByLabelText('Código MediPass')).toBeVisible();
   });
 });

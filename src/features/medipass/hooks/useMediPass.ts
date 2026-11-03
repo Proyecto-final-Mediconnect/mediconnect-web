@@ -1,5 +1,8 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  createMyEmergencyCard,
+  disableMyEmergencyCard,
+  getMyEmergencyCard,
   getMyActiveAccesses,
   getMyMediPassCode,
   getMyMediPassHistory,
@@ -100,5 +103,42 @@ export function useUpdateScope() {
       if (contexto?.anterior) queryClient.setQueryData(SCOPE_KEY, contexto.anterior);
     },
     onSuccess: (guardado) => queryClient.setQueryData(SCOPE_KEY, guardado),
+  });
+}
+
+/** Si el paciente tiene una tarjeta de emergencia activa (ENG-176). */
+export function useMyEmergencyCard() {
+  return useQuery({ queryKey: ['medipass', 'me', 'emergency-card'], queryFn: getMyEmergencyCard });
+}
+
+/**
+ * Genera (o regenera) la tarjeta. `gcTime: 0` para que el token no se quede en
+ * la caché de mutaciones de react-query: vive en el estado del componente que lo
+ * muestra y nada más. Regenerar corta los accesos abiertos con la anterior, así
+ * que también se refresca la lista de accesos.
+ */
+export function useCreateEmergencyCard() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: createMyEmergencyCard,
+    gcTime: 0,
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['medipass', 'me', 'emergency-card'] }),
+        queryClient.invalidateQueries({ queryKey: ['medipass', 'me', 'accesses'] }),
+      ]),
+  });
+}
+
+/** Desactiva la tarjeta. También corta lo que había abierto. */
+export function useDisableEmergencyCard() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: disableMyEmergencyCard,
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['medipass', 'me', 'emergency-card'] }),
+        queryClient.invalidateQueries({ queryKey: ['medipass', 'me', 'accesses'] }),
+      ]),
   });
 }
