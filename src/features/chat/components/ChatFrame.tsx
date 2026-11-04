@@ -245,6 +245,7 @@ export function MessageComposer({
   function submit(event?: FormEvent) {
     event?.preventDefault();
     if (!canSend) return;
+    setFileProblem(null);
     if (file && onAttach) {
       onAttach(file, content, () => {
         setDraft('');
@@ -278,9 +279,9 @@ export function MessageComposer({
       onSubmit={submit}
       className="grid gap-1.5 border-t border-line bg-white px-3 pb-3 pt-2.5 sm:px-5"
     >
-      {(fileProblem ?? error) && (
+      {(error ?? fileProblem) && (
         <p role="alert" className="text-[13px] text-danger">
-          {fileProblem ?? error?.message}
+          {error?.message ?? fileProblem}
         </p>
       )}
       {file && (
@@ -290,7 +291,10 @@ export function MessageComposer({
           <span className="text-muted">{formatSize(file.size)}</span>
           <button
             type="button"
-            onClick={() => setFile(null)}
+            onClick={() => {
+              setFile(null);
+              setFileProblem(null);
+            }}
             disabled={pending}
             aria-label={`Quitar ${file.name}`}
             className="flex size-7 items-center justify-center rounded-[8px] text-muted hover:bg-white hover:text-ink disabled:opacity-40"
@@ -344,6 +348,7 @@ export function MessageComposer({
           value={draft}
           onChange={(e) => {
             setDraft(e.target.value);
+            setFileProblem(null);
             if (e.target.value.trim()) onTyping?.();
           }}
           onKeyDown={onKeyDown}

@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { getAttachmentUrl } from '../api/chatApi';
 import { attachmentKind, formatSize, isImage } from '../lib/attachments';
 import type { ChatAttachment } from '../types/chat';
@@ -34,7 +34,31 @@ const attachmentKey = (conversationId: string, messageId: string) =>
 export function MessageAttachment({ conversationId, messageId, attachment, mine }: Props) {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [blockedUrl, setBlockedUrl] = useState<string | null>(null);
+  // La miniatura que no carga se reintenta una sola vez (la URL pudo vencer);
+  // si vuelve a fallar se muestra la tarjeta, sin entrar en un bucle de pedidos.
+  const retried = useRef(false);
+  const [broken, setBroken] = useState(false);
+  // La URL firmada se pide recién cuando la foto está por verse.
+  const holder = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(typeof IntersectionObserver === 'undefined');
   const image = isImage(attachment);
+
+  useEffect(() => {
+    const node = holder.current;
+    if (!image || visible || !node || typeof IntersectionObserver === 'undefined') return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '200px' },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [image, visible]);
   const query = {
     queryKey: attachmentKey(conversationId, messageId),
     queryFn: () => getAttachmentUrl(conversationId, messageId),
@@ -42,10 +66,11 @@ export function MessageAttachment({ conversationId, messageId, attachment, mine 
     gcTime: URL_FRESH_MS,
   };
   // Solo las fotos piden la URL al dibujarse, para la miniatura. Un PDF, al tocarlo.
-  const preview = useQuery({ ...query, enabled: image, retry: false });
+  const preview = useQuery({ ...query, enabled: image && visible && !broken, retry: false });
 
   async function open() {
     setError(null);
+    setBlockedUrl(null);
     // La pestaña se abre en el mismo clic, antes de esperar la URL: abierta
     // después de un `await`, el navegador la toma como popup y la bloquea.
     const tab = window.open('', '_blank');
@@ -55,7 +80,8 @@ export function MessageAttachment({ conversationId, messageId, attachment, mine 
         tab.opener = null;
         tab.location.href = url;
       } else {
-        window.location.assign(url);
+        // Popup bloqueado: no se navega la página (se perdería el borrador).
+        setBlockedUrl(url);
       }
     } catch (err) {
       tab?.close();
@@ -66,8 +92,8 @@ export function MessageAttachment({ conversationId, messageId, attachment, mine 
   const label = `Abrir ${attachmentKind(attachment).toLowerCase()} (${formatSize(attachment.tamano)})`;
 
   return (
-    <div className="grid gap-1">
-      {image && preview.data ? (
+    <div ref={holder} className="grid gap-1">
+      {image && preview.data && !broken ? (
         <button
           type="button"
           onClick={() => void open()}
@@ -77,8 +103,18 @@ export function MessageAttachment({ conversationId, messageId, attachment, mine 
           <img
             src={preview.data.url}
             alt=""
+            loading="lazy"
+            decoding="async"
             className="max-h-[260px] w-auto max-w-full object-cover"
-            onError={() => void preview.refetch()}
+            onError={() => {
+              if (retried.current) {
+                setBroken(true);
+                setError('No pudimos cargar la imagen.');
+              } else {
+                retried.current = true;
+                void preview.refetch();
+              }
+            }}
           />
         </button>
       ) : (
@@ -96,7 +132,7 @@ export function MessageAttachment({ conversationId, messageId, attachment, mine 
               mine ? 'bg-white/15 text-white' : 'bg-white text-brand-deep'
             }`}
           >
-            {image ? (preview.isPending ? '…' : 'IMG') : 'PDF'}
+            {image ? (preview.isPending && !broken ? '…' : 'IMG') : 'PDF'}
           </span>
           <span className="min-w-0">
             <span className="block text-[13px] font-bold">{attachmentKind(attachment)}</span>
@@ -105,6 +141,14 @@ export function MessageAttachment({ conversationId, messageId, attachment, mine 
             </span>
           </span>
         </button>
+      )}
+      {blockedUrl && (
+        <p role="alert" className={`text-[12px] ${mine ? 'text-white' : 'text-ink'}`}>
+          Tu navegador bloqueó la ventana.{' '}
+          <a href={blockedUrl} target="_blank" rel="noopener noreferrer" className="underline">
+            Abrir el archivo
+          </a>
+        </p>
       )}
       {error && (
         <p role="alert" className={`text-[12px] ${mine ? 'text-white' : 'text-danger'}`}>

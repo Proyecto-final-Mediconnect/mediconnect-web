@@ -139,6 +139,7 @@ export function ConversationView({ conversationId, counterpart, myId }: Props) {
         bodyRef={bodyRef}
         composer={
           <MessageComposer
+            key={conversationId}
             counterpartName={counterpart.nombre}
             pending={send.isPending || sendFile.isPending}
             error={send.error ?? sendFile.error}

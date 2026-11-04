@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
@@ -610,6 +610,43 @@ describe('MessagesPage (ENG-70)', () => {
 
       await waitFor(() => expect(tab.location.href).toBe('https://storage.test/m-5'));
       expect(tab.opener).toBeNull();
+    });
+
+    it('una miniatura que no carga se reintenta una vez y después muestra la tarjeta con el error', async () => {
+      const { calls } = fakeBackend({
+        extra: [{ ...message('m-5', PRO, ''), adjunto: { tipo: 'image/jpeg', tamano: 1024 } }],
+      });
+      renderAt(`/mensajes/${CONV}`);
+
+      const foto = await screen.findByRole('button', { name: /Abrir foto/ });
+      const pedidos = () => calls.filter((c) => c.url.endsWith('/attachment')).length;
+      await waitFor(() => expect(within(foto).getByRole('presentation')).toBeInTheDocument());
+      expect(pedidos()).toBe(1);
+
+      fireEvent.error(within(foto).getByRole('presentation'));
+      await waitFor(() => expect(pedidos()).toBe(2));
+      fireEvent.error(await within(foto).findByRole('presentation'));
+
+      expect(await screen.findByText('No pudimos cargar la imagen.')).toBeInTheDocument();
+      expect(document.querySelector('img[src^="https://storage.test"]')).toBeNull();
+      await new Promise((r) => setTimeout(r, 50));
+      expect(pedidos()).toBe(2);
+    });
+
+    it('el aviso de un archivo inválido se va al escribir', async () => {
+      const user = userEvent.setup({ applyAccept: false });
+      fakeBackend();
+      renderAt(`/mensajes/${CONV}`);
+
+      const box = await screen.findByLabelText('Mensaje para Ana García');
+      await user.upload(
+        screen.getByLabelText('Elegir un archivo'),
+        new File(['GIF89a'], 'meme.gif', { type: 'image/gif' }),
+      );
+      expect(screen.getByRole('alert')).toBeInTheDocument();
+      await user.type(box, 'a');
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     });
   });
 });
