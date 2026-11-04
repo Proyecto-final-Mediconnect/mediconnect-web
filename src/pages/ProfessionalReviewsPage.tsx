@@ -69,7 +69,7 @@ export function ProfessionalReviewsPage() {
                   <span className="text-[13px] text-muted">
                     {rating.count} {rating.count === 1 ? 'reseña publicada' : 'reseñas publicadas'}
                     {sinResponder > 0 &&
-                      ` · ${sinResponder} sin responder${resenas.hasNextPage ? ' en esta página' : ''}`}
+                      ` · ${sinResponder} sin responder${resenas.hasNextPage ? ' de las cargadas' : ''}`}
                   </span>
                 </span>
               </section>
@@ -154,25 +154,27 @@ function ReviewCard({ review }: { review: PublicReview }) {
         </div>
       )}
 
-      <ConfirmDialog
-        open={borrando}
-        titulo="¿Borrar tu respuesta?"
-        confirmar="Borrar respuesta"
-        destructivo
-        pendiente={borrar.isPending}
-        onConfirm={() => borrar.mutate(undefined, { onSuccess: () => setBorrando(false) })}
-        onCancel={() => {
-          setBorrando(false);
-          borrar.reset();
-        }}
-      >
-        <p>Deja de verse en tu perfil público. La reseña de {review.author} sigue publicada.</p>
-        {borrar.isError && (
-          <p role="alert" className="mt-2 text-danger">
-            {borrar.error.message}
-          </p>
-        )}
-      </ConfirmDialog>
+      {borrando && (
+        <ConfirmDialog
+          open
+          titulo="¿Borrar tu respuesta?"
+          confirmar="Borrar respuesta"
+          destructivo
+          pendiente={borrar.isPending}
+          onConfirm={() => borrar.mutate(undefined, { onSuccess: () => setBorrando(false) })}
+          onCancel={() => {
+            setBorrando(false);
+            borrar.reset();
+          }}
+        >
+          <p>Deja de verse en tu perfil público. La reseña de {review.author} sigue publicada.</p>
+          {borrar.isError && (
+            <p role="alert" className="mt-2 text-danger">
+              {borrar.error.message}
+            </p>
+          )}
+        </ConfirmDialog>
+      )}
     </li>
   );
 }
@@ -192,6 +194,7 @@ function ResponseEditor({
   const guardar = useSaveReviewResponse(reviewId);
   const limpio = texto.trim();
   const id = `respuesta-${reviewId}`;
+  const avisoId = `${id}-aviso`;
 
   return (
     <form
@@ -214,9 +217,13 @@ function ResponseEditor({
         maxLength={RESPONSE_MAX_LENGTH}
         rows={4}
         autoFocus
+        aria-describedby={avisoId}
         placeholder="Agradecé, aclará algo o contá cómo lo vas a mejorar. Se publica con tu nombre."
         className="w-full resize-y rounded-[10px] border border-line-strong px-3.5 py-2.5 text-[14px] leading-[1.5] text-ink focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/30"
       />
+      <p id={avisoId} className="text-[12px] text-muted">
+        No incluyas datos de salud ni información que identifique al paciente.
+      </p>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span className="text-[12px] text-muted">
           {limpio.length} / {RESPONSE_MAX_LENGTH} · Se publica en tu perfil apenas la guardás.

@@ -157,6 +157,21 @@ describe('Mis reseñas (ENG-106)', () => {
     expect(campo).toHaveValue('Una respuesta');
   });
 
+  it('el editor avisa que no hay que incluir datos de salud ni del paciente', async () => {
+    const user = userEvent.setup();
+    fakeBackend();
+    renderPage();
+
+    const tarjeta = (await screen.findByText('Julián S.')).closest('li')!;
+    await user.click(within(tarjeta).getByRole('button', { name: 'Responder' }));
+
+    expect(
+      within(tarjeta).getByText(
+        'No incluyas datos de salud ni información que identifique al paciente.',
+      ),
+    ).toBeVisible();
+  });
+
   it('edita la respuesta que ya tenía, con el texto cargado', async () => {
     const user = userEvent.setup();
     fakeBackend();
