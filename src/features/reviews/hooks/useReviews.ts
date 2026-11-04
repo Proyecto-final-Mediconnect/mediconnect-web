@@ -2,10 +2,13 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { isClientError } from '../../../shared/api/apiError';
 import {
   createReview,
+  deleteReviewResponse,
   getModerationQueue,
+  getReceivedReviews,
   getMyReviews,
   getProfessionalReviews,
   moderateReview,
+  saveReviewResponse,
 } from '../api/reviewsApi';
 import type { ModerationDecision, NewReview, ReviewStatus } from '../types';
 
@@ -63,5 +66,47 @@ export function useModerateReview() {
     retry: false,
     // También si falla: si otro moderador ya la decidió, la lista queda al día.
     onSettled: () => queryClient.invalidateQueries({ queryKey: ['reviews', 'moderation'] }),
+  });
+}
+
+const RECEIVED = ['reviews', 'received'] as const;
+
+/** Las reseñas que recibió el profesional, de a páginas (ENG-106). */
+export function useReceivedReviews() {
+  return useInfiniteQuery({
+    queryKey: RECEIVED,
+    queryFn: ({ pageParam }) => getReceivedReviews(pageParam),
+    initialPageParam: 1,
+    getNextPageParam: (ultima) => (ultima.hasMore ? ultima.page + 1 : undefined),
+    retry: retryServerErrorsOnly,
+  });
+}
+
+/**
+ * Guardar o borrar una respuesta refresca las recibidas y también el perfil
+ * público, donde la respuesta se ve.
+ */
+function useInvalidateResponses() {
+  const queryClient = useQueryClient();
+  return () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: RECEIVED }),
+      queryClient.invalidateQueries({ queryKey: ['reviews', 'professional'] }),
+    ]);
+}
+
+export function useSaveReviewResponse(reviewId: string) {
+  const invalidate = useInvalidateResponses();
+  return useMutation({
+    mutationFn: (content: string) => saveReviewResponse(reviewId, content),
+    onSuccess: invalidate,
+  });
+}
+
+export function useDeleteReviewResponse(reviewId: string) {
+  const invalidate = useInvalidateResponses();
+  return useMutation({
+    mutationFn: () => deleteReviewResponse(reviewId),
+    onSuccess: invalidate,
   });
 }

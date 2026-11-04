@@ -65,3 +65,10 @@ export interface ModerationDecision {
   decision: 'APROBADA' | 'RECHAZADA';
   reason?: string;
 }
+
+/** La respuesta pública de un profesional a una reseña (ENG-106). */
+export interface ReviewResponse {
+  reviewId: string;
+  content: string;
+  createdAt: string;
+}
