@@ -115,8 +115,12 @@ function json(body: unknown, status = 200): Response {
 let readEverything: (author: string) => void = () => {};
 
 /** Un backend falso con estado: lo enviado queda guardado y la marca de leído se aplica. */
-function fakeBackend(options: { failSend?: boolean } = {}) {
-  const messages = [message('m-1', ME, 'Hola, doctora'), message('m-2', PRO, 'Hola, Julián')];
+function fakeBackend(options: { failSend?: boolean; extra?: ChatMessage[] } = {}) {
+  const messages: ChatMessage[] = [
+    message('m-1', ME, 'Hola, doctora'),
+    message('m-2', PRO, 'Hola, Julián'),
+    ...(options.extra ?? []),
+  ];
   const calls: { method: string; url: string; body?: unknown }[] = [];
   readEverything = (author) => {
     for (const m of messages) if (m.autorId === author) m.leidoEl ??= new Date().toISOString();
@@ -125,7 +129,14 @@ function fakeBackend(options: { failSend?: boolean } = {}) {
   const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
     const url = String(input);
     const method = init?.method ?? 'GET';
-    calls.push({ method, url, body: init?.body ? JSON.parse(String(init.body)) : undefined });
+    // Un archivo viaja como multipart (ENG-102): el `FormData` se guarda tal cual.
+    const body =
+      init?.body instanceof FormData
+        ? init.body
+        : init?.body
+          ? JSON.parse(String(init.body))
+          : undefined;
+    calls.push({ method, url, body });
 
     if (url.endsWith('/conversations/me')) return Promise.resolve(json(inbox()));
     if (method === 'POST' && url.endsWith('/conversations')) {
@@ -148,6 +159,22 @@ function fakeBackend(options: { failSend?: boolean } = {}) {
       const sent = message('m-3', ME, (calls.at(-1)!.body as { contenido: string }).contenido);
       messages.push(sent);
       return Promise.resolve(json(sent, 201));
+    }
+    if (method === 'POST' && url.endsWith(`/conversations/${CONV}/attachments`)) {
+      const form = body as FormData;
+      const file = form.get('file') as File;
+      const sent: ChatMessage = {
+        ...message('m-4', ME, String(form.get('contenido') ?? '')),
+        adjunto: { tipo: file.type, tamano: file.size },
+      };
+      messages.push(sent);
+      return Promise.resolve(json(sent, 201));
+    }
+    if (url.endsWith('/attachment')) {
+      const id = url.split('/messages/')[1]!.split('/')[0];
+      return Promise.resolve(
+        json({ url: `https://storage.test/${id}`, expiraEl: '2099-01-01T00:00:00.000Z' }),
+      );
     }
     if (url.includes(`/conversations/${CONV}/messages`)) {
       return Promise.resolve(json({ mensajes: structuredClone(messages), hayMas: false }));
@@ -504,5 +531,85 @@ describe('MessagesPage (ENG-70)', () => {
     renderAt('/mensajes/otra');
 
     expect(await screen.findByText('Esa conversación no existe o no es tuya.')).toBeInTheDocument();
+  });
+
+  describe('Archivos en el chat (ENG-102)', () => {
+    const pdf = () => new File(['%PDF-1.7 estudio'], 'estudio.pdf', { type: 'application/pdf' });
+
+    it('adjunta un PDF con un comentario: se manda junto y el borrador queda limpio', async () => {
+      const user = userEvent.setup();
+      const { calls } = fakeBackend();
+      renderAt(`/mensajes/${CONV}`);
+
+      const box = await screen.findByLabelText('Mensaje para Ana García');
+      await user.upload(screen.getByLabelText('Elegir un archivo'), pdf());
+      expect(screen.getByText('estudio.pdf')).toBeInTheDocument();
+      await user.type(box, 'El laboratorio de ayer{Enter}');
+
+      expect(await screen.findByRole('button', { name: /Abrir pdf/ })).toBeInTheDocument();
+      expect(screen.getByText('El laboratorio de ayer')).toBeInTheDocument();
+      expect(box).toHaveValue('');
+      expect(screen.queryByText('estudio.pdf')).not.toBeInTheDocument();
+      const upload = calls.find((c) => c.url.endsWith('/attachments'))!;
+      expect((upload.body as FormData).get('contenido')).toBe('El laboratorio de ayer');
+      expect(((upload.body as FormData).get('file') as File).name).toBe('estudio.pdf');
+    });
+
+    it('un archivo solo, sin texto, también se puede mandar', async () => {
+      const user = userEvent.setup();
+      const { calls } = fakeBackend();
+      renderAt(`/mensajes/${CONV}`);
+
+      await screen.findByLabelText('Mensaje para Ana García');
+      await user.upload(screen.getByLabelText('Elegir un archivo'), pdf());
+      await user.click(screen.getByRole('button', { name: 'Enviar mensaje' }));
+
+      expect(await screen.findByRole('button', { name: /Abrir pdf/ })).toBeInTheDocument();
+      const upload = calls.find((c) => c.url.endsWith('/attachments'))!;
+      expect((upload.body as FormData).has('contenido')).toBe(false);
+    });
+
+    it('un tipo no aceptado avisa y no se sube', async () => {
+      const user = userEvent.setup({ applyAccept: false });
+      const { calls } = fakeBackend();
+      renderAt(`/mensajes/${CONV}`);
+
+      await screen.findByLabelText('Mensaje para Ana García');
+      await user.upload(
+        screen.getByLabelText('Elegir un archivo'),
+        new File(['GIF89a'], 'meme.gif', { type: 'image/gif' }),
+      );
+
+      expect(screen.getByRole('alert')).toHaveTextContent('Solo se pueden mandar PDF, JPG o PNG.');
+      expect(screen.queryByText('meme.gif')).not.toBeInTheDocument();
+      expect(calls.some((c) => c.url.endsWith('/attachments'))).toBe(false);
+    });
+
+    it('una foto se ve en miniatura y al tocarla se abre entera en otra pestaña', async () => {
+      const user = userEvent.setup();
+      const tab = { opener: {} as unknown, location: { href: '' }, close: vi.fn() };
+      vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window);
+      fakeBackend({
+        extra: [
+          {
+            ...message('m-5', PRO, ''),
+            adjunto: { tipo: 'image/jpeg', tamano: 340 * 1024 },
+          },
+        ],
+      });
+      renderAt(`/mensajes/${CONV}`);
+
+      const foto = await screen.findByRole('button', { name: 'Abrir foto (340 KB)' });
+      await waitFor(() =>
+        expect(within(foto).getByRole('presentation')).toHaveAttribute(
+          'src',
+          'https://storage.test/m-5',
+        ),
+      );
+      await user.click(foto);
+
+      await waitFor(() => expect(tab.location.href).toBe('https://storage.test/m-5'));
+      expect(tab.opener).toBeNull();
+    });
   });
 });

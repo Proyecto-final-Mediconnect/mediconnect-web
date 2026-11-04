@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { messagePreview } from '../lib/attachments';
 import { formatInboxTime } from '../lib/format';
 import type { ConversationInbox } from '../types/chat';
 import { Avatar } from './ChatFrame';
@@ -120,7 +121,7 @@ export function ConversationList({ inbox, selectedId, myId, onNewChat }: Props) 
                         className={`min-w-0 truncate text-[13px] ${unread ? 'font-semibold text-ink' : 'text-[#475569]'}`}
                       >
                         {last
-                          ? `${last.autorId === myId ? 'Vos: ' : ''}${last.contenido}`
+                          ? `${last.autorId === myId ? 'Vos: ' : ''}${messagePreview(last)}`
                           : 'Sin mensajes todavía'}
                       </span>
                       {c.noLeidos > 0 && (

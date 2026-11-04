@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { Link } from 'react-router-dom';
 import type { Appointment } from '../../appointments/types/appointment';
+import { ACCEPT_ATTRIBUTE, attachmentProblem, formatSize } from '../lib/attachments';
 import { initialsOf } from '../lib/format';
 import type { ChatCounterpart } from '../types/chat';
 
@@ -201,6 +202,11 @@ type ComposerProps = {
   onSend: (content: string, onSent: () => void) => void;
   /** Se llama mientras hay texto escrito, para el "está escribiendo…" de la otra persona. */
   onTyping?: () => void;
+  /**
+   * Manda un archivo con el texto escrito como comentario (ENG-102). Sin esto
+   * no hay botón de adjuntar: el borrador de un chat nuevo arranca con texto.
+   */
+  onAttach?: (file: File, content: string, onSent: () => void) => void;
 };
 
 /**
@@ -216,11 +222,16 @@ export function MessageComposer({
   error,
   onSend,
   onTyping,
+  onAttach,
 }: ComposerProps) {
   const [draft, setDraft] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [fileProblem, setFileProblem] = useState<string | null>(null);
   const fieldRef = useRef<HTMLTextAreaElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const content = draft.trim();
-  const canSend = content.length > 0 && content.length <= MESSAGE_MAX_LENGTH && !pending;
+  const canSend =
+    (content.length > 0 || file !== null) && content.length <= MESSAGE_MAX_LENGTH && !pending;
   const firstName = counterpartName.split(' ')[0];
 
   // Alto según el contenido: se resetea y se mide el `scrollHeight`, con tope.
@@ -233,7 +244,26 @@ export function MessageComposer({
 
   function submit(event?: FormEvent) {
     event?.preventDefault();
-    if (canSend) onSend(content, () => setDraft(''));
+    if (!canSend) return;
+    if (file && onAttach) {
+      onAttach(file, content, () => {
+        setDraft('');
+        setFile(null);
+      });
+    } else {
+      onSend(content, () => setDraft(''));
+    }
+  }
+
+  function pick(picked: File | undefined) {
+    // Se vacía el input: elegir el mismo archivo dos veces seguidas tiene que
+    // volver a disparar el `change`.
+    if (fileRef.current) fileRef.current.value = '';
+    if (!picked) return;
+    const problem = attachmentProblem(picked);
+    setFileProblem(problem);
+    setFile(problem ? null : picked);
+    fieldRef.current?.focus();
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -248,12 +278,62 @@ export function MessageComposer({
       onSubmit={submit}
       className="grid gap-1.5 border-t border-line bg-white px-3 pb-3 pt-2.5 sm:px-5"
     >
-      {error && (
+      {(fileProblem ?? error) && (
         <p role="alert" className="text-[13px] text-danger">
-          {error.message}
+          {fileProblem ?? error?.message}
         </p>
       )}
+      {file && (
+        <div className="flex items-center gap-2 self-start rounded-[10px] border border-line bg-surface py-1.5 pl-3 pr-1.5 text-[13px]">
+          <span aria-hidden="true">📎</span>
+          <span className="max-w-[220px] truncate font-semibold text-ink">{file.name}</span>
+          <span className="text-muted">{formatSize(file.size)}</span>
+          <button
+            type="button"
+            onClick={() => setFile(null)}
+            disabled={pending}
+            aria-label={`Quitar ${file.name}`}
+            className="flex size-7 items-center justify-center rounded-[8px] text-muted hover:bg-white hover:text-ink disabled:opacity-40"
+          >
+            ✕
+          </button>
+        </div>
+      )}
       <div className="flex items-end gap-2 rounded-[14px] border border-line-strong py-1.5 pl-3.5 pr-1.5 focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/30">
+        {onAttach && (
+          <>
+            <input
+              ref={fileRef}
+              type="file"
+              accept={ACCEPT_ATTRIBUTE}
+              className="sr-only"
+              tabIndex={-1}
+              aria-label="Elegir un archivo"
+              onChange={(e) => pick(e.target.files?.[0])}
+            />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={pending}
+              aria-label="Adjuntar una foto o un PDF"
+              title="Adjuntar una foto o un PDF (hasta 10 MB)"
+              className="-ml-1.5 flex size-10 flex-none items-center justify-center self-center rounded-[10px] text-muted transition-colors hover:bg-surface hover:text-brand-deep disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              <svg
+                aria-hidden="true"
+                viewBox="0 0 24 24"
+                className="size-5"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="m21 11.5-8.6 8.6a5.5 5.5 0 0 1-7.8-7.8l8.6-8.6a3.7 3.7 0 0 1 5.2 5.2l-8.6 8.6a1.8 1.8 0 0 1-2.6-2.6l7.9-7.9" />
+              </svg>
+            </button>
+          </>
+        )}
         <label htmlFor="chat-borrador" className="sr-only">
           Mensaje para {counterpartName}
         </label>
@@ -268,7 +348,7 @@ export function MessageComposer({
           }}
           onKeyDown={onKeyDown}
           maxLength={MESSAGE_MAX_LENGTH}
-          placeholder={`Escribile a ${firstName}…`}
+          placeholder={file ? 'Agregá un comentario (opcional)…' : `Escribile a ${firstName}…`}
           className="max-h-[132px] min-h-[32px] flex-1 resize-none bg-transparent py-2 text-[14px] leading-[1.45] text-ink focus:outline-none"
         />
         <button
