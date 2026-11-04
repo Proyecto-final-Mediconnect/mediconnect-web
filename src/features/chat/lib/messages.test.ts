@@ -51,6 +51,22 @@ describe('fromRow', () => {
       contenido: 'Hola',
       enviadoEl: '2026-10-26T18:17:07.568Z',
       leidoEl: null,
+      adjunto: null,
     });
+  });
+
+  it('trae el archivo de la fila: un mensaje solo con una foto llega por Realtime igual (ENG-102)', () => {
+    expect(
+      fromRow({
+        id: 'm-2',
+        conversation_id: 'c-1',
+        sender_id: 'u-1',
+        content: null,
+        attachment_mime: 'image/png',
+        attachment_size: 2048,
+        created_at: '2026-10-26 18:17:07.568+00',
+        read_at: null,
+      }),
+    ).toMatchObject({ contenido: '', adjunto: { tipo: 'image/png', tamano: 2048 } });
   });
 });

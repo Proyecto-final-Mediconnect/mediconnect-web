@@ -9,15 +9,32 @@ export interface ChatCounterpart {
   rol: ChatRole;
 }
 
+/** El archivo de un mensaje (ENG-102). El archivo se abre con una URL firmada que se pide aparte. */
+export interface ChatAttachment {
+  /** `application/pdf`, `image/jpeg` o `image/png`. */
+  tipo: string;
+  /** En bytes. */
+  tamano: number;
+}
+
 export interface ChatMessage {
   id: string;
   conversacionId: string;
   autorId: string;
+  /** Vacío si el mensaje es solo un archivo. */
   contenido: string;
   /** ISO-8601. */
   enviadoEl: string;
   /** ISO-8601, o `null` si la otra persona todavía no lo leyó. */
   leidoEl: string | null;
+  /** Opcional: un backend anterior a ENG-102 no lo manda. */
+  adjunto?: ChatAttachment | null;
+}
+
+/** `GET /conversations/:id/messages/:messageId/attachment`. */
+export interface AttachmentUrl {
+  url: string;
+  expiraEl: string;
 }
 
 export interface ConversationSummary {
