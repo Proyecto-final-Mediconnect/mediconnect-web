@@ -138,9 +138,7 @@ describe('VideoConsultation', () => {
   it('muestra el mensaje del backend cuando todavía no es la hora', async () => {
     // El error de negocio es la explicación correcta para el usuario: no hay que
     // reemplazarlo por un "algo salió mal".
-    mockVideo(() =>
-      jsonResponse({ message: 'La sala se abre 10 minutos antes del turno.' }, 409),
-    );
+    mockVideo(() => jsonResponse({ message: 'La sala se abre 10 minutos antes del turno.' }, 409));
 
     renderComponent();
 
@@ -273,9 +271,10 @@ describe('VideoConsultation', () => {
 
       await user.click(ver);
 
-      expect(
-        screen.getByRole('button', { name: /ocultar transcripción/i }),
-      ).toHaveAttribute('aria-expanded', 'true');
+      expect(screen.getByRole('button', { name: /ocultar transcripción/i })).toHaveAttribute(
+        'aria-expanded',
+        'true',
+      );
     });
   });
 

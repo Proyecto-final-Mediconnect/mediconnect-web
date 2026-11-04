@@ -56,9 +56,7 @@ export function joinWindowFor(appointment: Appointment): JoinWindow {
 
   return {
     opensAt: new Date(start - JOIN_OPENS_MINUTES_BEFORE * 60_000),
-    closesAt: new Date(
-      start + (appointment.durationMinutes + JOIN_GRACE_MINUTES_AFTER) * 60_000,
-    ),
+    closesAt: new Date(start + (appointment.durationMinutes + JOIN_GRACE_MINUTES_AFTER) * 60_000),
   };
 }
 
@@ -115,9 +113,7 @@ export function firstJoinable(
 ): Appointment | null {
   const abiertos = appointments
     .filter((appointment) => canJoin(appointment, now))
-    .sort(
-      (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
-    );
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
   return abiertos[0] ?? null;
 }

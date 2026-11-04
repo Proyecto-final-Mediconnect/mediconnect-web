@@ -3,6 +3,7 @@ import { toApiError } from '../../../shared/api/apiError';
 import type {
   MeetingSession,
   SpikeRoom,
+  TestRoom,
   VideoConsultationAccess,
 } from '../types/dailyRoom';
 
@@ -68,14 +69,27 @@ export async function deleteSpikeRoom(roomName: string): Promise<void> {
 export async function joinVideoConsultation(
   appointmentId: string,
 ): Promise<VideoConsultationAccess> {
-  const response = await apiFetch(
-    `/appointments/${encodeURIComponent(appointmentId)}/video`,
-    { method: 'POST' },
-  );
+  const response = await apiFetch(`/appointments/${encodeURIComponent(appointmentId)}/video`, {
+    method: 'POST',
+  });
 
   if (!response.ok) {
     throw await toApiError(response, 'No se pudo abrir la videoconsulta.');
   }
 
   return (await response.json()) as VideoConsultationAccess;
+}
+
+/**
+ * Crea la sala de prueba de cámara y micrófono: una sala de Daily para una sola
+ * persona, que se puede abrir en cualquier momento, sin turno.
+ */
+export async function createTestRoom(): Promise<TestRoom> {
+  const response = await apiFetch('/video/test-room', { method: 'POST' });
+
+  if (!response.ok) {
+    throw await toApiError(response, 'No pudimos preparar la prueba. Intentá de nuevo.');
+  }
+
+  return (await response.json()) as TestRoom;
 }
