@@ -63,15 +63,23 @@ async function notifyIfLegalNotAccepted(response: Response): Promise<void> {
  * rotativo y reintenta el request original. Si la renovación falla, devuelve
  * el 401 para que el llamador trate al usuario como deslogueado.
  *
+ * Con `refreshOn401: false` el 401 se devuelve tal cual, sin renovar ni
+ * reintentar: para rutas donde un 401 puede ser un código equivocado y no una
+ * sesión vencida.
+ *
  * Un 403 `LEGAL_NOT_ACCEPTED` avisa además al handler de
  * {@link onLegalNotAccepted}, y la respuesta le llega igual al llamador.
  */
-export async function apiFetch(path: string, init: RequestInit = {}): Promise<Response> {
+export async function apiFetch(
+  path: string,
+  init: RequestInit = {},
+  { refreshOn401 = true }: { refreshOn401?: boolean } = {},
+): Promise<Response> {
   const url = `${API_BASE_URL}${path}`;
   const options: RequestInit = { ...init, credentials: 'include' };
 
   let response = await fetch(url, options);
-  if (response.status === 401 && (await refreshSession())) {
+  if (refreshOn401 && response.status === 401 && (await refreshSession())) {
     response = await fetch(url, options);
   }
 

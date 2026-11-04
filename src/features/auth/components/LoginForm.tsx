@@ -57,8 +57,10 @@ export function LoginForm() {
     // manipula tokens (mitiga robo vía XSS).
     mutate(result.data, {
       onSuccess: (data) => {
-        if (data.mfaRequired) setPideCodigo(true);
-        else void redirectAfterLogin();
+        if (data.mfaRequired) {
+          setPassword('');
+          setPideCodigo(true);
+        } else void redirectAfterLogin();
       },
     });
   }

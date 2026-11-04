@@ -1,5 +1,5 @@
 import { apiFetch } from '../../../shared/api/apiFetch';
-import { toApiError } from '../../../shared/api/apiError';
+import { toApiError, type ApiError } from '../../../shared/api/apiError';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
@@ -11,6 +11,15 @@ export interface MfaEnrollment {
   qr: string;
   /** La clave para cargar a mano si no se puede escanear. */
   secret: string;
+}
+
+const SIN_REFRESH = { refreshOn401: false } as const;
+const DEMASIADOS_INTENTOS = 'Demasiados intentos. Esperá un momento y volvé a probar.';
+
+/** Igual que `toApiError`, pero un 429 (bloqueo por intentos) siempre dice lo mismo. */
+async function toMfaError(response: Response, fallback: string): Promise<ApiError> {
+  const error = await toApiError(response, fallback);
+  return response.status === 429 ? Object.assign(error, { message: DEMASIADOS_INTENTOS }) : error;
 }
 
 /**
@@ -27,7 +36,7 @@ export async function verifyLoginCode(code: string): Promise<void> {
     credentials: 'include',
     body: JSON.stringify({ code }),
   });
-  if (!response.ok) throw await toApiError(response, 'No pudimos verificar el código.');
+  if (!response.ok) throw await toMfaError(response, 'No pudimos verificar el código.');
 }
 
 export async function getMfaStatus(): Promise<{ activa: boolean }> {
@@ -40,23 +49,36 @@ export async function getMfaStatus(): Promise<{ activa: boolean }> {
 export async function startMfaEnrollment(): Promise<MfaEnrollment> {
   const response = await apiFetch('/me/mfa/enroll', { method: 'POST' });
   if (!response.ok) throw await toApiError(response, 'No pudimos empezar la activación.');
-  return (await response.json()) as MfaEnrollment;
+  const alta = (await response.json()) as MfaEnrollment;
+  // El QR va a un `<img src>`: solo se acepta una imagen SVG en data URI.
+  if (typeof alta.qr !== 'string' || !alta.qr.startsWith('data:image/svg+xml')) {
+    throw new Error('No pudimos mostrar el código QR. Probá de nuevo.');
+  }
+  return alta;
 }
 
 export async function confirmMfaEnrollment(factorId: string, code: string): Promise<void> {
-  const response = await apiFetch('/me/mfa/enroll/verify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ factorId, code }),
-  });
-  if (!response.ok) throw await toApiError(response, 'No pudimos activar la verificación.');
+  const response = await apiFetch(
+    '/me/mfa/enroll/verify',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ factorId, code }),
+    },
+    SIN_REFRESH,
+  );
+  if (!response.ok) throw await toMfaError(response, 'No pudimos activar la verificación.');
 }
 
 export async function disableMfa(code: string): Promise<void> {
-  const response = await apiFetch('/me/mfa/disable', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ code }),
-  });
-  if (!response.ok) throw await toApiError(response, 'No pudimos desactivar la verificación.');
+  const response = await apiFetch(
+    '/me/mfa/disable',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code }),
+    },
+    SIN_REFRESH,
+  );
+  if (!response.ok) throw await toMfaError(response, 'No pudimos desactivar la verificación.');
 }

@@ -186,3 +186,73 @@ describe('Activar y desactivar la verificación en dos pasos', () => {
     );
   });
 });
+
+describe('Errores de las rutas de código (ENG-88)', () => {
+  it('un 429 al verificar el ingreso avisa que esperen', async () => {
+    mockFetch((url) =>
+      url.endsWith('/auth/login')
+        ? json({ user: { id: 'u-1', email: 'ana@test.com' }, mfaRequired: true })
+        : json({ message: 'Too Many Requests' }, 429),
+    );
+    renderUi(<LoginForm />);
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText('Email'), 'ana@test.com');
+    await user.type(screen.getByLabelText('Contraseña'), 'Password1');
+    await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+    await user.type(await screen.findByLabelText('Código'), '000000');
+    await user.click(screen.getByRole('button', { name: 'Verificar e ingresar' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Demasiados intentos');
+  });
+
+  it('desactivar con código incorrecto (401) no renueva la sesión ni reintenta', async () => {
+    const calls = mockFetch((url) =>
+      url.endsWith('/me/mfa/disable')
+        ? json({ message: 'El código no es válido.' }, 401)
+        : json({ activa: true }),
+    );
+    renderUi(<TwoStepVerification />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Desactivar' }));
+    await user.type(screen.getByLabelText(/escribí el código de la app/), '111111');
+    await user.click(screen.getByRole('button', { name: 'Desactivar' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('El código no es válido.');
+    expect(calls.filter((c) => c.url.endsWith('/auth/refresh'))).toHaveLength(0);
+    expect(calls.filter((c) => c.url.endsWith('/me/mfa/disable'))).toHaveLength(1);
+  });
+
+  it('desactivar con 429 avisa que esperen', async () => {
+    mockFetch((url) =>
+      url.endsWith('/me/mfa/disable')
+        ? json({ message: 'ThrottlerException' }, 429)
+        : json({ activa: true }),
+    );
+    renderUi(<TwoStepVerification />);
+    const user = userEvent.setup();
+
+    await user.click(await screen.findByRole('button', { name: 'Desactivar' }));
+    await user.type(screen.getByLabelText(/escribí el código de la app/), '111111');
+    await user.click(screen.getByRole('button', { name: 'Desactivar' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Demasiados intentos');
+  });
+
+  it('rechaza un QR que no sea una imagen SVG en data URI', async () => {
+    mockFetch((url) =>
+      url.endsWith('/me/mfa/enroll')
+        ? json({ factorId: 'f-1', qr: 'https://evil.test/x.png', secret: 'S' })
+        : json({ activa: false }),
+    );
+    renderUi(<TwoStepVerification />);
+    const user = userEvent.setup();
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Activar verificación en dos pasos' }),
+    );
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No pudimos mostrar el código QR');
+    expect(screen.queryByAltText('Código QR para la app autenticadora')).toBeNull();
+  });
+});

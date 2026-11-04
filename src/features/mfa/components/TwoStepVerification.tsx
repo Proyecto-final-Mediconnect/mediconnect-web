@@ -41,6 +41,7 @@ export function TwoStepVerification() {
       confirmMfaEnrollment(factorId, code),
     onSuccess: async () => {
       setAlta(null);
+      empezar.reset(); // que el secreto y el QR no queden en el cache
       setCodigo('');
       await refrescar();
     },
@@ -137,6 +138,7 @@ export function TwoStepVerification() {
               disabled={confirmar.isPending}
               onClick={() => {
                 setAlta(null);
+                empezar.reset();
                 setCodigo('');
                 confirmar.reset();
               }}
