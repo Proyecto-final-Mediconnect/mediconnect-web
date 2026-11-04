@@ -98,7 +98,7 @@ export function ActiveAccesses() {
                   {acceso.consultante}
                 </span>
                 <span className="block truncate text-[13px] text-muted">
-                  Entró con tu código
+                  {acceso.origen === 'TARJETA' ? 'Entró con tu tarjeta' : 'Entró con tu código'}
                   {/* La matrícula la escribe quien escanea y nadie la verifica:
                       dicho así, no se lee como la de un profesional validado. */}
                   {acceso.matricula

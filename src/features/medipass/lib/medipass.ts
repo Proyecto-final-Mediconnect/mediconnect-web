@@ -22,6 +22,24 @@ export function emergencyUrl(origin: string, codigo: string): string {
   return `${origin}/medipass/emergencia?codigo=${encodeURIComponent(codigo)}`;
 }
 
+/**
+ * La URL que va en el QR de la tarjeta de emergencia (ENG-176).
+ *
+ * El token va en el **fragmento** (`#tarjeta=`) y no en la query: el navegador
+ * no manda el fragmento a ningún servidor, así que no queda en los logs del
+ * hosting, de un proxy ni en el `Referer`. A diferencia del código rotativo,
+ * este token no vence solo, y no puede andar suelto.
+ */
+export function emergencyCardUrl(origin: string, tarjeta: string): string {
+  return `${origin}/medipass/emergencia#tarjeta=${encodeURIComponent(tarjeta)}`;
+}
+
+/** El token de la tarjeta si la URL lo trae en el fragmento, o `null`. */
+export function tarjetaDelHash(hash: string): string | null {
+  const valor = new URLSearchParams(hash.replace(/^#/, '')).get('tarjeta');
+  return valor && /^[A-Za-z0-9_-]{20,}$/.test(valor) ? valor : null;
+}
+
 /** `AB12CD34` → `AB12-CD34`: de a cuatro se lee y se dicta sin errores. */
 export function formatCodigo(codigo: string): string {
   const limpio = codigo.replace(/[^0-9A-Za-z]/g, '').toUpperCase();

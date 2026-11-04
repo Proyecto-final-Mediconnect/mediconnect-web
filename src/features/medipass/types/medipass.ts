@@ -31,11 +31,34 @@ export interface MediPassCode {
   expiraEl: string;
 }
 
-/** `POST /medipass/sessions` (público): lo que manda quien escanea. */
+/**
+ * `POST /medipass/sessions` (público): lo que manda quien escanea. Entra con el
+ * código rotativo **o** con la tarjeta de emergencia (ENG-176), uno de los dos.
+ */
 export interface OpenEmergencySessionInput {
-  codigo: string;
+  codigo?: string;
+  tarjeta?: string;
   nombre: string;
   matricula?: string;
+}
+
+/** Por dónde entró un consultante: el código rotativo o la tarjeta (ENG-176). */
+export type MediPassOrigin = 'CODIGO' | 'TARJETA';
+
+/** `GET /medipass/me/emergency-card`: si hay una tarjeta activa. Nunca el token. */
+export interface EmergencyCardStatus {
+  activa: boolean;
+  /** ISO-8601, o `null` sin tarjeta. */
+  creadaEl: string | null;
+}
+
+/**
+ * `POST /medipass/me/emergency-card`: la tarjeta recién generada. Es la única
+ * vez que el token sale del backend, que solo guarda su hash.
+ */
+export interface EmergencyCardCreated {
+  tarjeta: string;
+  creadaEl: string;
 }
 
 /** Respuesta de `POST /medipass/sessions`. */
@@ -58,6 +81,8 @@ export type MediPassAccessStatus = 'ACTIVO' | 'VENCIDO' | 'REVOCADO';
 export interface MediPassAccess {
   sesionId: string;
   consultante: { nombre: string | null; matricula: string | null };
+  /** Opcional por compatibilidad con un backend anterior a ENG-176. */
+  origen?: MediPassOrigin;
   /** ISO-8601. */
   inicio: string;
   vence: string;
@@ -87,6 +112,8 @@ export interface MediPassActiveAccess {
   /** ISO-8601: cuándo se corta sola. */
   expiraEl: string;
   minutosRestantes: number;
+  /** Opcional por compatibilidad con un backend anterior a ENG-176. */
+  origen?: MediPassOrigin;
 }
 
 /**

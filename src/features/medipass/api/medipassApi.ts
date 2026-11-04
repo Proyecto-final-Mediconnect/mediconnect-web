@@ -1,6 +1,8 @@
 import { apiFetch } from '../../../shared/api/apiFetch';
 import { apiError, toApiError } from '../../../shared/api/apiError';
 import type {
+  EmergencyCardCreated,
+  EmergencyCardStatus,
   EmergencySession,
   EmergencySessionStatus,
   MediPassActiveAccess,
@@ -21,6 +23,12 @@ export const CODIGO_INVALIDO = 'Código inválido o vencido.';
 export const DEMASIADOS_INTENTOS = 'Demasiados intentos. Esperá un minuto y probá de nuevo.';
 export const SESION_VENCIDA =
   'El acceso venció. Pedile al paciente que te muestre el código de nuevo.';
+/**
+ * El rechazo de una tarjeta (ENG-176). Igual que con el código, no distingue
+ * "nunca existió" de "el paciente la desactivó".
+ */
+export const TARJETA_INVALIDA =
+  'Esta tarjeta de emergencia no es válida o el paciente la desactivó.';
 
 /** `GET /medipass/me`: el código vigente del paciente logueado (ENG-72). */
 export async function getMyMediPassCode(): Promise<MediPassCode> {
@@ -82,6 +90,31 @@ export async function updateMyScope(scope: MediPassScope): Promise<MediPassScope
   return (await response.json()) as MediPassScope;
 }
 
+/** `GET /medipass/me/emergency-card`: si hay una tarjeta activa (ENG-176). */
+export async function getMyEmergencyCard(): Promise<EmergencyCardStatus> {
+  const response = await apiFetch('/medipass/me/emergency-card');
+  if (!response.ok) throw await toApiError(response, 'No pudimos cargar tu tarjeta de emergencia.');
+  return (await response.json()) as EmergencyCardStatus;
+}
+
+/**
+ * `POST /medipass/me/emergency-card`: genera la tarjeta, o una nueva que
+ * reemplaza a la anterior (ENG-176). El token llega una sola vez.
+ */
+export async function createMyEmergencyCard(): Promise<EmergencyCardCreated> {
+  const response = await apiFetch('/medipass/me/emergency-card', { method: 'POST' });
+  if (!response.ok)
+    throw await toApiError(response, 'No pudimos generar la tarjeta. Probá de nuevo.');
+  return (await response.json()) as EmergencyCardCreated;
+}
+
+/** `DELETE /medipass/me/emergency-card`: la desactiva. Idempotente (ENG-176). */
+export async function disableMyEmergencyCard(): Promise<void> {
+  const response = await apiFetch('/medipass/me/emergency-card', { method: 'DELETE' });
+  if (!response.ok)
+    throw await toApiError(response, 'No pudimos desactivar la tarjeta. Probá de nuevo.');
+}
+
 /** Fetch público: quien escanea no tiene cuenta, así que no hay sesión que renovar. */
 async function publicFetch(path: string, init: RequestInit = {}): Promise<Response> {
   try {
@@ -93,13 +126,17 @@ async function publicFetch(path: string, init: RequestInit = {}): Promise<Respon
 
 /**
  * `POST /medipass/sessions` (público, ENG-73): abre el acceso de emergencia con
- * el código. Cualquier rechazo del código da el mismo mensaje.
+ * el código o con la tarjeta (ENG-176). Cualquier rechazo da el mismo mensaje.
  */
 export async function openEmergencySession(
   input: OpenEmergencySessionInput,
 ): Promise<EmergencySession> {
+  const conTarjeta = input.tarjeta !== undefined;
   const body: OpenEmergencySessionInput = {
-    codigo: input.codigo.replace(/[\s-]/g, '').toUpperCase(),
+    // La tarjeta es base64url y distingue mayúsculas: va tal cual.
+    ...(conTarjeta
+      ? { tarjeta: input.tarjeta }
+      : { codigo: (input.codigo ?? '').replace(/[\s-]/g, '').toUpperCase() }),
     nombre: input.nombre.trim(),
     ...(input.matricula?.trim() ? { matricula: input.matricula.trim() } : {}),
   };
@@ -119,7 +156,7 @@ export async function openEmergencySession(
   // El resto de los rechazos del código (no existe, venció, se revocó) dan el
   // mismo mensaje.
   if (response.status >= 400 && response.status < 500)
-    throw apiError(response.status, CODIGO_INVALIDO);
+    throw apiError(response.status, conTarjeta ? TARJETA_INVALIDA : CODIGO_INVALIDO);
   if (!response.ok)
     throw await toApiError(response, 'No pudimos abrir el MediPass. Intentá de nuevo.');
   return (await response.json()) as EmergencySession;

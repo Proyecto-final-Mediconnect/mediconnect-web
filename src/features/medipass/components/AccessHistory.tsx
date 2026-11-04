@@ -116,6 +116,7 @@ function AccessItem({ acceso }: { acceso: MediPassAccess }) {
               ? `Matrícula ${acceso.consultante.matricula} (declarada, sin verificar)`
               : 'No dio matrícula'}{' '}
             · {WHEN.format(new Date(acceso.inicio))}
+            {acceso.origen === 'TARJETA' && ' · con tu tarjeta de emergencia'}
           </p>
         </div>
         <span

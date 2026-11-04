@@ -126,6 +126,28 @@ body {
   }
 }
 
+/* Tarjeta de emergencia del MediPass (ENG-176): cuando está en pantalla, es lo
+ * único que sale en papel, en su tamaño, arriba a la izquierda de la hoja. */
+@media print {
+  body:has(.tarjeta-imprimible) * {
+    visibility: hidden;
+  }
+
+  .tarjeta-imprimible,
+  .tarjeta-imprimible * {
+    visibility: visible;
+  }
+
+  .tarjeta-imprimible {
+    position: absolute;
+    top: 0;
+    left: 0;
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 /* Panel lateral (SideDrawer, ENG-178). */
 @keyframes drawer-in {
   from {
