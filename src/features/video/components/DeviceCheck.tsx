@@ -3,7 +3,21 @@ import { useState } from 'react';
 import { Button } from '../../../shared/ui/Button';
 import { Modal } from '../../../shared/ui/Modal';
 import { createTestRoom } from '../api/videoApi';
+import type { TestRoom } from '../types/dailyRoom';
 import { DailyPrebuiltFrame } from './DailyPrebuiltFrame';
+
+/**
+ * Solo se abre en el iframe una URL https de un host daily.co: la URL viene del
+ * backend y no se confía ciegamente en lo que llegue.
+ */
+function esUrlDeDaily(url: string): boolean {
+  try {
+    const { protocol, hostname } = new URL(url);
+    return protocol === 'https:' && hostname.endsWith('.daily.co');
+  } catch {
+    return false;
+  }
+}
 
 /**
  * "Probar cámara y micrófono": abre una sala de Daily para una sola persona, en
@@ -15,19 +29,42 @@ import { DailyPrebuiltFrame } from './DailyPrebuiltFrame';
  * Daily muestra la cámara, deja elegir micrófono y parlante y mide el volumen.
  *
  * La sala se pide recién al tocar el botón, porque cada una es una llamada a un
- * proveedor que factura. Al cerrar el diálogo el iframe se desmonta y se sale de
- * la llamada; Daily cierra la sala sola a los diez minutos.
+ * proveedor que factura: mientras la última no haya vencido se reusa, en vez de
+ * crear una por clic. Al cerrar el diálogo el iframe se desmonta y se sale de la
+ * llamada; Daily cierra la sala sola a los diez minutos.
  */
 export function DeviceCheck({ variant = 'secondary' }: { variant?: 'primary' | 'secondary' }) {
   const [url, setUrl] = useState<string | null>(null);
-  const crear = useMutation({ mutationFn: createTestRoom, onSuccess: (sala) => setUrl(sala.url) });
+  /** Última sala pedida, en memoria (su URL lleva token): se reusa hasta `expiraEl`. */
+  const [sala, setSala] = useState<TestRoom | null>(null);
+  const crear = useMutation({
+    mutationFn: async () => {
+      const nueva = await createTestRoom();
+      if (!esUrlDeDaily(nueva.url)) {
+        throw new Error('La sala de prueba no es válida. Intentá de nuevo.');
+      }
+      return nueva;
+    },
+    onSuccess: (nueva) => {
+      setSala(nueva);
+      setUrl(nueva.url);
+    },
+  });
+
+  const probar = () => {
+    if (sala && Date.now() < Date.parse(sala.expiraEl)) {
+      setUrl(sala.url);
+      return;
+    }
+    crear.mutate();
+  };
 
   return (
     <div className="flex flex-col items-start gap-2">
       <Button
         type="button"
         variant={variant}
-        onClick={() => crear.mutate()}
+        onClick={probar}
         disabled={crear.isPending}
         aria-busy={crear.isPending}
       >
