@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../../shared/ui/Button';
@@ -83,6 +84,7 @@ export function LegalAcceptanceGate() {
             >
               Cerrar sesión
             </button>
+            <EnlaceDerechos />
           </div>
         </section>
       </main>
@@ -137,8 +139,24 @@ export function LegalAcceptanceGate() {
           >
             Cerrar sesión
           </button>
+          <EnlaceDerechos />
         </div>
       </section>
     </main>
+  );
+}
+
+/**
+ * Sin aceptar igual se pueden ejercer los derechos (ENG-86): quien no quiere
+ * aceptar los textos tiene que poder llevarse sus datos o irse.
+ */
+function EnlaceDerechos() {
+  return (
+    <Link
+      to="/privacidad"
+      className="text-center text-[13px] font-semibold text-muted underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+    >
+      No quiero aceptar: descargar mis datos o dar de baja la cuenta
+    </Link>
   );
 }

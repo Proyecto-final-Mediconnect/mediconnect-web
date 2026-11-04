@@ -9,6 +9,7 @@ import { EmergencyViewPage } from './pages/EmergencyViewPage';
 import { GuardiaFichaPage } from './pages/GuardiaFichaPage';
 import { GuardiaJuegoPage } from './pages/GuardiaJuegoPage';
 import { MediPassPage } from './pages/MediPassPage';
+import { PrivacyPage } from './pages/PrivacyPage';
 import { MessagesPage } from './pages/MessagesPage';
 import { LandingPage } from './pages/LandingPage';
 import { LegalPage } from './pages/LegalPage';
@@ -200,6 +201,16 @@ function App() {
       {/* Pública: la abre un médico de guardia que escaneó el QR con la cámara,
           sin cuenta (ENG-135, ENG-73). Entra con el código, no con sesión. */}
       <Route path="/medipass/emergencia" element={<EmergencyViewPage />} />
+
+      {/* Derechos ARCO (ENG-86), para los tres roles y sin exigir la aceptación. */}
+      <Route
+        path="/privacidad"
+        element={
+          <RequireAuth skipLegal>
+            <PrivacyPage />
+          </RequireAuth>
+        }
+      />
       {/* Juego del stand para la jornada del 06/10: pacientes ficticios, sin
           backend. La notebook muestra la guardia y el celular abre la ficha. */}
       <Route path="/juego/guardia" element={<GuardiaJuegoPage />} />

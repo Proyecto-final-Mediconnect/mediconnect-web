@@ -176,4 +176,47 @@ describe('RequireAuth (ENG-44)', () => {
       expect(JSON.parse(String(aceptacion?.[1]?.body))).toEqual({ version: LEGAL_VERSION });
     });
   });
+
+  // ENG-86: ejercer un derecho no puede depender de aceptar los textos.
+  describe('privacidad sin aceptar (ENG-86)', () => {
+    it('el pedido de consentimiento lleva a privacidad, en las dos variantes', async () => {
+      for (const legalVersion of [LEGAL_VERSION, '2099-01-01']) {
+        renderGuarded({ status: 200, body: { ...PACIENTE, legalAccepted: false, legalVersion } });
+        expect(
+          await screen.findByRole('link', {
+            name: 'No quiero aceptar: descargar mis datos o dar de baja la cuenta',
+          }),
+        ).toHaveAttribute('href', '/privacidad');
+        cleanup();
+      }
+    });
+
+    it('con skipLegal deja entrar sin haber aceptado', async () => {
+      vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+        new Response(JSON.stringify({ ...PACIENTE, legalAccepted: false }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      );
+      const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+      render(
+        <QueryClientProvider client={client}>
+          <MemoryRouter initialEntries={['/privacidad']}>
+            <Routes>
+              <Route
+                path="/privacidad"
+                element={
+                  <RequireAuth skipLegal>
+                    <div>PRIVACIDAD</div>
+                  </RequireAuth>
+                }
+              />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>,
+      );
+
+      expect(await screen.findByText('PRIVACIDAD')).toBeInTheDocument();
+    });
+  });
 });

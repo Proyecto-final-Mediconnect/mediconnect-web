@@ -9,9 +9,14 @@ type RequireAuthProps = {
   /** Si se indica, solo estos roles pueden entrar; el resto va a su propio
    *  dashboard (no a un 403, para no dejar al usuario en un callejón). */
   allow?: UserRole[];
+  /**
+   * Deja entrar aunque no haya aceptado los textos legales vigentes. Solo para
+   * `/privacidad` (ENG-86): ejercer un derecho no puede depender de aceptarlos.
+   */
+  skipLegal?: boolean;
 };
 
-export function RequireAuth({ children, allow }: RequireAuthProps) {
+export function RequireAuth({ children, allow, skipLegal = false }: RequireAuthProps) {
   const { user, isLoading } = useSession();
   const location = useLocation();
 
@@ -39,7 +44,7 @@ export function RequireAuth({ children, allow }: RequireAuthProps) {
   // Sin consentimiento no se tratan sus datos de salud (ENG-140): antes que
   // cualquier pantalla de la app, los textos legales. `=== false` y no `!`: un
   // backend que todavía no informa el campo no bloquea a nadie.
-  if (user.legalAccepted === false) {
+  if (user.legalAccepted === false && !skipLegal) {
     return <LegalAcceptanceGate />;
   }
 
