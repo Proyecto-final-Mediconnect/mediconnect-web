@@ -11,4 +11,9 @@ export type LoginInput = z.infer<typeof loginSchema>;
 // solo recibe los datos del usuario.
 export type LoginResponse = {
   user: { id: string; email: string };
+  /**
+   * La cuenta tiene activa la verificación en dos pasos (ENG-88): la sesión
+   * todavía no está abierta y falta el código de la app autenticadora.
+   */
+  mfaRequired?: boolean;
 };
