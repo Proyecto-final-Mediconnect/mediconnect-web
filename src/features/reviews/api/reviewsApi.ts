@@ -7,6 +7,7 @@ import type {
   MyReview,
   NewReview,
   PublicReviewPage,
+  ReviewResponse,
   ReviewStatus,
 } from '../types';
 
@@ -57,4 +58,29 @@ export async function moderateReview(
     body: JSON.stringify(decision),
   });
   return json(response, 'No pudimos guardar la decisión.');
+}
+
+/** Las reseñas publicadas que recibió el profesional, con sus respuestas (ENG-106). */
+export async function getReceivedReviews(page: number): Promise<PublicReviewPage> {
+  return json(await apiFetch(`/reviews/received?page=${page}`), 'No pudimos cargar tus reseñas.');
+}
+
+/** Responde una reseña propia, o cambia la respuesta que ya tenía (ENG-106). */
+export async function saveReviewResponse(
+  reviewId: string,
+  content: string,
+): Promise<ReviewResponse> {
+  const response = await apiFetch(`/reviews/${encodeURIComponent(reviewId)}/response`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ content }),
+  });
+  return json(response, 'No pudimos guardar la respuesta.');
+}
+
+export async function deleteReviewResponse(reviewId: string): Promise<void> {
+  const response = await apiFetch(`/reviews/${encodeURIComponent(reviewId)}/response`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) throw await toApiError(response, 'No pudimos borrar la respuesta.');
 }

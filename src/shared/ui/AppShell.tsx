@@ -18,6 +18,7 @@ import {
   IconModeracion,
   IconPanel,
   IconPerfil,
+  IconResenas,
   IconTurnos,
   IconVideo,
   IconPrivacidad,
@@ -107,6 +108,7 @@ const NAV_PROFESIONAL: NavItem[][] = [
   ],
   [
     { to: '/perfil', label: 'Mi perfil público', Icon: IconPerfil },
+    { to: '/profesional/resenas', label: 'Mis reseñas', Icon: IconResenas },
     { to: '/privacidad', label: 'Privacidad y datos', Icon: IconPrivacidad },
   ],
 ];
