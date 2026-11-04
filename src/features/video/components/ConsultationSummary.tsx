@@ -135,9 +135,9 @@ export function ConsultationSummary({
           </div>
 
           <p className="mx-6 mb-5 rounded-[10px] border border-brand/30 bg-surface-teal px-4 py-3 text-[13px] leading-[1.7] text-brand-deep">
-            Este resumen fue generado con asistencia de IA sobre la transcripción de la
-            consulta. Revisalo y corregí lo que haga falta: una vez firmado se incorpora a la
-            historia clínica de la paciente y no se puede editar.
+            Este resumen fue generado con asistencia de IA sobre la transcripción de la consulta.
+            Revisalo y corregí lo que haga falta: una vez firmado se incorpora a la historia clínica
+            de la paciente y no se puede editar.
           </p>
         </section>
 
@@ -156,8 +156,11 @@ export function ConsultationSummary({
                     role="status"
                     className="rounded-[10px] border border-brand/40 bg-surface-teal px-4 py-3 text-[13px] leading-[1.7] text-ink"
                   >
-                    Firmaste el resumen. <strong className="font-bold">Todavía no se
-                    incorporó a la historia clínica</strong>: falta el endpoint que lo guarde.
+                    Firmaste el resumen.{' '}
+                    <strong className="font-bold">
+                      Todavía no se incorporó a la historia clínica
+                    </strong>
+                    : falta el endpoint que lo guarde.
                   </p>
                   <Link
                     to="/mis-turnos"
@@ -193,7 +196,6 @@ export function ConsultationSummary({
                 </>
               )}
             </div>
-
           </section>
 
           <section className="overflow-hidden rounded-[14px] border border-line bg-white">
@@ -236,11 +238,10 @@ export function ConsultationSummary({
                   botón que ofrece descargar la transcripción de una consulta
                   médica y entrega un placeholder es peor que no ofrecerlo. */}
               <p className="text-[11px] leading-[1.6] text-muted-soft">
-                La transcripción se conserva asociada a la consulta y solo es visible para vos
-                y para la paciente.
+                La transcripción se conserva asociada a la consulta y solo es visible para vos y
+                para la paciente.
               </p>
             </div>
-
           </section>
         </aside>
       </div>

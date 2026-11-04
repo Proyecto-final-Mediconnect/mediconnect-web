@@ -29,6 +29,8 @@ type ModalProps = {
    * append-only — si se guardó, no hay vuelta atrás.
    */
   pendiente?: boolean;
+  /** `ancho` para contenido que necesita lugar, como una videollamada. */
+  tamano?: 'normal' | 'ancho';
 };
 
 export function Modal({
@@ -38,6 +40,7 @@ export function Modal({
   children,
   onClose,
   pendiente = false,
+  tamano = 'normal',
 }: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null);
 
@@ -68,14 +71,11 @@ export function Modal({
       // pegado arriba a la izquierda.
       // `max-h` + `overflow` porque acá entra un formulario largo: sin eso, en
       // una pantalla baja el botón de guardar queda fuera de alcance.
-      className="m-auto max-h-[calc(100dvh-3rem)] w-[calc(100%-2rem)] max-w-[560px] overflow-y-auto rounded-[14px] border border-line bg-white p-0 text-ink backdrop:bg-night/50 backdrop:backdrop-blur-[2px]"
+      className={`m-auto max-h-[calc(100dvh-3rem)] w-[calc(100%-2rem)] ${tamano === 'ancho' ? 'max-w-[960px]' : 'max-w-[560px]'} overflow-y-auto rounded-[14px] border border-line bg-white p-0 text-ink backdrop:bg-night/50 backdrop:backdrop-blur-[2px]`}
     >
       <div className="flex items-start justify-between gap-4 border-b border-line-soft px-7 py-5">
         <div>
-          <h2
-            id="modal-titulo"
-            className="font-display text-[24px] leading-[1.2] text-brand-deep"
-          >
+          <h2 id="modal-titulo" className="font-display text-[24px] leading-[1.2] text-brand-deep">
             {titulo}
           </h2>
           {descripcion && (

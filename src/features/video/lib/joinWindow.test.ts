@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Appointment } from '../../appointments/types/appointment';
-import {
-  canJoin,
-  firstJoinable,
-  joinStateOf,
-  joinWindowFor,
-  timeUntilOpen,
-} from './joinWindow';
+import { canJoin, firstJoinable, joinStateOf, joinWindowFor, timeUntilOpen } from './joinWindow';
 
 /**
  * La ventana de ingreso es el criterio de aceptación de ENG-56, así que se prueba
@@ -78,10 +72,7 @@ describe('joinStateOf', () => {
   it.each(['CANCELADO', 'LIBERADO', 'COMPLETADO', 'NO_ASISTIO'])(
     'un turno en %s no tiene videoconsulta ni en horario',
     (status) => {
-      const state = joinStateOf(
-        appointment({ status }),
-        new Date('2026-08-27T15:00:00.000Z'),
-      );
+      const state = joinStateOf(appointment({ status }), new Date('2026-08-27T15:00:00.000Z'));
 
       expect(state.kind).toBe('NOT_APPLICABLE');
     },
@@ -199,9 +190,7 @@ describe('firstJoinable', () => {
   it('ignora los que no están pagos aunque caigan en la ventana', () => {
     const now = new Date('2026-08-20T12:55:00Z');
 
-    expect(
-      firstJoinable([turno({ id: 'a', status: 'RESERVADO_SIN_PAGAR' })], now),
-    ).toBeNull();
+    expect(firstJoinable([turno({ id: 'a', status: 'RESERVADO_SIN_PAGAR' })], now)).toBeNull();
   });
 
   it('ignora los cancelados aunque caigan en la ventana', () => {

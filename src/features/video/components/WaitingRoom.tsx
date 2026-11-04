@@ -3,6 +3,7 @@ import { formatLongDate } from '../../appointments/lib/myAppointments';
 import type { Appointment } from '../../appointments/types/appointment';
 import { formatElapsed } from '../lib/elapsed';
 import { JOIN_OPENS_MINUTES_BEFORE, timeUntilOpen } from '../lib/joinWindow';
+import { DeviceCheck } from './DeviceCheck';
 
 /**
  * Sala de espera de la videoconsulta (ENG-56).
@@ -63,15 +64,13 @@ export function WaitingRoom({
               {formatElapsed(falta)}
             </p>
             <p className="mt-3 text-[15px] text-on-night">
-              para que se abra la sala. Vas a entrar automáticamente, no hace falta que
-              recargues.
+              para que se abra la sala. Vas a entrar automáticamente, no hace falta que recargues.
             </p>
           </>
         ) : (
           <>
             <h2 className="font-display mt-3 text-[30px] leading-[1.1] text-white lg:text-[38px]">
-              Tu consulta es el {formatLongDate(appointment.date)} a las{' '}
-              {appointment.startTime}.
+              Tu consulta es el {formatLongDate(appointment.date)} a las {appointment.startTime}.
             </h2>
             <p className="mt-3 text-[15px] text-on-night">
               La sala se abre {timeUntilOpen(opensAt, now)}, {JOIN_OPENS_MINUTES_BEFORE} minutos
@@ -109,12 +108,14 @@ export function WaitingRoom({
             del otro lado esperando. */}
         <ul className="divide-y divide-line-soft">
           <Consejo titulo="Probá la cámara y el micrófono">
-            El navegador te los va a pedir al entrar. Si ya se los negaste alguna vez,
-            habilitalos desde el candado de la barra de direcciones.
+            El navegador te los va a pedir. Si ya se los negaste alguna vez, habilitalos desde el
+            candado de la barra de direcciones.
+            <div className="mt-3">
+              <DeviceCheck />
+            </div>
           </Consejo>
           <Consejo titulo="Buscá un lugar tranquilo">
-            Vas a hablar de tu salud. Con auriculares se escucha mejor y no te escucha
-            nadie más.
+            Vas a hablar de tu salud. Con auriculares se escucha mejor y no te escucha nadie más.
           </Consejo>
           <Consejo titulo="Tené a mano lo que quieras mostrar">
             Estudios, recetas o la caja del remedio que estás tomando.
@@ -138,7 +139,7 @@ function Consejo({ titulo, children }: { titulo: string; children: React.ReactNo
   return (
     <li className="px-5 py-4">
       <p className="text-[13px] font-bold text-brand-deep">{titulo}</p>
-      <p className="mt-1 text-[13px] leading-[1.6] text-muted">{children}</p>
+      <div className="mt-1 text-[13px] leading-[1.6] text-muted">{children}</div>
     </li>
   );
 }

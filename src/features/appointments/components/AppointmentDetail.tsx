@@ -8,6 +8,7 @@ import { MAX_REFUND_PERCENT, refundPercentFor } from '../../cancellation-policy/
 import { usePublicProfile } from '../../catalog/hooks/usePublicProfile';
 import { getPaymentStatus } from '../../payments/api/paymentsApi';
 import { canPay } from '../../payments/lib/checkout';
+import { DeviceCheck } from '../../video/components/DeviceCheck';
 import { joinStateOf, timeUntilOpen } from '../../video/lib/joinWindow';
 import { useMyAppointments } from '../hooks/useAppointments';
 import { canCancel, counterpartOf, formatLongDate, isActive } from '../lib/myAppointments';
@@ -195,6 +196,9 @@ export function AppointmentDetail({
             </Link>
           </p>
         )}
+        {/* Con la consulta por delante —abierta o por abrirse—, se puede probar
+            la cámara y el micrófono antes, en una sala aparte. */}
+        {(join.kind === 'OPEN' || join.kind === 'TOO_EARLY') && <DeviceCheck />}
       </section>
 
       <div
