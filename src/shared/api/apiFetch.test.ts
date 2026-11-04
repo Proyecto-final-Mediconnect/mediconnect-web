@@ -96,3 +96,18 @@ describe('apiFetch · 403 LEGAL_NOT_ACCEPTED (ENG-140)', () => {
     off();
   });
 });
+
+describe('apiFetch con refreshOn401: false', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('devuelve el 401 sin renovar ni reintentar', async () => {
+    const spy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(new Response(null, { status: 401 }));
+
+    const res = await apiFetch('/me/mfa/disable', {}, { refreshOn401: false });
+
+    expect(res.status).toBe(401);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+});

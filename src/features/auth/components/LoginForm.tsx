@@ -1,8 +1,10 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button } from '../../../shared/ui/Button';
 import { TextField } from '../../../shared/ui/TextField';
+import { verifyLoginCode } from '../../mfa/api/mfaApi';
+import { MfaCodeField } from '../../mfa/components/MfaCodeField';
 import { getMe } from '../api/getMe';
 import { useLogin } from '../hooks/useLogin';
 import { SESSION_QUERY_KEY } from '../hooks/useSession';
@@ -15,8 +17,12 @@ export function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<FieldErrors>({});
+  /** ENG-88: la contraseña estuvo bien y falta el código de la app autenticadora. */
+  const [pideCodigo, setPideCodigo] = useState(false);
+  const [codigo, setCodigo] = useState('');
 
-  const { mutate, isPending, error } = useLogin();
+  const { mutate, isPending, error, reset } = useLogin();
+  const verificar = useMutation({ mutationFn: verifyLoginCode });
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -28,8 +34,7 @@ export function LoginForm() {
     const user = await getMe();
     queryClient.setQueryData(SESSION_QUERY_KEY, user);
 
-    const from = (location.state as { from?: { pathname?: string } } | null)
-      ?.from?.pathname;
+    const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
     navigate(from ?? dashboardPathFor(user.role), { replace: true });
   }
 
@@ -50,7 +55,71 @@ export function LoginForm() {
     setErrors({});
     // La sesión la setea el backend en una cookie httpOnly; el front no
     // manipula tokens (mitiga robo vía XSS).
-    mutate(result.data, { onSuccess: () => void redirectAfterLogin() });
+    mutate(result.data, {
+      onSuccess: (data) => {
+        if (data.mfaRequired) {
+          setPassword('');
+          setPideCodigo(true);
+        } else void redirectAfterLogin();
+      },
+    });
+  }
+
+  if (pideCodigo) {
+    return (
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (codigo.length === 6) {
+            verificar.mutate(codigo, { onSuccess: () => void redirectAfterLogin() });
+          }
+        }}
+        noValidate
+        className="flex flex-col gap-4"
+      >
+        <div className="grid gap-1">
+          <h2 className="text-[16px] font-bold text-brand-deep">Verificación en dos pasos</h2>
+          <p className="text-[14px] leading-[1.6] text-muted">
+            Abrí tu app autenticadora y escribí el código de seis números de MediConnect.
+          </p>
+        </div>
+        <MfaCodeField
+          id="codigo-mfa"
+          label="Código"
+          value={codigo}
+          onChange={(valor) => {
+            setCodigo(valor);
+            if (verificar.isError) verificar.reset();
+          }}
+          disabled={verificar.isPending}
+        />
+        {verificar.isError && (
+          <p role="alert" className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-danger">
+            {verificar.error.message}
+          </p>
+        )}
+        <Button
+          type="submit"
+          fullWidth
+          disabled={codigo.length !== 6 || verificar.isPending}
+          className="mt-2"
+        >
+          {verificar.isPending ? 'Verificando…' : 'Verificar e ingresar'}
+        </Button>
+        <button
+          type="button"
+          onClick={() => {
+            setPideCodigo(false);
+            setCodigo('');
+            verificar.reset();
+            reset();
+          }}
+          className="self-center text-[13px] font-semibold text-brand-hover underline-offset-2 hover:underline"
+        >
+          Volver a ingresar con otra cuenta
+        </button>
+      </form>
+    );
   }
 
   return (

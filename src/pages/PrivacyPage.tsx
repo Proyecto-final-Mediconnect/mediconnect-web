@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSession } from '../features/auth/hooks/useSession';
+import { TwoStepVerification } from '../features/mfa/components/TwoStepVerification';
 import { FRASE_DE_BAJA } from '../features/privacy/api/privacyApi';
 import {
   useDeleteAccount,
@@ -32,6 +33,7 @@ export function PrivacyPage() {
         <DescargarDatos />
         <Rectificar rol={user?.role} />
         {esPaciente && <Recordatorios />}
+        <TwoStepVerification />
         <DarDeBaja esPaciente={esPaciente} />
       </div>
     </DashboardLayout>
