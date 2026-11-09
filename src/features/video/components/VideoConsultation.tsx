@@ -89,11 +89,19 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
     : 'la otra persona';
   const esPaciente = appointment?.patient?.id === user?.id;
 
-  if (appointment && ventana?.kind === 'TOO_EARLY') {
+  // Los avisos de la ventana valen mientras no se entró. Una vez adentro, el
+  // turno cambia de estado justamente por lo que pasa en la sala: "Finalizar"
+  // lo deja COMPLETADO (ENG-189) y la lista se recarga. Sin este corte, la
+  // pantalla saltaba a "Este turno no tiene videoconsulta" en vez de seguir al
+  // cierre. Lo mismo si la ventana cierra con la llamada en curso.
+  const adentro = estado.fase === 'LISTO';
+  const aviso = adentro ? null : ventana;
+
+  if (appointment && aviso?.kind === 'TOO_EARLY') {
     return (
       <WaitingRoom
         appointment={appointment}
-        opensAt={ventana.opensAt}
+        opensAt={aviso.opensAt}
         now={now}
         counterpartName={nombreContraparte}
         counterpartLabel={esPaciente ? 'Profesional' : 'Paciente'}
@@ -101,7 +109,7 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
     );
   }
 
-  if (appointment && ventana?.kind === 'CLOSED') {
+  if (appointment && aviso?.kind === 'CLOSED') {
     return (
       <Aviso titulo="Esta consulta ya terminó.">
         La sala se cerró. Si quedó algo pendiente, escribile a {nombreContraparte} o sacá un turno
@@ -110,7 +118,7 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
     );
   }
 
-  if (appointment && ventana?.kind === 'UNPAID') {
+  if (appointment && aviso?.kind === 'UNPAID') {
     return esPaciente ? (
       <Aviso titulo="Pagá el turno para entrar a la consulta.">
         La sala se abre cuando el pago está confirmado. Si ya pagaste, la confirmación puede demorar
@@ -129,7 +137,7 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
     );
   }
 
-  if (appointment && ventana?.kind === 'NOT_APPLICABLE') {
+  if (appointment && aviso?.kind === 'NOT_APPLICABLE') {
     return (
       <Aviso titulo="Este turno no tiene videoconsulta.">
         El turno está {appointment.status === 'CANCELADO' ? 'cancelado' : 'sin vigencia'}, así que
