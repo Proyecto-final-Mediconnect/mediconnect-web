@@ -7,26 +7,18 @@ import { formatDate } from '../features/appointments/lib/weeks';
 import type { Appointment, AppointmentParty } from '../features/appointments/types/appointment';
 import { useSession } from '../features/auth/hooks/useSession';
 import {
+  DashboardSection as Section,
+  IconTile as HealthTile,
   NextAppointmentCard,
   NoNextAppointment,
   PendingTaskList,
 } from '../features/dashboard/components/PanelPieces';
-import { nextAppointment, patientTasks } from '../features/dashboard/lib/dashboard';
+import { nextAppointment, nextPhrase, patientTasks } from '../features/dashboard/lib/dashboard';
 import { useMyMediPassHistory } from '../features/medipass/hooks/useMediPass';
 import { relativeTime } from '../features/notifications/lib/relativeTime';
 import { useMyProfile } from '../features/patient-profile/hooks/usePatientProfile';
 import { useNow } from '../shared/hooks/useNow';
 import { DashboardLayout } from './DashboardLayout';
-
-const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-
-/** "Tu próxima consulta es el lunes 27 de octubre a las 10:00", como en la app. */
-function nextPhrase(appointment: Appointment | null): string {
-  if (!appointment) return 'No tenés consultas agendadas.';
-  const [y, m, d] = appointment.date.split('-').map(Number);
-  const weekday = WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
-  return `Tu próxima consulta es el ${weekday} ${formatDate(appointment.date)} a las ${appointment.startTime}.`;
-}
 
 /** Profesionales con los que ya hubo una consulta, del más reciente al más viejo, sin repetir. */
 function pastProfessionals(
@@ -94,6 +86,7 @@ export function PatientDashboardPage() {
                 <NextAppointmentCard
                   appointment={proximo}
                   counterpartLabel="Profesional"
+                  canPay
                   counterpartName={(() => {
                     const c = counterpartOf(proximo, user?.id ?? null);
                     return c ? `${c.firstName} ${c.lastName}` : null;
@@ -272,83 +265,6 @@ export function PatientDashboardPage() {
         </div>
       </div>
     </DashboardLayout>
-  );
-}
-
-function Section({
-  title,
-  action,
-  children,
-}: {
-  title: string;
-  action?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="grid gap-3" aria-label={title}>
-      <div className="flex items-center justify-between gap-3">
-        <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
-          {title}
-        </h2>
-        {action}
-      </div>
-      {children}
-    </section>
-  );
-}
-
-const ICONS = {
-  qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2',
-  doc: 'M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6',
-  user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM5 21a7 7 0 0 1 14 0',
-} as const;
-
-function HealthTile({
-  to,
-  title,
-  detail,
-  icon,
-  warn = false,
-}: {
-  to: string;
-  title: string;
-  detail: string;
-  icon: keyof typeof ICONS;
-  warn?: boolean;
-}) {
-  return (
-    <Link
-      to={to}
-      className="flex items-center gap-4 rounded-[14px] border border-line bg-white p-4 transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-    >
-      <span
-        aria-hidden="true"
-        className={`flex size-11 flex-none items-center justify-center rounded-[12px] ${
-          warn ? 'bg-tag-warm text-tag-warm-ink' : 'bg-surface-teal text-brand-deep'
-        }`}
-      >
-        <svg
-          viewBox="0 0 24 24"
-          className="size-5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d={ICONS[icon]} />
-        </svg>
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[15px] font-bold text-brand-deep">{title}</span>
-        <span className={`block text-sm ${warn ? 'text-tag-warm-ink' : 'text-muted'}`}>
-          {detail}
-        </span>
-      </span>
-      <span aria-hidden="true" className="text-muted-soft">
-        ›
-      </span>
-    </Link>
   );
 }
 
