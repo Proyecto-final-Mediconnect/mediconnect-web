@@ -17,15 +17,11 @@ describe('validateRules (ENG-53)', () => {
   });
 
   it('acepta turno mañana y turno tarde el mismo día', () => {
-    expect(
-      validateRules([rule(2, '09:00', '13:00'), rule(2, '16:00', '20:00')]),
-    ).toBeNull();
+    expect(validateRules([rule(2, '09:00', '13:00'), rule(2, '16:00', '20:00')])).toBeNull();
   });
 
   it('acepta franjas contiguas', () => {
-    expect(
-      validateRules([rule(2, '09:00', '13:00'), rule(2, '13:00', '17:00')]),
-    ).toBeNull();
+    expect(validateRules([rule(2, '09:00', '13:00'), rule(2, '13:00', '17:00')])).toBeNull();
   });
 
   it('rechaza que el fin sea anterior al inicio, nombrando el día', () => {
@@ -43,10 +39,7 @@ describe('validateRules (ENG-53)', () => {
   });
 
   it('rechaza franjas superpuestas, nombrando ambas', () => {
-    const mensaje = validateRules([
-      rule(4, '09:00', '13:00'),
-      rule(4, '12:00', '16:00'),
-    ]);
+    const mensaje = validateRules([rule(4, '09:00', '13:00'), rule(4, '12:00', '16:00')]);
 
     expect(mensaje).toContain('Jueves');
     expect(mensaje).toContain('09:00-13:00');
@@ -56,10 +49,7 @@ describe('validateRules (ENG-53)', () => {
   it('reporta el rango inválido antes que el solape', () => {
     // Si una franja está mal formada, señalarla es más útil que hablar de un
     // solape que probablemente sea consecuencia de ese mismo error.
-    const mensaje = validateRules([
-      rule(4, '13:00', '09:00'),
-      rule(4, '12:00', '16:00'),
-    ]);
+    const mensaje = validateRules([rule(4, '13:00', '09:00'), rule(4, '12:00', '16:00')]);
 
     expect(mensaje).toContain('posterior');
   });
@@ -67,14 +57,10 @@ describe('validateRules (ENG-53)', () => {
 
 describe('findOverlap', () => {
   it('no marca solape entre días distintos con el mismo horario', () => {
-    expect(
-      findOverlap([rule(1, '09:00', '13:00'), rule(2, '09:00', '13:00')]),
-    ).toBeNull();
+    expect(findOverlap([rule(1, '09:00', '13:00'), rule(2, '09:00', '13:00')])).toBeNull();
   });
 
   it('detecta una franja contenida dentro de otra', () => {
-    expect(
-      findOverlap([rule(5, '08:00', '20:00'), rule(5, '10:00', '11:00')]),
-    ).not.toBeNull();
+    expect(findOverlap([rule(5, '08:00', '20:00'), rule(5, '10:00', '11:00')])).not.toBeNull();
   });
 });

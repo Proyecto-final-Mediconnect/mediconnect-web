@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNow } from '../shared/hooks/useNow';
-import { ConsultationSummary } from '../features/video/components/ConsultationSummary';
+import { ConsultationEvolution } from '../features/video/components/ConsultationEvolution';
 import { LiveConsultation } from '../features/video/components/LiveConsultation';
 import { WaitingRoom } from '../features/video/components/WaitingRoom';
 import type { Appointment } from '../features/appointments/types/appointment';
@@ -16,7 +16,7 @@ import { DashboardLayout } from '../pages/DashboardLayout';
  * construía. (La sala de espera sí se ve con solo tener un turno agendado.)
  *
  * Acá se montan **los componentes de verdad** —`LiveConsultation` y
- * `ConsultationSummary`, los mismos que usa la ruta real— con un acceso de
+ * `ConsultationEvolution`, los mismos que usa la ruta real— con un acceso de
  * juguete y sin pasar por la API. Lo único falso es de dónde salen los datos.
  *
  * La ruta se registra solo si `import.meta.env.DEV`, así que no existe en el
@@ -34,6 +34,7 @@ const VIDEO_PLACEHOLDER = `data:text/html,${encodeURIComponent(
 function accesoDeJuguete(role: VideoConsultationAccess['role']): VideoConsultationAccess {
   return {
     appointmentId: 'preview',
+    consultationId: 'preview',
     role,
     roomUrl: VIDEO_PLACEHOLDER,
     expiresAt: new Date(Date.now() + 60 * 60_000).toISOString(),
@@ -88,22 +89,26 @@ export function VideoConsultationPreviewPage() {
   // Tick de un segundo, para que la cuenta regresiva corra de verdad.
   const now = useNow(1000);
 
-  const access = { ...accesoDeJuguete(role), recording: { enabled: grabando, mode: grabando ? ('cloud-audio-only' as const) : ('off' as const) } };
+  const access = {
+    ...accesoDeJuguete(role),
+    recording: {
+      enabled: grabando,
+      mode: grabando ? ('cloud-audio-only' as const) : ('off' as const),
+    },
+  };
   const counterpartName = `${access.counterpart!.firstName} ${access.counterpart!.lastName}`;
 
   return (
     <DashboardLayout barTitle="Videoconsulta — vista de desarrollo">
       <div className="grid gap-5">
         <div className="rounded-[14px] border border-dashed border-line-strong bg-surface p-5">
-          <p className="text-[15px] font-bold text-brand-deep">
-            Vista de desarrollo, sin backend
-          </p>
+          <p className="text-[15px] font-bold text-brand-deep">Vista de desarrollo, sin backend</p>
           <p className="mt-1.5 max-w-[640px] text-[13px] leading-[1.7] text-muted">
-            Son los componentes reales de la videoconsulta con datos de juguete. La ruta real
-            es <code className="font-mono">/turnos/:id/videoconsulta</code>: se entra con un
-            turno propio y, si todavía no es la hora, muestra la sala de espera. Para llegar a
-            la llamada hace falta además DAILY_API_KEY en el backend. Esta pantalla no existe
-            en el build de producción.
+            Son los componentes reales de la videoconsulta con datos de juguete. La ruta real es{' '}
+            <code className="font-mono">/turnos/:id/videoconsulta</code>: se entra con un turno
+            propio y, si todavía no es la hora, muestra la sala de espera. Para llegar a la llamada
+            hace falta además DAILY_API_KEY en el backend. Esta pantalla no existe en el build de
+            producción.
           </p>
 
           <div className="mt-4 flex flex-wrap gap-5">
@@ -164,14 +169,15 @@ export function VideoConsultationPreviewPage() {
           <LiveConsultation
             access={access}
             counterpartName={counterpartName}
+            patientId={null}
             joinedAt={joinedAt}
             onFinish={() => setFase('CIERRE')}
           />
         ) : (
-          <ConsultationSummary
+          <ConsultationEvolution
+            patientId={null}
+            consultationId={access.consultationId}
             counterpartName={counterpartName}
-            joinedAt={joinedAt}
-            endedAt={new Date()}
             onBack={() => setFase('CURSO')}
           />
         )}

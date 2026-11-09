@@ -1,11 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isClientError } from '../../../shared/api/apiError';
-import {
-  createBlock,
-  deleteBlock,
-  getMySchedule,
-  saveMySchedule,
-} from '../api/scheduleApi';
+import { createBlock, deleteBlock, getMySchedule, saveMySchedule } from '../api/scheduleApi';
 import type { Schedule } from '../types/schedule';
 
 const SCHEDULE_KEY = ['schedule', 'me'] as const;
@@ -28,8 +23,7 @@ export function useSaveSchedule() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: saveMySchedule,
-    onSuccess: (schedule: Schedule) =>
-      queryClient.setQueryData(SCHEDULE_KEY, schedule),
+    onSuccess: (schedule: Schedule) => queryClient.setQueryData(SCHEDULE_KEY, schedule),
   });
 }
 

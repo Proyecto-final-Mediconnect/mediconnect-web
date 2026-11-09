@@ -13,17 +13,15 @@ describe('professionalProfileSchema', () => {
   });
 
   it('acepta precio null (perfil sin precio cargado)', () => {
-    expect(
-      professionalProfileSchema.safeParse({ ...valid, consultationPrice: null })
-        .success,
-    ).toBe(true);
+    expect(professionalProfileSchema.safeParse({ ...valid, consultationPrice: null }).success).toBe(
+      true,
+    );
   });
 
   it('rechaza bio de más de 500 caracteres', () => {
-    expect(
-      professionalProfileSchema.safeParse({ ...valid, bio: 'a'.repeat(501) })
-        .success,
-    ).toBe(false);
+    expect(professionalProfileSchema.safeParse({ ...valid, bio: 'a'.repeat(501) }).success).toBe(
+      false,
+    );
   });
 
   it('rechaza más de 3 especialidades', () => {
@@ -36,10 +34,9 @@ describe('professionalProfileSchema', () => {
   });
 
   it('rechaza precio negativo', () => {
-    expect(
-      professionalProfileSchema.safeParse({ ...valid, consultationPrice: -1 })
-        .success,
-    ).toBe(false);
+    expect(professionalProfileSchema.safeParse({ ...valid, consultationPrice: -1 }).success).toBe(
+      false,
+    );
   });
 
   it('rechaza más de 2 decimales, igual que el backend', () => {
@@ -56,10 +53,9 @@ describe('professionalProfileSchema', () => {
     // 0.07 * 100 da 7.000000000000001: contar decimales con aritmética rechazaría
     // precios válidos.
     for (const consultationPrice of [15000, 15000.5, 15000.07, 0.07, 0.1]) {
-      expect(
-        professionalProfileSchema.safeParse({ ...valid, consultationPrice })
-          .success,
-      ).toBe(true);
+      expect(professionalProfileSchema.safeParse({ ...valid, consultationPrice }).success).toBe(
+        true,
+      );
     }
   });
 });

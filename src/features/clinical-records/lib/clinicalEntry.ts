@@ -119,7 +119,15 @@ const ORDEN_POR_RECURSO: Record<string, string[]> = {
 };
 
 /** Andamiaje del recurso: identifica y referencia, no es contenido clínico. */
-const NO_CLINICO = new Set(['resourceType', 'status', 'subject', 'performer', 'date', 'id', 'meta']);
+const NO_CLINICO = new Set([
+  'resourceType',
+  'status',
+  'subject',
+  'performer',
+  'date',
+  'id',
+  'meta',
+]);
 
 /** `fecha_real` → `Fecha real`, para lo que no esté en `ROTULOS`. */
 function humanizar(clave: string): string {
@@ -160,8 +168,7 @@ export function readEntryFields(entry: ClinicalEntry): CampoLegible[] {
 
   return Object.entries(content as Record<string, unknown>)
     .filter(
-      ([clave, valor]) =>
-        !NO_CLINICO.has(clave) && typeof valor === 'string' && valor.length > 0,
+      ([clave, valor]) => !NO_CLINICO.has(clave) && typeof valor === 'string' && valor.length > 0,
     )
     .sort(([a], [b]) => posicion(a) - posicion(b))
     .map(([clave, valor]) => ({

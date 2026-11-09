@@ -41,12 +41,7 @@ type CorrectEntryFormProps = {
   onCancel?: () => void;
 };
 
-export function CorrectEntryForm({
-  patientId,
-  entry,
-  onSaved,
-  onCancel,
-}: CorrectEntryFormProps) {
+export function CorrectEntryForm({ patientId, entry, onSaved, onCancel }: CorrectEntryFormProps) {
   const original = readEntry(entry);
   const [form, setForm] = useState({
     reason: original.reason ?? '',
@@ -61,8 +56,7 @@ export function CorrectEntryForm({
   const reason = form.reason.trim();
   const correctionReason = form.correctionReason.trim();
 
-  const reasonError =
-    attempted && reason.length === 0 ? 'El motivo es obligatorio.' : undefined;
+  const reasonError = attempted && reason.length === 0 ? 'El motivo es obligatorio.' : undefined;
   const correctionReasonError =
     attempted && correctionReason.length === 0
       ? 'Hay que indicar qué se está corrigiendo y por qué.'
@@ -122,8 +116,8 @@ export function CorrectEntryForm({
       <hr className="border-line" />
 
       <p className="text-[13px] leading-[1.6] text-muted">
-        Abajo está el contenido de la entrada original. Corregí lo que esté mal y dejá el resto
-        como está: lo que quede acá es lo que se guarda como versión corregida.
+        Abajo está el contenido de la entrada original. Corregí lo que esté mal y dejá el resto como
+        está: lo que quede acá es lo que se guarda como versión corregida.
       </p>
 
       <EntryField

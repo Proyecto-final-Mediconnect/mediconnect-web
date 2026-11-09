@@ -201,115 +201,174 @@ describe('VideoConsultation', () => {
   });
 
   describe('como profesional', () => {
+    const PRO = '22222222-2222-4222-8222-222222222222';
+    const PACIENTE = '33333333-3333-4333-8333-333333333333';
+    const VITAL = {
+      nombre: 'Ana Gómez',
+      edad: 41,
+      alergias: [{ que: 'Penicilina', gravedad: 'Anafilaxia' }],
+      medicacion: [{ droga: 'Enalapril', dosis: '10 mg' }],
+      condiciones: [{ nombre: 'Hipertensión', codigo: 'I10' }],
+    };
+    const ENTRADA = {
+      id: 'e-1',
+      patientId: PACIENTE,
+      professionalId: PRO,
+      professional: { firstName: 'Laura', lastName: 'Ríos' },
+      sequenceNumber: 1,
+      entryType: 'DIAGNOSTICO',
+      fhirResourceType: 'ClinicalImpression',
+      content: {},
+      consultationId: null,
+      correctsEntryId: null,
+      createdAt: '2026-10-01T15:00:00.000Z',
+      contentHash: 'h1',
+      previousHash: 'h0',
+    };
+    let vital: () => Response;
+    let historia: () => Response;
+    let alta: ReturnType<typeof vi.fn<(init?: RequestInit) => Response>>;
+
     beforeEach(() => {
-      mockVideo(() => jsonResponse({ ...ACCESS, role: 'PROFESIONAL' }));
+      vital = () => jsonResponse(VITAL);
+      historia = () => jsonResponse([ENTRADA]);
+      alta = vi.fn<(init?: RequestInit) => Response>(() => jsonResponse(ENTRADA, 201));
+      // El turno está en la lista y la sala abierta: así se sabe quién es el
+      // paciente, que es de quien se pide la ficha.
+      turnos = [
+        {
+          id: APPOINTMENT,
+          scheduledAt: new Date().toISOString(),
+          date: new Date().toISOString().slice(0, 10),
+          startTime: '10:00',
+          durationMinutes: 30,
+          price: 15000,
+          currency: 'ARS',
+          status: 'CONFIRMADO',
+          professional: { id: PRO, firstName: 'Laura', lastName: 'Ríos' },
+          patient: { id: PACIENTE, firstName: 'Ana', lastName: 'Gómez' },
+        },
+      ];
+      fetchSpy.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        if (url.includes('/clinical-record/vital')) return Promise.resolve(vital());
+        if (url.includes('/clinical-record'))
+          return Promise.resolve(init?.method === 'POST' ? alta(init) : historia());
+        if (url.includes('/appointments/me')) return Promise.resolve(jsonResponse(turnos));
+        if (url.includes('/complete')) return Promise.resolve(completar());
+        if (url.includes('/video'))
+          return Promise.resolve(
+            jsonResponse({ ...ACCESS, role: 'PROFESIONAL', consultationId: 'cons-1' }),
+          );
+        return Promise.resolve(jsonResponse({ ...SESSION, id: PRO, role: 'PROFESIONAL' }));
+      });
+    });
+
+    it('muestra las alergias, la medicación y las condiciones reales del paciente (ENG-191)', async () => {
       renderComponent();
+
+      expect(await screen.findByText(/penicilina · anafilaxia/i)).toBeInTheDocument();
+      expect(screen.getByText(/enalapril 10 mg/i)).toBeInTheDocument();
+      expect(screen.getByText('Hipertensión')).toBeInTheDocument();
+      expect(screen.getByText(/41 años/)).toBeInTheDocument();
+      expect(await screen.findByText('Diagnóstico')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Ver historia completa' })).toHaveAttribute(
+        'href',
+        `/pacientes/${PACIENTE}/historia-clinica`,
+      );
     });
 
-    it('muestra la ficha de la paciente con las alergias', async () => {
-      expect(await screen.findByText(/info de la paciente/i)).toBeInTheDocument();
-      expect(screen.getByText(/alergias/i)).toBeInTheDocument();
+    it('ya no muestra transcripción ni consentimiento inventados', async () => {
+      renderComponent();
+      await screen.findByText(/penicilina/i);
+
+      expect(screen.queryByText(/transcripción en vivo/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/consentimiento firmado/i)).not.toBeInTheDocument();
     });
 
-    it('el botón de pausar la transcripción está apagado porque no hace nada', async () => {
-      // Un botón que responde al click sin efecto es peor que uno apagado.
-      await screen.findByText(/transcripción en vivo/i);
+    it('sin datos cargados muestra un estado vacío, no un error', async () => {
+      vital = () => jsonResponse({ nombre: 'Ana Gómez', alergias: null, medicacion: null });
+      renderComponent();
 
-      expect(screen.getByRole('button', { name: /pausar/i })).toBeDisabled();
+      expect(
+        await screen.findByText('Este paciente todavía no cargó alergias ni medicación.'),
+      ).toBeInTheDocument();
     });
 
-    it('finalizar lleva al resumen, y se puede volver a la consulta', async () => {
+    it('si la ficha no carga, la llamada sigue y se puede reintentar', async () => {
+      vital = () => jsonResponse({ message: 'caído' }, 403);
       const user = userEvent.setup();
+      renderComponent();
+
+      expect(
+        await screen.findByText('No pudimos cargar la ficha del paciente.'),
+      ).toBeInTheDocument();
+      expect(screen.getByTitle(/Videoconsulta con Ana Gómez/)).toBeInTheDocument();
+
+      vital = () => jsonResponse(VITAL);
+      await user.click(screen.getAllByRole('button', { name: 'Reintentar' })[0]);
+
+      expect(await screen.findByText(/penicilina/i)).toBeInTheDocument();
+    });
+
+    it('finalizar cierra el turno y abre la evolución asociada a la consulta (ENG-189, ENG-191)', async () => {
+      const user = userEvent.setup();
+      renderComponent();
       await screen.findByTitle(/Videoconsulta con Ana Gómez/);
 
       await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
 
-      expect(await screen.findByText(/consulta finalizada/i)).toBeInTheDocument();
-      // El iframe se desmonta: la llamada no sigue detrás del resumen.
-      expect(screen.queryByTitle(/Videoconsulta con Ana Gómez/)).not.toBeInTheDocument();
-
-      await user.click(screen.getByRole('button', { name: /volver a la consulta/i }));
-
-      expect(await screen.findByTitle(/Videoconsulta con Ana Gómez/)).toBeInTheDocument();
-    });
-
-    it('finalizar cierra el turno en el backend antes de ir al resumen (ENG-189)', async () => {
-      const user = userEvent.setup();
-      await screen.findByTitle(/Videoconsulta con Ana Gómez/);
-
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
-
-      await screen.findByText(/consulta finalizada/i);
-      const llamada = fetchSpy.mock.calls.find(([input]: [RequestInfo | URL]) =>
+      expect(
+        await screen.findByRole('heading', { name: 'Evolución de la consulta' }),
+      ).toBeInTheDocument();
+      const cierre = fetchSpy.mock.calls.find(([input]: [RequestInfo | URL]) =>
         String(input).includes(`/appointments/${APPOINTMENT}/complete`),
       );
-      expect(llamada?.[1]).toEqual(expect.objectContaining({ method: 'PATCH' }));
+      expect(cierre?.[1]).toEqual(expect.objectContaining({ method: 'PATCH' }));
+
+      await user.type(screen.getByLabelText(/motivo de consulta/i), 'Control de presión');
+      await user.click(screen.getByRole('button', { name: 'Guardar en la historia clínica' }));
+
+      expect(await screen.findByText('Guardado en la historia clínica.')).toBeInTheDocument();
+      const body = JSON.parse(String((alta.mock.calls[0][0] as RequestInit).body)) as Record<
+        string,
+        unknown
+      >;
+      expect(body).toMatchObject({
+        entryType: 'CONSULTA',
+        reason: 'Control de presión',
+        consultationId: 'cons-1',
+      });
+    });
+
+    it('"Lo cargo después" no crea ninguna entrada', async () => {
+      const user = userEvent.setup();
+      renderComponent();
+      await screen.findByTitle(/Videoconsulta con Ana Gómez/);
+      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+
+      await user.click(await screen.findByRole('button', { name: 'Lo cargo después' }));
+
+      expect(alta).not.toHaveBeenCalled();
     });
 
     it('si cerrar el turno falla, sigue en la llamada con el error y se puede reintentar', async () => {
       completar = () => jsonResponse({ message: 'Ese turno ya no se puede cerrar.' }, 409);
       const user = userEvent.setup();
+      renderComponent();
       await screen.findByTitle(/Videoconsulta con Ana Gómez/);
 
       await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
 
-      expect(await screen.findByRole('alert')).toHaveTextContent(
-        /ya no se puede cerrar.*reintentar/i,
-      );
+      expect(await screen.findByText(/ya no se puede cerrar.*reintentar/i)).toBeInTheDocument();
       expect(screen.getByTitle(/Videoconsulta con Ana Gómez/)).toBeInTheDocument();
 
       completar = () => jsonResponse({ id: APPOINTMENT, status: 'COMPLETADO' });
       await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
 
-      expect(await screen.findByText(/consulta finalizada/i)).toBeInTheDocument();
-    });
-
-    it('el resumen se puede editar antes de firmar', async () => {
-      const user = userEvent.setup();
-      await screen.findByTitle(/Videoconsulta con Ana Gómez/);
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
-
-      await user.click(await screen.findByRole('button', { name: /^editar$/i }));
-
-      const campo = screen.getByRole('textbox', { name: /resumen de la consulta/i });
-      await user.clear(campo);
-      await user.type(campo, 'Control sin novedades.');
-
-      await user.click(screen.getByRole('button', { name: /^listo$/i }));
-
-      expect(screen.getByText('Control sin novedades.')).toBeInTheDocument();
-    });
-
-    it('firmar avisa que TODAVÍA no se incorporó a la historia clínica', async () => {
-      // Firmar es un acto médico irreversible. El backend no tiene endpoint, así
-      // que la pantalla no puede dar por hecho algo que no pasó.
-      const user = userEvent.setup();
-      await screen.findByTitle(/Videoconsulta con Ana Gómez/);
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
-
-      await user.click(
-        await screen.findByRole('button', { name: /firmar e incorporar a la historia/i }),
-      );
-
-      expect(await screen.findByRole('status')).toHaveTextContent(
-        /todavía no se incorporó a la historia clínica/i,
-      );
-    });
-
-    it('la transcripción completa se despliega a pedido', async () => {
-      const user = userEvent.setup();
-      await screen.findByTitle(/Videoconsulta con Ana Gómez/);
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
-
-      const ver = await screen.findByRole('button', { name: /ver transcripción/i });
-      expect(ver).toHaveAttribute('aria-expanded', 'false');
-
-      await user.click(ver);
-
-      expect(screen.getByRole('button', { name: /ocultar transcripción/i })).toHaveAttribute(
-        'aria-expanded',
-        'true',
-      );
+      expect(
+        await screen.findByRole('heading', { name: 'Evolución de la consulta' }),
+      ).toBeInTheDocument();
     });
   });
 

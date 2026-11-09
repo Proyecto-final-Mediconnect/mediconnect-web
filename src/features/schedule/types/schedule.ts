@@ -38,12 +38,7 @@ export const scheduleRuleSchema = z.object({
   weekday: z.number().int().min(0).max(6),
   startTime: z.string().regex(HHMM, 'La hora debe tener formato HH:MM'),
   endTime: z.string().regex(HHMM, 'La hora debe tener formato HH:MM'),
-  slotDurationMinutes: z.union([
-    z.literal(15),
-    z.literal(30),
-    z.literal(45),
-    z.literal(60),
-  ]),
+  slotDurationMinutes: z.union([z.literal(15), z.literal(30), z.literal(45), z.literal(60)]),
 });
 
 export const saveScheduleSchema = z.object({
@@ -60,8 +55,7 @@ export const createBlockSchema = z
     reason: z.string().max(200).optional(),
   })
   .refine((b) => (b.startTime === undefined) === (b.endTime === undefined), {
-    message:
-      'Indicá las dos horas para bloquear una franja, o ninguna para el día completo.',
+    message: 'Indicá las dos horas para bloquear una franja, o ninguna para el día completo.',
     path: ['endTime'],
   });
 

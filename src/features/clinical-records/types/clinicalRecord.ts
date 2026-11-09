@@ -1,3 +1,5 @@
+import type { VitalBlock } from '../../medipass/types/medipass';
+
 /**
  * Historia clínica (EP-06). Espeja lo que devuelve el backend.
  *
@@ -110,3 +112,10 @@ export interface ClinicalRecordAccessPage {
   pagina: number;
   hayMas: boolean;
 }
+
+/**
+ * Datos vitales del paciente para la videoconsulta (ENG-191). Es el bloque
+ * vital del MediPass sin el contacto de emergencia; lo que el paciente no
+ * cargó viene `null`.
+ */
+export type PatientVital = Omit<VitalBlock, 'contacto' | 'pais'>;

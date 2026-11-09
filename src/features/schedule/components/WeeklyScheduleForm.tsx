@@ -201,8 +201,8 @@ export function WeeklyScheduleForm() {
               Días y horarios de atención
             </h2>
             <p className="mt-1.5 text-[13px] leading-[1.6] text-muted">
-              Activá los días que atendés. Podés cargar más de una franja por día si
-              trabajás mañana y tarde.
+              Activá los días que atendés. Podés cargar más de una franja por día si trabajás mañana
+              y tarde.
             </p>
           </header>
 
@@ -257,9 +257,7 @@ export function WeeklyScheduleForm() {
                             <input
                               type="time"
                               value={rule.startTime}
-                              onChange={(e) =>
-                                updateRule(rule.uid, { startTime: e.target.value })
-                              }
+                              onChange={(e) => updateRule(rule.uid, { startTime: e.target.value })}
                               className="rounded-[8px] border border-line-strong bg-white px-3 py-2 font-semibold text-brand-deep focus:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
                               required
                             />

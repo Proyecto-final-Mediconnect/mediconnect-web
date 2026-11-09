@@ -5,6 +5,7 @@ import {
   addClinicalEntry,
   correctClinicalEntry,
   getClinicalRecord,
+  getPatientVital,
 } from '../api/clinicalRecordsApi';
 import type { CorrectionPayload, NewClinicalEntryPayload } from '../types/clinicalRecord';
 
@@ -18,6 +19,15 @@ export function useClinicalRecord(patientId: string) {
   return useQuery({
     queryKey: recordKey(patientId),
     queryFn: () => getClinicalRecord(patientId),
+    retry: retryServerErrorsOnly,
+  });
+}
+
+/** Alergias, medicación y condiciones del paciente (ENG-191). */
+export function usePatientVital(patientId: string) {
+  return useQuery({
+    queryKey: ['clinical-record', patientId, 'vital'],
+    queryFn: () => getPatientVital(patientId),
     retry: retryServerErrorsOnly,
   });
 }

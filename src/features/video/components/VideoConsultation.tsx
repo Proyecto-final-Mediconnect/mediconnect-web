@@ -7,7 +7,7 @@ import { counterpartOf } from '../../appointments/lib/myAppointments';
 import { useSession } from '../../auth/hooks/useSession';
 import { useVideoConsultationAccess } from '../hooks/useVideoConsultation';
 import { joinStateOf } from '../lib/joinWindow';
-import { ConsultationSummary } from './ConsultationSummary';
+import { ConsultationEvolution } from './ConsultationEvolution';
 import { LiveConsultation } from './LiveConsultation';
 import { WaitingRoom } from './WaitingRoom';
 
@@ -72,9 +72,6 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
   const { estado, reintentar } = useVideoConsultationAccess(appointmentId, habilitado);
 
   const [fase, setFase] = useState<Fase>('CURSO');
-  /** Cuándo se cerró la consulta. Fija el rango que muestra el resumen: si se
-   *  recalculara en cada render, la hora de fin correría sola. */
-  const [endedAt, setEndedAt] = useState<Date | null>(null);
 
   /**
    * Momento en que se abrió la pantalla: es el cero del cronómetro.
@@ -179,10 +176,10 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
 
   if (fase === 'CIERRE') {
     return (
-      <ConsultationSummary
+      <ConsultationEvolution
+        patientId={appointment?.patient?.id ?? null}
+        consultationId={access.consultationId}
         counterpartName={counterpartName}
-        joinedAt={joinedAt}
-        endedAt={endedAt ?? new Date()}
         onBack={() => setFase('CURSO')}
       />
     );
@@ -192,11 +189,9 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
     <LiveConsultation
       access={access}
       counterpartName={counterpartName}
+      patientId={appointment?.patient?.id ?? null}
       joinedAt={joinedAt}
-      onFinish={() => {
-        setEndedAt(new Date());
-        setFase('CIERRE');
-      }}
+      onFinish={() => setFase('CIERRE')}
     />
   );
 }

@@ -31,6 +31,8 @@ type ClinicalEntryFormProps = {
   onSaved?: () => void;
   /** Se llama al cancelar. Si no viene, no se dibuja el botón. */
   onCancel?: () => void;
+  /** Texto del botón de cancelar: "Lo cargo después" al cerrar la consulta (ENG-191). */
+  cancelLabel?: string;
 };
 
 const EMPTY = {
@@ -46,6 +48,7 @@ export function ClinicalEntryForm({
   consultationId,
   onSaved,
   onCancel,
+  cancelLabel = 'Cancelar',
 }: ClinicalEntryFormProps) {
   const [form, setForm] = useState(EMPTY);
   const [attempted, setAttempted] = useState(false);
@@ -159,7 +162,7 @@ export function ClinicalEntryForm({
       <div className="mt-1 flex flex-wrap justify-end gap-3">
         {onCancel && (
           <Button type="button" variant="secondary" onClick={onCancel} disabled={add.isPending}>
-            Cancelar
+            {cancelLabel}
           </Button>
         )}
         <Button type="submit" disabled={add.isPending}>

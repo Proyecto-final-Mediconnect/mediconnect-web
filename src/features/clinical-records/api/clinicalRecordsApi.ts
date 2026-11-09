@@ -5,6 +5,7 @@ import type {
   ClinicalEntry,
   CorrectionPayload,
   NewClinicalEntryPayload,
+  PatientVital,
 } from '../types/clinicalRecord';
 
 /**
@@ -91,4 +92,17 @@ export async function getMyClinicalRecordAccesses(pagina = 1): Promise<ClinicalR
   if (!response.ok)
     throw await toApiError(response, 'No pudimos cargar quién vio tu historia clínica.');
   return (await response.json()) as ClinicalRecordAccessPage;
+}
+
+/**
+ * Alergias, medicación y condiciones del paciente (ENG-191), para la columna de
+ * la videoconsulta. Mismas reglas de acceso que la HC; la lectura queda
+ * auditada. No trae el contacto de emergencia.
+ */
+export async function getPatientVital(patientId: string): Promise<PatientVital> {
+  const response = await apiFetch(`/patients/${patientId}/clinical-record/vital`);
+  if (!response.ok) {
+    throw await toApiError(response, 'No pudimos cargar la ficha del paciente.');
+  }
+  return (await response.json()) as PatientVital;
 }

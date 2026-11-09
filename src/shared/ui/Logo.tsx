@@ -37,12 +37,7 @@ const FUENTES = {
   mark: '/logo-mark.png',
 } as const;
 
-export function Logo({
-  variant = 'lockup',
-  tone = 'dark',
-  alt = '',
-  className = '',
-}: LogoProps) {
+export function Logo({ variant = 'lockup', tone = 'dark', alt = '', className = '' }: LogoProps) {
   const src = variant === 'mark' ? FUENTES.mark : FUENTES[`lockup-${tone}`];
 
   return (
