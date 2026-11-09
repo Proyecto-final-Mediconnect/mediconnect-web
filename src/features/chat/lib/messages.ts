@@ -27,6 +27,8 @@ export interface MessageRow {
   conversation_id: string;
   sender_id: string;
   content: string | null;
+  attachment_mime?: string | null;
+  attachment_size?: number | null;
   created_at: string;
   read_at: string | null;
 }
@@ -44,6 +46,10 @@ export function fromRow(row: MessageRow): ChatMessage {
     contenido: row.content ?? '',
     enviadoEl: toIso(row.created_at),
     leidoEl: row.read_at ? toIso(row.read_at) : null,
+    adjunto:
+      row.attachment_mime && row.attachment_size
+        ? { tipo: row.attachment_mime, tamano: row.attachment_size }
+        : null,
   };
 }
 

@@ -14,6 +14,7 @@ import {
   hideConversation,
   markConversationRead,
   openConversation,
+  sendAttachment,
   sendMessage,
 } from '../api/chatApi';
 import { mergeMessages } from '../lib/messages';
@@ -213,6 +214,19 @@ export function useSendMessage(conversationId: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (contenido: string) => sendMessage(conversationId, contenido),
+    onSuccess: (message) => {
+      addToCache(queryClient, conversationId, message);
+      void queryClient.invalidateQueries({ queryKey: CHAT_INBOX_KEY });
+    },
+  });
+}
+
+/** Manda un archivo con un texto opcional (ENG-102). */
+export function useSendAttachment(conversationId: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ file, contenido }: { file: File; contenido?: string }) =>
+      sendAttachment(conversationId, file, contenido),
     onSuccess: (message) => {
       addToCache(queryClient, conversationId, message);
       void queryClient.invalidateQueries({ queryKey: CHAT_INBOX_KEY });

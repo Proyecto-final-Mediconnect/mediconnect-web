@@ -6,6 +6,7 @@ import {
   useHideConversation,
   useMarkConversationRead,
   useMessages,
+  useSendAttachment,
   useSendMessage,
   useChatSignals,
 } from '../hooks/useChat';
@@ -14,6 +15,7 @@ import { formatHour, layoutMessages, todayKey } from '../lib/format';
 import type { ChatCounterpart } from '../types/chat';
 import { ChatFrame, MessageComposer } from './ChatFrame';
 import { ChatInfoPanel } from './ChatInfoPanel';
+import { MessageAttachment } from './MessageAttachment';
 
 type Props = {
   conversationId: string;
@@ -51,6 +53,7 @@ export function ConversationView({ conversationId, counterpart, myId }: Props) {
   const status = useConversationRealtime(conversationId);
   const messages = useMessages(conversationId, status === 'en-vivo');
   const send = useSendMessage(conversationId);
+  const sendFile = useSendAttachment(conversationId);
   const hide = useHideConversation();
   const { mutate: markAsRead } = useMarkConversationRead(conversationId, myId);
   const { next, past } = useCounterpartAppointments(counterpart.id, myId);
@@ -136,10 +139,18 @@ export function ConversationView({ conversationId, counterpart, myId }: Props) {
         bodyRef={bodyRef}
         composer={
           <MessageComposer
+            key={conversationId}
             counterpartName={counterpart.nombre}
-            pending={send.isPending}
-            error={send.error}
-            onSend={(content, onSent) => send.mutate(content, { onSuccess: onSent })}
+            pending={send.isPending || sendFile.isPending}
+            error={send.error ?? sendFile.error}
+            onSend={(content, onSent) => {
+              sendFile.reset();
+              send.mutate(content, { onSuccess: onSent });
+            }}
+            onAttach={(file, content, onSent) => {
+              send.reset();
+              sendFile.mutate({ file, contenido: content || undefined }, { onSuccess: onSent });
+            }}
             onTyping={notifyTyping}
           />
         }
@@ -195,9 +206,21 @@ export function ConversationView({ conversationId, counterpart, myId }: Props) {
                       }`}
                     >
                       <span className="sr-only">{mine ? 'Vos' : counterpart.nombre}: </span>
-                      <p className="whitespace-pre-wrap break-words text-[14px] leading-[1.5]">
-                        {m.contenido}
-                      </p>
+                      {m.adjunto && (
+                        <MessageAttachment
+                          conversationId={conversationId}
+                          messageId={m.id}
+                          attachment={m.adjunto}
+                          mine={mine}
+                        />
+                      )}
+                      {m.contenido && (
+                        <p
+                          className={`whitespace-pre-wrap break-words text-[14px] leading-[1.5] ${m.adjunto ? 'mt-2' : ''}`}
+                        >
+                          {m.contenido}
+                        </p>
+                      )}
                     </div>
                     {groupEnd && (
                       <p className="mx-1 mt-1 flex items-center gap-1 text-[11px] text-muted">

@@ -1,6 +1,7 @@
 import { apiFetch } from '../../../shared/api/apiFetch';
 import { toApiError } from '../../../shared/api/apiError';
 import type {
+  AttachmentUrl,
   ChatMessage,
   ConversationInbox,
   ConversationSummary,
@@ -71,4 +72,31 @@ export async function getRealtimeToken(): Promise<RealtimeToken> {
 export async function hideConversation(id: string): Promise<void> {
   const response = await apiFetch(conversationPath(id), { method: 'DELETE' });
   if (!response.ok) throw await toApiError(response, 'No pudimos borrar el chat.');
+}
+
+/**
+ * `POST /conversations/:id/attachments` (ENG-102): un PDF, JPG o PNG de hasta
+ * 10 MB, con un texto opcional. Va como multipart: el `Content-Type` con el
+ * boundary lo arma el navegador.
+ */
+export async function sendAttachment(
+  id: string,
+  file: File,
+  contenido?: string,
+): Promise<ChatMessage> {
+  const body = new FormData();
+  body.append('file', file);
+  if (contenido) body.append('contenido', contenido);
+  const response = await apiFetch(conversationPath(id, '/attachments'), { method: 'POST', body });
+  if (!response.ok) throw await toApiError(response, 'No pudimos mandar el archivo.');
+  return (await response.json()) as ChatMessage;
+}
+
+/** Una URL firmada de cinco minutos para abrir el archivo de un mensaje. */
+export async function getAttachmentUrl(id: string, messageId: string): Promise<AttachmentUrl> {
+  const response = await apiFetch(
+    conversationPath(id, `/messages/${encodeURIComponent(messageId)}/attachment`),
+  );
+  if (!response.ok) throw await toApiError(response, 'No pudimos abrir el archivo.');
+  return (await response.json()) as AttachmentUrl;
 }
