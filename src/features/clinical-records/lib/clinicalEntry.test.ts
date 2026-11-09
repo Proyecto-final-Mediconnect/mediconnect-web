@@ -107,7 +107,15 @@ describe('readEntryFields', () => {
     // devuelve las claves por longitud, así que el orden de entrada acá es el
     // que sale de la base — y la descripción tiene que quedar primera igual.
     const campos = readEntryFields(
-      entry({ codigo: 'I10', estado: 'activo', sistema: 'ICD-10', descripcion: 'Hipertensión esencial' }, 'Condition'),
+      entry(
+        {
+          codigo: 'I10',
+          estado: 'activo',
+          sistema: 'ICD-10',
+          descripcion: 'Hipertensión esencial',
+        },
+        'Condition',
+      ),
     );
 
     expect(campos).toEqual([
@@ -122,7 +130,12 @@ describe('readEntryFields', () => {
     // Postgres ordena las claves por longitud: el medicamento salía último.
     const campos = readEntryFields(
       entry(
-        { dosis: '10 mg', duracion: '30 días', frecuencia: 'cada 24 horas', medicamento: 'Enalapril' },
+        {
+          dosis: '10 mg',
+          duracion: '30 días',
+          frecuencia: 'cada 24 horas',
+          medicamento: 'Enalapril',
+        },
         'MedicationRequest',
       ),
     );

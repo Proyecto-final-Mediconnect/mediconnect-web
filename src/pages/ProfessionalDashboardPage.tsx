@@ -18,7 +18,12 @@ import {
 } from '../features/dashboard/lib/dashboard';
 import { useMyProfile } from '../features/profile/hooks/useProfile';
 import { useMySchedule } from '../features/schedule/hooks/useSchedule';
-import { buildWeekPreview, countSlots, mondayOf, todayLocal } from '../features/schedule/lib/generateSlots';
+import {
+  buildWeekPreview,
+  countSlots,
+  mondayOf,
+  todayLocal,
+} from '../features/schedule/lib/generateSlots';
 import { DashboardLayout } from './DashboardLayout';
 
 /**
@@ -49,9 +54,7 @@ export function ProfessionalDashboardPage() {
   // consultas ya reservadas, que son la demanda. Se calcula igual que la vista
   // previa de la agenda, con las mismas funciones puras.
   const turnosQuePublica = agenda.data
-    ? countSlots(
-        buildWeekPreview(agenda.data.rules, agenda.data.blocks, mondayOf(todayLocal())),
-      )
+    ? countSlots(buildWeekPreview(agenda.data.rules, agenda.data.blocks, mondayOf(todayLocal())))
     : 0;
 
   const saludo = user?.firstName ? `Buen día, ${user.firstName}.` : 'Buen día.';
@@ -69,10 +72,7 @@ export function ProfessionalDashboardPage() {
           </PanelSection>
         )}
 
-        <PanelSection
-          numero={tareas.length > 0 ? '02' : '01'}
-          titulo="Tu próxima consulta"
-        >
+        <PanelSection numero={tareas.length > 0 ? '02' : '01'} titulo="Tu próxima consulta">
           {turnos.isPending ? (
             <p role="status" aria-live="polite" className="text-sm text-muted">
               Cargando tus consultas…
@@ -96,11 +96,7 @@ export function ProfessionalDashboardPage() {
         </PanelSection>
 
         <div className="grid gap-3 sm:grid-cols-3">
-          <StatTile
-            valor={estaSemana.length}
-            etiqueta="Consultas esta semana"
-            to="/mis-turnos"
-          />
+          <StatTile valor={estaSemana.length} etiqueta="Consultas esta semana" to="/mis-turnos" />
           <StatTile valor={upcomingCount(lista)} etiqueta="Turnos próximos" to="/mis-turnos" />
           {/* "Que publicás" y no "próximos": esto es la oferta que genera la
               agenda, no los turnos que ya reservaron. */}
@@ -112,10 +108,7 @@ export function ProfessionalDashboardPage() {
         </div>
 
         {estaSemana.length > 0 && (
-          <PanelSection
-            numero={tareas.length > 0 ? '03' : '02'}
-            titulo="Los próximos siete días"
-          >
+          <PanelSection numero={tareas.length > 0 ? '03' : '02'} titulo="Los próximos siete días">
             <ul className="divide-y divide-line rounded-[14px] border border-line bg-white">
               {estaSemana.map((turno) => {
                 const paciente = counterpartOf(turno, user?.id ?? null);
@@ -150,7 +143,10 @@ export function ProfessionalDashboardPage() {
         )}
 
         <PanelSection
-          numero={String((tareas.length > 0 ? 3 : 2) + (estaSemana.length > 0 ? 1 : 0)).padStart(2, '0')}
+          numero={String((tareas.length > 0 ? 3 : 2) + (estaSemana.length > 0 ? 1 : 0)).padStart(
+            2,
+            '0',
+          )}
           titulo="Tu consultorio"
         >
           <div className="grid gap-3 md:grid-cols-3">

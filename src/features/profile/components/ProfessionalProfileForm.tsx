@@ -22,17 +22,10 @@ const MAX_BIO = 500;
  */
 const MAX_INPUT_BYTES = 12 * 1024 * 1024;
 
-type FieldErrors = Partial<
-  Record<'bio' | 'consultationPrice' | 'specialtyIds', string>
->;
+type FieldErrors = Partial<Record<'bio' | 'consultationPrice' | 'specialtyIds', string>>;
 
 export function ProfessionalProfileForm() {
-  const {
-    data: profile,
-    isPending,
-    isError,
-    error,
-  } = useMyProfile();
+  const { data: profile, isPending, isError, error } = useMyProfile();
   const { data: specialties = [] } = useSpecialties();
   const updateProfile = useUpdateProfile();
   const uploadPhoto = useUploadPhoto();
@@ -63,17 +56,12 @@ export function ProfessionalProfileForm() {
   useEffect(() => {
     if (profile && !seeded.current) {
       setBio(profile.bio ?? '');
-      setPrice(
-        profile.consultationPrice !== null
-          ? String(profile.consultationPrice)
-          : '',
-      );
+      setPrice(profile.consultationPrice !== null ? String(profile.consultationPrice) : '');
       const ids = profile.specialties.map((s) => s.id);
       setSelectedIds(ids);
       setOriginal({
         bio: profile.bio ?? '',
-        price:
-          profile.consultationPrice !== null ? String(profile.consultationPrice) : '',
+        price: profile.consultationPrice !== null ? String(profile.consultationPrice) : '',
         specialtyIds: ids,
       });
       seeded.current = true;
@@ -163,9 +151,7 @@ export function ProfessionalProfileForm() {
     });
   }
 
-  const selectedSpecialties = specialties.filter((s) =>
-    selectedIds.includes(s.id),
-  );
+  const selectedSpecialties = specialties.filter((s) => selectedIds.includes(s.id));
   const priceNumber = price.trim() === '' ? null : Number(price);
 
   const sucio =
@@ -251,9 +237,7 @@ export function ProfessionalProfileForm() {
           detalle={`Hasta ${MAX_SPECIALTIES}. Son el filtro con el que los pacientes buscan en el catálogo.`}
         >
           <fieldset className="grid gap-3">
-            <legend className="sr-only">
-              Especialidades (elegí hasta {MAX_SPECIALTIES})
-            </legend>
+            <legend className="sr-only">Especialidades (elegí hasta {MAX_SPECIALTIES})</legend>
             <div className="flex flex-wrap gap-2">
               {specialties.map((s) => {
                 const active = selectedIds.includes(s.id);
@@ -398,13 +382,7 @@ function Seccion({
  * completar todo el formulario y no cambiar nada. Se dice acá, al lado de lo que
  * se está editando, y no solo en el panel.
  */
-function EstadoMatricula({
-  status,
-  licenseNumber,
-}: {
-  status: string;
-  licenseNumber: string;
-}) {
+function EstadoMatricula({ status, licenseNumber }: { status: string; licenseNumber: string }) {
   const validado = status === 'VALIDADO';
 
   const texto: Record<string, string> = {

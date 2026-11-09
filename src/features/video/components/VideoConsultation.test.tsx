@@ -69,6 +69,7 @@ describe('VideoConsultation', () => {
       const url = String(input);
       if (url.includes('/appointments/me')) return Promise.resolve(jsonResponse(turnos));
       if (url.includes('/complete')) return Promise.resolve(completar());
+      if (url.includes('/reviews/me')) return Promise.resolve(jsonResponse([]));
       if (url.includes('/video')) return Promise.resolve(respuesta());
       return Promise.resolve(jsonResponse(SESSION));
     });
@@ -191,6 +192,22 @@ describe('VideoConsultation', () => {
     expect(
       screen.queryByRole('button', { name: /finalizar y ver el resumen/i }),
     ).not.toBeInTheDocument();
+  });
+
+  it('al salir, el paciente ve la pantalla de cierre con la reseña (ENG-190)', async () => {
+    const user = userEvent.setup();
+    renderComponent();
+    await screen.findByTitle(/Videoconsulta con Ana Gómez/);
+
+    await user.click(screen.getByRole('button', { name: /salir de la consulta/i }));
+
+    expect(
+      await screen.findByRole('heading', { name: 'Tu consulta con Ana Gómez terminó' }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('radiogroup')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Ahora no' })).toBeInTheDocument();
+    // La llamada ya no sigue detrás.
+    expect(screen.queryByTitle(/Videoconsulta con Ana Gómez/)).not.toBeInTheDocument();
   });
 
   it('cuenta el tiempo en consulta desde que se abre la sala', async () => {

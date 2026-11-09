@@ -17,9 +17,7 @@ export async function getMyProfile(): Promise<ProfessionalProfile> {
     const message = data?.message;
     throw apiError(
       response.status,
-      Array.isArray(message)
-        ? message.join(' ')
-        : (message ?? 'No se pudo cargar tu perfil.'),
+      Array.isArray(message) ? message.join(' ') : (message ?? 'No se pudo cargar tu perfil.'),
     );
   }
 

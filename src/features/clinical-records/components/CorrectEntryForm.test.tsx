@@ -51,9 +51,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 type FetchCall = [RequestInfo, RequestInit?];
 
 function posts(spy: ReturnType<typeof vi.spyOn>): FetchCall[] {
-  return (spy.mock.calls as unknown as FetchCall[]).filter(
-    (call) => call[1]?.method === 'POST',
-  );
+  return (spy.mock.calls as unknown as FetchCall[]).filter((call) => call[1]?.method === 'POST');
 }
 
 function lastPostBody(spy: ReturnType<typeof vi.spyOn>): Record<string, unknown> | undefined {

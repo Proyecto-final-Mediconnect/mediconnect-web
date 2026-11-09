@@ -48,18 +48,13 @@ export function nextAppointment(
 ): Appointment | null {
   const futuros = appointments
     .filter((a) => isActive(a) && new Date(a.scheduledAt).getTime() > now.getTime())
-    .sort(
-      (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
-    );
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
   return futuros[0] ?? null;
 }
 
 /** Turnos vigentes de acá en adelante. Es el número del panel. */
-export function upcomingCount(
-  appointments: Appointment[],
-  now: Date = new Date(),
-): number {
+export function upcomingCount(appointments: Appointment[], now: Date = new Date()): number {
   return appointments.filter(
     (a) => isActive(a) && new Date(a.scheduledAt).getTime() > now.getTime(),
   ).length;
@@ -74,10 +69,7 @@ export function completedCount(appointments: Appointment[]): number {
  * Turnos dentro de los próximos 7 días. En el panel del profesional es la carga
  * de la semana, que es lo que mira antes que nada.
  */
-export function withinNextWeek(
-  appointments: Appointment[],
-  now: Date = new Date(),
-): Appointment[] {
+export function withinNextWeek(appointments: Appointment[], now: Date = new Date()): Appointment[] {
   const limite = now.getTime() + 7 * 24 * 60 * 60_000;
 
   return appointments.filter((a) => {

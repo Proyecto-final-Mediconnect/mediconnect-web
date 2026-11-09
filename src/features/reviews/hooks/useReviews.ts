@@ -3,9 +3,11 @@ import { isClientError } from '../../../shared/api/apiError';
 import {
   createReview,
   deleteReviewResponse,
+  dismissPendingReview,
   getModerationQueue,
   getReceivedReviews,
   getMyReviews,
+  getPendingReviews,
   getProfessionalReviews,
   moderateReview,
   saveReviewResponse,
@@ -16,6 +18,7 @@ const retryServerErrorsOnly = (failureCount: number, error: Error) =>
   !isClientError(error) && failureCount < 1;
 
 const MINE = ['reviews', 'me'] as const;
+const PENDING = ['reviews', 'pending'] as const;
 
 /**
  * Paginado infinito: las páginas viven en la cache bajo el profesional, así que
@@ -42,7 +45,31 @@ export function useCreateReview(appointmentId: string) {
     mutationFn: (review: NewReview) => createReview(appointmentId, review),
     // Sin reintento: una reseña por turno, y el segundo envío daría 409.
     retry: false,
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: MINE }),
+    onSuccess: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: MINE }),
+        // La reseñada deja de estar pendiente (ENG-190).
+        queryClient.invalidateQueries({ queryKey: PENDING }),
+      ]),
+  });
+}
+
+/** Turnos que falta reseñar (ENG-190). */
+export function usePendingReviews(enabled = true) {
+  return useQuery({
+    queryKey: PENDING,
+    queryFn: getPendingReviews,
+    enabled,
+    retry: retryServerErrorsOnly,
+  });
+}
+
+/** Descarta el pedido de un turno. Lo saca de la lista en el momento. */
+export function useDismissPendingReview() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: dismissPendingReview,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: PENDING }),
   });
 }
 

@@ -124,9 +124,7 @@ describe('PublicHeader', () => {
   it('cae al email cuando el perfil todavía no tiene nombre', async () => {
     renderHeader({ ...profesional, firstName: null, lastName: null });
 
-    await waitFor(() =>
-      expect(screen.getByRole('link', { name: /ana@test.test/ })).toBeVisible(),
-    );
+    await waitFor(() => expect(screen.getByRole('link', { name: /ana@test.test/ })).toBeVisible());
   });
 });
 

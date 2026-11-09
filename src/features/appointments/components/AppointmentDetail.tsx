@@ -26,6 +26,7 @@ import { RefundOutcomeBanner } from './agenda/RefundOutcomeBanner';
 import { NoShowDialog } from './agenda/NoShowDialog';
 import { StatusChip } from './agenda/StatusChip';
 import { AppointmentReview } from '../../reviews/components/AppointmentReview';
+import { usePendingReviews } from '../../reviews/hooks/useReviews';
 
 const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
@@ -64,6 +65,10 @@ export function AppointmentDetail({
 
   const appointment = appointments.data?.find((a) => a.id === appointmentId) ?? null;
   const isPatient = appointment?.patient?.id === userId;
+  // Reseñable sin estar completado: el paciente ya entró a la sala y el
+  // profesional todavía no cerró el turno (ENG-190). Eso lo sabe el backend.
+  const pendientes = usePendingReviews(appointment !== null && isPatient);
+  const pendiente = pendientes.data?.some((p) => p.appointmentId === appointmentId) ?? false;
 
   const payment = useQuery({
     queryKey: ['payment', appointmentId, 'detalle'],
@@ -242,7 +247,7 @@ export function AppointmentDetail({
           </h2>
 
           {/* La reseña de una consulta que ya se hizo (ENG-80). */}
-          {isPatient && appointment.status === 'COMPLETADO' && (
+          {isPatient && (appointment.status === 'COMPLETADO' || pendiente) && (
             <AppointmentReview
               appointmentId={appointment.id}
               professionalName={

@@ -5,6 +5,7 @@ import { Button } from '../../../shared/ui/Button';
 import { useMyAppointments } from '../../appointments/hooks/useAppointments';
 import { counterpartOf } from '../../appointments/lib/myAppointments';
 import { useSession } from '../../auth/hooks/useSession';
+import { ConsultationClosing } from '../../reviews/components/ConsultationClosing';
 import { useVideoConsultationAccess } from '../hooks/useVideoConsultation';
 import { joinStateOf } from '../lib/joinWindow';
 import { ConsultationSummary } from './ConsultationSummary';
@@ -39,7 +40,9 @@ type VideoConsultationProps = {
   appointmentId: string;
 };
 
-type Fase = 'CURSO' | 'CIERRE';
+/** `CIERRE`: el resumen del profesional. `SALIDA`: el pedido de reseña del
+ *  paciente al salir de la sala (ENG-190). */
+type Fase = 'CURSO' | 'CIERRE' | 'SALIDA';
 
 /** Cada cuánto se revisa si se acreditó el pago de un turno sin pagar. */
 const UNPAID_REFETCH_MS = 5_000;
@@ -177,6 +180,15 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
       ? 'tu profesional'
       : 'tu paciente';
 
+  if (fase === 'SALIDA') {
+    return (
+      <ConsultationClosing
+        appointmentId={access.appointmentId}
+        professionalName={counterpartName}
+      />
+    );
+  }
+
   if (fase === 'CIERRE') {
     return (
       <ConsultationSummary
@@ -197,6 +209,7 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
         setEndedAt(new Date());
         setFase('CIERRE');
       }}
+      onLeave={() => setFase('SALIDA')}
     />
   );
 }

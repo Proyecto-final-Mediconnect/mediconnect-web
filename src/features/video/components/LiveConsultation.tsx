@@ -1,4 +1,3 @@
-import { Link } from 'react-router-dom';
 import { useNow } from '../../../shared/hooks/useNow';
 import { useCompleteAppointment } from '../../appointments/hooks/useAppointments';
 import { formatElapsed } from '../lib/elapsed';
@@ -30,6 +29,8 @@ type LiveConsultationProps = {
   /** Momento en que se abrió la sala: el cronómetro cuenta desde acá. */
   joinedAt: Date;
   onFinish: () => void;
+  /** El paciente sale de la sala: va a la pantalla de cierre (ENG-190). */
+  onLeave: () => void;
 };
 
 export function LiveConsultation({
@@ -37,6 +38,7 @@ export function LiveConsultation({
   counterpartName,
   joinedAt,
   onFinish,
+  onLeave,
 }: LiveConsultationProps) {
   // Un tick por segundo: es un cronómetro a la vista, no un botón que aparece.
   const now = useNow(1000);
@@ -94,12 +96,13 @@ export function LiveConsultation({
               {complete.isPending ? 'Cerrando la consulta…' : 'Finalizar y ver el resumen'}
             </button>
           ) : (
-            <Link
-              to="/mis-turnos"
+            <button
+              type="button"
+              onClick={onLeave}
               className="rounded-[9px] border border-line-strong bg-white px-5 py-3 text-sm font-bold text-brand-deep transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             >
               Salir de la consulta
-            </Link>
+            </button>
           )}
         </div>
 

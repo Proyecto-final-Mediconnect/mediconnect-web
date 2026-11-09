@@ -1,8 +1,4 @@
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isClientError } from '../api/apiError';
 import { getMyProfile } from '../api/getMyProfile';
 import { getSpecialties } from '../api/getSpecialties';
@@ -45,8 +41,7 @@ export function useUpdateProfile() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: updateMyProfile,
-    onSuccess: (profile: ProfessionalProfile) =>
-      queryClient.setQueryData(PROFILE_KEY, profile),
+    onSuccess: (profile: ProfessionalProfile) => queryClient.setQueryData(PROFILE_KEY, profile),
   });
 }
 
@@ -55,7 +50,6 @@ export function useUploadPhoto() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: uploadPhoto,
-    onSuccess: (profile: ProfessionalProfile) =>
-      queryClient.setQueryData(PROFILE_KEY, profile),
+    onSuccess: (profile: ProfessionalProfile) => queryClient.setQueryData(PROFILE_KEY, profile),
   });
 }

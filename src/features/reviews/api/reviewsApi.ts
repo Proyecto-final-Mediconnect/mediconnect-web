@@ -6,6 +6,7 @@ import type {
   ModerationReview,
   MyReview,
   NewReview,
+  PendingReview,
   PublicReviewPage,
   ReviewResponse,
   ReviewStatus,
@@ -83,4 +84,20 @@ export async function deleteReviewResponse(reviewId: string): Promise<void> {
     method: 'DELETE',
   });
   if (!response.ok) throw await toApiError(response, 'No pudimos borrar la respuesta.');
+}
+
+/** Turnos que falta reseñar, para la tarjeta del inicio (ENG-190). */
+export async function getPendingReviews(): Promise<PendingReview[]> {
+  return json(
+    await apiFetch('/reviews/pending'),
+    'No pudimos cargar tus consultas para calificar.',
+  );
+}
+
+/** Descarta el pedido de reseña de un turno: no vuelve en ningún dispositivo. */
+export async function dismissPendingReview(appointmentId: string): Promise<void> {
+  const response = await apiFetch(`/reviews/pending/${encodeURIComponent(appointmentId)}/dismiss`, {
+    method: 'POST',
+  });
+  if (!response.ok) throw await toApiError(response, 'No pudimos ocultar el pedido.');
 }

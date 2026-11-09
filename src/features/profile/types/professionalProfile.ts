@@ -35,10 +35,7 @@ function decimalPlaces(value: number): number {
  * especialidades. La foto se sube por separado (su propio endpoint), no entra acá.
  */
 export const professionalProfileSchema = z.object({
-  bio: z
-    .string()
-    .trim()
-    .max(500, 'La bio no puede superar los 500 caracteres'),
+  bio: z.string().trim().max(500, 'La bio no puede superar los 500 caracteres'),
   consultationPrice: z
     .number()
     .min(0, 'El precio no puede ser negativo')
@@ -49,11 +46,7 @@ export const professionalProfileSchema = z.object({
       message: 'El precio puede tener hasta 2 decimales',
     })
     .nullable(),
-  specialtyIds: z
-    .array(z.string())
-    .max(3, 'Podés elegir hasta 3 especialidades'),
+  specialtyIds: z.array(z.string()).max(3, 'Podés elegir hasta 3 especialidades'),
 });
 
-export type ProfessionalProfileInput = z.infer<
-  typeof professionalProfileSchema
->;
+export type ProfessionalProfileInput = z.infer<typeof professionalProfileSchema>;

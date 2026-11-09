@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement, ReactNode } from 'react';
 import { AppointmentReview } from './AppointmentReview';
 import { ModerationQueue } from './ModerationQueue';
+import { PendingReviewCards } from './PendingReviewCards';
 import { ProfessionalReviews } from './ProfessionalReviews';
 import { Stars, StarInput } from './Stars';
 import { ratingLabel } from '../lib/reviews';
@@ -383,5 +384,55 @@ describe('ModerationQueue (ENG-81)', () => {
     renderWith(<ModerationQueue />, () => json({ reviews: [], page: 1, hasMore: false }));
 
     expect(await screen.findByText('No hay reseñas para revisar')).toBeInTheDocument();
+  });
+});
+
+describe('PendingReviewCards (ENG-190)', () => {
+  const PENDIENTE = {
+    appointmentId: TURNO,
+    scheduledAt: '2026-11-20T15:00:00.000Z',
+    professional: { id: PRO, firstName: 'Ana', lastName: 'Gómez', photoUrl: null },
+  };
+
+  it('sin pendientes no muestra nada', async () => {
+    const fetchMock = renderWith(<PendingReviewCards />, () => json([]));
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(screen.queryByText(/cómo fue tu consulta/i)).not.toBeInTheDocument();
+  });
+
+  it('tocar una estrella abre el formulario con esa calificación', async () => {
+    const user = userEvent.setup();
+    renderWith(<PendingReviewCards />, () => json([PENDIENTE]));
+
+    expect(await screen.findByText('¿Cómo fue tu consulta con Ana Gómez?')).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: /4 estrellas/i }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByRole('radio', { name: /4 estrellas/i })).toBeChecked();
+  });
+
+  it('la cruz descarta el pedido y la tarjeta no vuelve', async () => {
+    const user = userEvent.setup();
+    let pendientes = [PENDIENTE];
+    const fetchMock = renderWith(<PendingReviewCards />, (url, init) => {
+      if (init?.method === 'POST' && url.includes('/dismiss')) {
+        pendientes = [];
+        return new Response(null, { status: 204 });
+      }
+      return json(pendientes);
+    });
+
+    await user.click(
+      await screen.findByRole('button', { name: 'No calificar la consulta con Ana Gómez' }),
+    );
+
+    await vi.waitFor(() =>
+      expect(screen.queryByText(/cómo fue tu consulta/i)).not.toBeInTheDocument(),
+    );
+    expect(
+      fetchMock.mock.calls.some(([input]) =>
+        String(input).includes(`/reviews/pending/${TURNO}/dismiss`),
+      ),
+    ).toBe(true);
   });
 });
