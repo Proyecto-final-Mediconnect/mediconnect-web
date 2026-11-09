@@ -3,8 +3,10 @@ import { isClientError } from '../../../shared/api/apiError';
 import {
   bookAppointment,
   cancelAppointment,
+  completeAppointment,
   getAvailability,
   getMyAppointments,
+  markAppointmentNoShow,
   rescheduleAppointment,
 } from '../api/appointmentsApi';
 
@@ -92,6 +94,30 @@ export function useCancelAppointment() {
       // Cancelar libera el horario: la grilla de reserva vuelve a ofrecerlo.
       // Sin esto, el paciente cancela y sigue viendo su propio turno "ocupado".
       void queryClient.invalidateQueries({ queryKey: ['availability'] });
+    },
+  });
+}
+
+/** El profesional finaliza la consulta (ENG-189). */
+export function useCompleteAppointment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: completeAppointment,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: MY_APPOINTMENTS_KEY });
+    },
+  });
+}
+
+/** El profesional marca que el paciente no se presentó (ENG-189). */
+export function useMarkNoShow() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: markAppointmentNoShow,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: MY_APPOINTMENTS_KEY });
     },
   });
 }

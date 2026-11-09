@@ -136,8 +136,7 @@ export function WeeklyAvailabilityCalendar({
                         date={activeDay.date}
                         slot={slot}
                         isSelected={
-                          selected?.date === activeDay.date &&
-                          selected.startTime === slot.startTime
+                          selected?.date === activeDay.date && selected.startTime === slot.startTime
                         }
                         onSelect={onSelect}
                       />

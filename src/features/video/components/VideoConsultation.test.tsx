@@ -61,11 +61,14 @@ describe('VideoConsultation', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
   /** Turnos que devuelve `/appointments/me`. Los tests que necesitan uno lo ponen. */
   let turnos: unknown[] = [];
+  /** Respuesta de `PATCH /appointments/:id/complete` (ENG-189). */
+  let completar: () => Response = () => jsonResponse({ id: APPOINTMENT, status: 'COMPLETADO' });
 
   function mockVideo(respuesta: () => Response) {
     fetchSpy.mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('/appointments/me')) return Promise.resolve(jsonResponse(turnos));
+      if (url.includes('/complete')) return Promise.resolve(completar());
       if (url.includes('/video')) return Promise.resolve(respuesta());
       return Promise.resolve(jsonResponse(SESSION));
     });
@@ -73,6 +76,7 @@ describe('VideoConsultation', () => {
 
   beforeEach(() => {
     turnos = [];
+    completar = () => jsonResponse({ id: APPOINTMENT, status: 'COMPLETADO' });
     fetchSpy = vi.spyOn(globalThis, 'fetch');
     mockVideo(() => jsonResponse(ACCESS));
   });
@@ -227,6 +231,37 @@ describe('VideoConsultation', () => {
       await user.click(screen.getByRole('button', { name: /volver a la consulta/i }));
 
       expect(await screen.findByTitle(/Videoconsulta con Ana Gómez/)).toBeInTheDocument();
+    });
+
+    it('finalizar cierra el turno en el backend antes de ir al resumen (ENG-189)', async () => {
+      const user = userEvent.setup();
+      await screen.findByTitle(/Videoconsulta con Ana Gómez/);
+
+      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+
+      await screen.findByText(/consulta finalizada/i);
+      const llamada = fetchSpy.mock.calls.find(([input]: [RequestInfo | URL]) =>
+        String(input).includes(`/appointments/${APPOINTMENT}/complete`),
+      );
+      expect(llamada?.[1]).toEqual(expect.objectContaining({ method: 'PATCH' }));
+    });
+
+    it('si cerrar el turno falla, sigue en la llamada con el error y se puede reintentar', async () => {
+      completar = () => jsonResponse({ message: 'Ese turno ya no se puede cerrar.' }, 409);
+      const user = userEvent.setup();
+      await screen.findByTitle(/Videoconsulta con Ana Gómez/);
+
+      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        /ya no se puede cerrar.*reintentar/i,
+      );
+      expect(screen.getByTitle(/Videoconsulta con Ana Gómez/)).toBeInTheDocument();
+
+      completar = () => jsonResponse({ id: APPOINTMENT, status: 'COMPLETADO' });
+      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+
+      expect(await screen.findByText(/consulta finalizada/i)).toBeInTheDocument();
     });
 
     it('el resumen se puede editar antes de firmar', async () => {

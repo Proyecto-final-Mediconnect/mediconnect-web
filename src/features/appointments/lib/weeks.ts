@@ -148,9 +148,7 @@ export function indexOfDate(dates: string[], date: string): number {
   return dates.indexOf(date);
 }
 
-export function firstAvailableIndex(
-  days: { slots: { status: string }[] }[],
-): number {
+export function firstAvailableIndex(days: { slots: { status: string }[] }[]): number {
   return days.findIndex((day) => day.slots.some((s) => s.status === 'AVAILABLE'));
 }
 

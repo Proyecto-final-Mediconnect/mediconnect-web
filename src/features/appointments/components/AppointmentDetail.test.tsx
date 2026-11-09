@@ -194,6 +194,47 @@ describe('AppointmentDetail (ENG-178)', () => {
     expect(screen.queryByRole('button', { name: 'Cancelar el turno' })).not.toBeInTheDocument();
   });
 
+  describe('no asistió (ENG-189)', () => {
+    // Confirmado, empezó hace 20 minutos.
+    const EN_CURSO = {
+      ...UPCOMING,
+      id: '77777777-7777-4777-8777-777777777777',
+      scheduledAt: '2026-08-17T10:40:00.000Z',
+      date: '2026-08-17',
+      status: 'CONFIRMADO',
+    };
+
+    it('el profesional lo marca con confirmación', async () => {
+      const fetchSpy = mockApi({
+        session: () => jsonResponse(PRO_SESSION),
+        mine: () => jsonResponse([EN_CURSO]),
+      });
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderDetail(EN_CURSO.id);
+
+      await user.click(await screen.findByRole('button', { name: 'Marcar como no asistió' }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText(/no se reembolsa/i)).toBeInTheDocument();
+
+      await user.click(within(dialog).getByRole('button', { name: 'Sí, no asistió' }));
+
+      const llamada = fetchSpy.mock.calls.find(([input]) =>
+        String(input).includes(`/appointments/${EN_CURSO.id}/no-show`),
+      );
+      expect(llamada?.[1]).toEqual(expect.objectContaining({ method: 'PATCH' }));
+    });
+
+    it('el paciente no ve el botón', async () => {
+      mockApi({ mine: () => jsonResponse([EN_CURSO]) });
+      renderDetail(EN_CURSO.id);
+
+      await screen.findByRole('heading', { name: 'Ana Médica' });
+      expect(
+        screen.queryByRole('button', { name: 'Marcar como no asistió' }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   it('un turno que no está en la lista lo dice y ofrece volver', async () => {
     mockApi({ mine: () => jsonResponse(ALL) });
     renderDetail('no-existe');

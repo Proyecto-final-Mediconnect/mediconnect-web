@@ -11,12 +11,19 @@ import { canPay } from '../../payments/lib/checkout';
 import { DeviceCheck } from '../../video/components/DeviceCheck';
 import { joinStateOf, timeUntilOpen } from '../../video/lib/joinWindow';
 import { useMyAppointments } from '../hooks/useAppointments';
-import { canCancel, counterpartOf, formatLongDate, isActive } from '../lib/myAppointments';
+import {
+  canCancel,
+  canMarkNoShow,
+  counterpartOf,
+  formatLongDate,
+  isActive,
+} from '../lib/myAppointments';
 import { appointmentTimeline, type TimelineStep } from '../lib/timeline';
 import { formatPrice } from '../lib/weeks';
 import type { Appointment } from '../types/appointment';
 import { CancelAppointmentDialog } from './agenda/CancelAppointmentDialog';
 import { RefundOutcomeBanner } from './agenda/RefundOutcomeBanner';
+import { NoShowDialog } from './agenda/NoShowDialog';
 import { StatusChip } from './agenda/StatusChip';
 import { AppointmentReview } from '../../reviews/components/AppointmentReview';
 
@@ -52,6 +59,7 @@ export function AppointmentDetail({
   const appointments = useMyAppointments();
   const now = useNow();
   const [toCancel, setToCancel] = useState<Appointment | null>(null);
+  const [toNoShow, setToNoShow] = useState<Appointment | null>(null);
   const [refundOutcome, setRefundOutcome] = useState<string | null>(null);
 
   const appointment = appointments.data?.find((a) => a.id === appointmentId) ?? null;
@@ -110,6 +118,7 @@ export function AppointmentDetail({
   const join = joinStateOf(appointment, now);
   const payable = isPatient && canPay(appointment, now);
   const cancellable = canCancel(appointment, userId, now);
+  const noShowable = canMarkNoShow(appointment, userId, now);
   const reschedulable = cancellable && !appointment.rescheduledAt && appointment.professional;
   // Un turno pagado sólo se reprograma con la anticipación del reembolso total
   // (el backend lo rechaza si no). Se adelanta el aviso con la política del
@@ -274,6 +283,15 @@ export function AppointmentDetail({
               Volver a reservar con {appointment.professional?.firstName}
             </Link>
           )}
+          {noShowable && (
+            <button
+              type="button"
+              onClick={() => setToNoShow(appointment)}
+              className="inline-flex items-center justify-center rounded-[10px] border border-line-strong bg-white px-4 py-2.5 text-sm font-bold text-danger transition-colors hover:border-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              Marcar como no asistió
+            </button>
+          )}
           {!isPatient && person && (
             <Link
               to={`/pacientes/${person.id}/historia-clinica`}
@@ -306,6 +324,7 @@ export function AppointmentDetail({
         onClose={() => setToCancel(null)}
         onCancelled={setRefundOutcome}
       />
+      <NoShowDialog appointment={toNoShow} onClose={() => setToNoShow(null)} />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useNow } from '../../../shared/hooks/useNow';
+import { useCompleteAppointment } from '../../appointments/hooks/useAppointments';
 import { formatElapsed } from '../lib/elapsed';
 import { MOCK_TRANSCRIPT, mockPatientBrief } from '../lib/mockConsultation';
 import type { VideoConsultationAccess } from '../types/dailyRoom';
@@ -40,6 +41,11 @@ export function LiveConsultation({
   // Un tick por segundo: es un cronómetro a la vista, no un botón que aparece.
   const now = useNow(1000);
   const esProfesional = access.role === 'PROFESIONAL';
+  // "Finalizar" cierra el turno en el backend (ENG-189) antes de pasar al
+  // resumen: es lo que deja al paciente reseñar. Si falla, se queda en la
+  // llamada con el error a la vista y se puede reintentar (es idempotente).
+  const complete = useCompleteAppointment();
+  const finalizar = () => complete.mutate(access.appointmentId, { onSuccess: () => onFinish() });
 
   return (
     <div
@@ -74,10 +80,18 @@ export function LiveConsultation({
           {esProfesional ? (
             <button
               type="button"
-              onClick={onFinish}
-              className="rounded-[9px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              onClick={finalizar}
+              disabled={complete.isPending}
+              aria-busy={complete.isPending}
+              className="inline-flex items-center gap-2 rounded-[9px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70"
             >
-              Finalizar y ver el resumen
+              {complete.isPending && (
+                <span
+                  aria-hidden="true"
+                  className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white motion-reduce:animate-none"
+                />
+              )}
+              {complete.isPending ? 'Cerrando la consulta…' : 'Finalizar y ver el resumen'}
             </button>
           ) : (
             <Link
@@ -88,6 +102,12 @@ export function LiveConsultation({
             </Link>
           )}
         </div>
+
+        {complete.isError && (
+          <p role="alert" className="text-sm text-danger">
+            {complete.error.message} Podés reintentar sin salir de la llamada.
+          </p>
+        )}
       </div>
 
       {esProfesional && (

@@ -89,6 +89,7 @@ export interface ApiHandlers {
   quote?: () => Response;
   payment?: () => Response;
   reviews?: () => Response;
+  noShow?: () => Response;
 }
 
 export function mockApi(handlers: ApiHandlers = {}) {
@@ -96,6 +97,11 @@ export function mockApi(handlers: ApiHandlers = {}) {
     const url = String(input);
     const method = init?.method ?? 'GET';
 
+    if (method === 'PATCH' && url.includes('/no-show')) {
+      return Promise.resolve(
+        handlers.noShow?.() ?? jsonResponse({ id: UPCOMING.id, status: 'NO_ASISTIO' }),
+      );
+    }
     if (method === 'PATCH' && url.includes('/cancel')) {
       return Promise.resolve(
         handlers.cancel?.() ?? jsonResponse({ ...UPCOMING, status: 'CANCELADO' }),

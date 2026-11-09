@@ -31,8 +31,7 @@ describe('horizonRange', () => {
 
   it('cubre exactamente el horizonte que publica el backend', () => {
     const { from, to } = horizonRange('2026-08-19');
-    const dias =
-      (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000 + 1;
+    const dias = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000 + 1;
 
     expect(dias).toBe(BOOKING_HORIZON_DAYS);
   });
@@ -73,9 +72,7 @@ describe('daysOfPage', () => {
 
 describe('monthsInWindow', () => {
   it('agrupa los días por mes y guarda dónde arranca cada uno', () => {
-    expect(
-      monthsInWindow(['2026-08-30', '2026-08-31', '2026-09-01', '2026-09-02']),
-    ).toEqual([
+    expect(monthsInWindow(['2026-08-30', '2026-08-31', '2026-09-01', '2026-09-02'])).toEqual([
       { key: '2026-08', index: 0 },
       { key: '2026-09', index: 2 },
     ]);
