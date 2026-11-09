@@ -142,13 +142,7 @@ function BarraDeEstado({
   );
 }
 
-function Chip({
-  tono,
-  children,
-}: {
-  tono: 'ok' | 'aviso' | 'neutro';
-  children: React.ReactNode;
-}) {
+function Chip({ tono, children }: { tono: 'ok' | 'aviso' | 'neutro'; children: React.ReactNode }) {
   const tonos = {
     ok: 'bg-brand/15 text-brand-bright',
     aviso: 'bg-amber-400/15 text-amber-200',
@@ -183,9 +177,9 @@ function RecordingNotice({ enabled }: { enabled: boolean }) {
       role="status"
       className="rounded-[10px] border border-amber-300 bg-amber-50 px-4 py-2.5 text-xs text-amber-900"
     >
-      <span className="font-semibold">Se está grabando el audio</span> de esta consulta para
-      generar la transcripción y el resumen clínico. El resumen lo revisa el profesional antes
-      de incorporarse a la historia clínica.
+      <span className="font-semibold">Se está grabando el audio</span> de esta consulta para generar
+      la transcripción y el resumen clínico. El resumen lo revisa el profesional antes de
+      incorporarse a la historia clínica.
     </p>
   );
 }
@@ -220,7 +214,6 @@ function InfoDeLaPaciente({ nombre }: { nombre: string }) {
         <Dato titulo="Condiciones">{ficha.condiciones}</Dato>
         <Dato titulo="Seguimiento">{ficha.seguimiento}</Dato>
       </dl>
-
     </section>
   );
 }
@@ -297,8 +290,6 @@ function TranscripcionEnVivo() {
           ))}
         </ul>
       </div>
-
     </section>
   );
 }
-

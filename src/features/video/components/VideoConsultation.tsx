@@ -51,8 +51,7 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
   // que entrar sola al llegar la hora.
   const now = useNow(1000);
 
-  const appointment =
-    appointments.data?.find((cita) => cita.id === appointmentId) ?? null;
+  const appointment = appointments.data?.find((cita) => cita.id === appointmentId) ?? null;
   const ventana = appointment ? joinStateOf(appointment, now) : null;
 
   // El pago lo confirma un webhook de MercadoPago que puede tardar unos segundos:
@@ -108,8 +107,8 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
   if (appointment && ventana?.kind === 'CLOSED') {
     return (
       <Aviso titulo="Esta consulta ya terminó.">
-        La sala se cerró. Si quedó algo pendiente, escribile a {nombreContraparte} o sacá un
-        turno nuevo.
+        La sala se cerró. Si quedó algo pendiente, escribile a {nombreContraparte} o sacá un turno
+        nuevo.
       </Aviso>
     );
   }
@@ -117,8 +116,8 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
   if (appointment && ventana?.kind === 'UNPAID') {
     return esPaciente ? (
       <Aviso titulo="Pagá el turno para entrar a la consulta.">
-        La sala se abre cuando el pago está confirmado. Si ya pagaste, la confirmación puede
-        demorar unos segundos y vas a entrar solo.{' '}
+        La sala se abre cuando el pago está confirmado. Si ya pagaste, la confirmación puede demorar
+        unos segundos y vas a entrar solo.{' '}
         <Link
           to={`/turnos/${appointment.id}/pago`}
           className="font-semibold text-brand-hover underline-offset-2 hover:underline"
@@ -136,8 +135,8 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
   if (appointment && ventana?.kind === 'NOT_APPLICABLE') {
     return (
       <Aviso titulo="Este turno no tiene videoconsulta.">
-        El turno está {appointment.status === 'CANCELADO' ? 'cancelado' : 'sin vigencia'}, así
-        que no hay sala que abrir.
+        El turno está {appointment.status === 'CANCELADO' ? 'cancelado' : 'sin vigencia'}, así que
+        no hay sala que abrir.
       </Aviso>
     );
   }
