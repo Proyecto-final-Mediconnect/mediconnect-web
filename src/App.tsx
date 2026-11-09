@@ -24,6 +24,7 @@ import { ProfessionalDashboardPage } from './pages/ProfessionalDashboardPage';
 import { ProfessionalPublicProfilePage } from './pages/ProfessionalPublicProfilePage';
 import { ProfessionalRegisterPage } from './pages/ProfessionalRegisterPage';
 import { ProfessionalProfilePage } from './pages/ProfessionalProfilePage';
+import { ProfessionalReviewsPage } from './pages/ProfessionalReviewsPage';
 import { ProfessionalSchedulePage } from './pages/ProfessionalSchedulePage';
 import { PatientCatalogPage } from './pages/PatientCatalogPage';
 import { PatientClinicalRecordPage } from './pages/PatientClinicalRecordPage';
@@ -263,6 +264,14 @@ function App() {
         element={
           <RequireAuth allow={['PROFESIONAL']}>
             <PatientClinicalRecordPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/profesional/resenas"
+        element={
+          <RequireAuth allow={['PROFESIONAL']}>
+            <ProfessionalReviewsPage />
           </RequireAuth>
         }
       />
