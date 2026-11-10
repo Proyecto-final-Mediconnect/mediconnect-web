@@ -352,36 +352,22 @@ describe('VideoConsultation', () => {
       expect(alta).not.toHaveBeenCalled();
     });
 
-    it('después de finalizar sigue al cierre aunque la lista ya diga COMPLETADO', async () => {
+    it('después de finalizar sigue a la evolución aunque la lista ya diga COMPLETADO', async () => {
       // Bug real: al cerrar el turno se recarga la lista, el turno pasa a
       // COMPLETADO y la pantalla saltaba a "Este turno no tiene videoconsulta".
-      const turno = {
-        id: APPOINTMENT,
-        scheduledAt: new Date().toISOString(),
-        date: new Date().toISOString().slice(0, 10),
-        startTime: '10:00',
-        durationMinutes: 30,
-        price: 15000,
-        currency: 'ARS',
-        status: 'CONFIRMADO',
-        professional: {
-          id: '22222222-2222-4222-8222-222222222222',
-          firstName: 'Laura',
-          lastName: 'Ríos',
-        },
-        patient: { id: SESSION.id, firstName: 'Ana', lastName: 'Gómez' },
-      };
-      turnos = [turno];
       completar = () => {
-        turnos = [{ ...turno, status: 'COMPLETADO' }];
+        turnos = turnos.map((t) => ({ ...(t as object), status: 'COMPLETADO' }));
         return jsonResponse({ id: APPOINTMENT, status: 'COMPLETADO' });
       };
       const user = userEvent.setup();
+      renderComponent();
       await screen.findByTitle(/Videoconsulta con Ana Gómez/);
 
       await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
 
-      expect(await screen.findByText(/consulta finalizada/i)).toBeInTheDocument();
+      expect(
+        await screen.findByRole('heading', { name: 'Evolución de la consulta' }),
+      ).toBeInTheDocument();
       expect(screen.queryByText(/no tiene videoconsulta/i)).not.toBeInTheDocument();
     });
 
