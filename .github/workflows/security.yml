@@ -4,7 +4,7 @@ name: Security
 #
 #   - Auditoría de dependencias de producción en cada PR y en main: falla con
 #     una vulnerabilidad high o critical. Las moderadas no frenan, pero quedan
-#     en el log y Dependabot abre el PR para subirlas.
+#     en el log para subirlas a mano.
 #   - Escaneo de secretos (gitleaks) sobre los commits del PR: falla si alguien
 #     commitea una clave, un token o una contraseña.
 #
