@@ -4,7 +4,6 @@ import { StatusChip } from '../features/appointments/components/agenda/StatusChi
 import { useMyAppointments } from '../features/appointments/hooks/useAppointments';
 import { counterpartOf, isActive } from '../features/appointments/lib/myAppointments';
 import { formatDate } from '../features/appointments/lib/weeks';
-import type { Appointment, AppointmentParty } from '../features/appointments/types/appointment';
 import { useSession } from '../features/auth/hooks/useSession';
 import {
   DashboardSection as Section,
@@ -13,29 +12,17 @@ import {
   NoNextAppointment,
   PendingTaskList,
 } from '../features/dashboard/components/PanelPieces';
-import { nextAppointment, nextPhrase, patientTasks } from '../features/dashboard/lib/dashboard';
+import {
+  nextAppointment,
+  nextPhrase,
+  patientTasks,
+  recentCounterparts,
+} from '../features/dashboard/lib/dashboard';
 import { useMyMediPassHistory } from '../features/medipass/hooks/useMediPass';
 import { relativeTime } from '../features/notifications/lib/relativeTime';
 import { useMyProfile } from '../features/patient-profile/hooks/usePatientProfile';
 import { useNow } from '../shared/hooks/useNow';
 import { DashboardLayout } from './DashboardLayout';
-
-/** Profesionales con los que ya hubo una consulta, del más reciente al más viejo, sin repetir. */
-function pastProfessionals(
-  appointments: Appointment[],
-  now: Date,
-): { professional: AppointmentParty; lastDate: string }[] {
-  const seen = new Map<string, { professional: AppointmentParty; lastDate: string }>();
-  [...appointments]
-    .filter((a) => a.status === 'COMPLETADO' && Date.parse(a.scheduledAt) < now.getTime())
-    .sort((a, b) => Date.parse(b.scheduledAt) - Date.parse(a.scheduledAt))
-    .forEach((a) => {
-      if (a.professional && !seen.has(a.professional.id)) {
-        seen.set(a.professional.id, { professional: a.professional, lastDate: a.date });
-      }
-    });
-  return [...seen.values()].slice(0, 3);
-}
 
 /**
  * Panel del paciente (ENG-44, rediseñado en ENG-178 como el inicio de la app).
@@ -58,7 +45,7 @@ export function PatientDashboardPage() {
     .filter((a) => isActive(a) && Date.parse(a.scheduledAt) > now.getTime() && a.id !== proximo?.id)
     .sort((a, b) => Date.parse(a.scheduledAt) - Date.parse(b.scheduledAt))
     .slice(0, 3);
-  const volver = pastProfessionals(lista, now);
+  const volver = recentCounterparts(lista, now, (a) => a.professional);
   const recientes = lista
     .filter((a) => !isActive(a) || Date.parse(a.scheduledAt) <= now.getTime())
     .sort((a, b) => Date.parse(b.scheduledAt) - Date.parse(a.scheduledAt))
@@ -146,7 +133,7 @@ export function PatientDashboardPage() {
               {volver.length > 0 && (
                 <Section title="Volver a consultar">
                   <ul className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3">
-                    {volver.map(({ professional, lastDate }) => (
+                    {volver.map(({ party: professional, lastDate }) => (
                       <li
                         key={professional.id}
                         className="grid gap-3 rounded-[14px] border border-line bg-white p-4"

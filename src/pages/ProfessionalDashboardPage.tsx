@@ -4,7 +4,7 @@ import { StatusChip } from '../features/appointments/components/agenda/StatusChi
 import { useMyAppointments } from '../features/appointments/hooks/useAppointments';
 import { counterpartOf } from '../features/appointments/lib/myAppointments';
 import { formatDate } from '../features/appointments/lib/weeks';
-import type { Appointment, AppointmentParty } from '../features/appointments/types/appointment';
+import type { AppointmentParty } from '../features/appointments/types/appointment';
 import { useSession } from '../features/auth/hooks/useSession';
 import {
   DashboardSection,
@@ -17,6 +17,7 @@ import {
   nextAppointment,
   nextPhrase,
   professionalTasks,
+  recentCounterparts,
   upcomingCount,
   withinNextWeek,
 } from '../features/dashboard/lib/dashboard';
@@ -33,23 +34,6 @@ import { DashboardLayout } from './DashboardLayout';
 
 const fullName = (p: AppointmentParty) => `${p.firstName} ${p.lastName}`;
 const clinicalRecordOf = (p: AppointmentParty) => `/pacientes/${p.id}/historia-clinica`;
-
-/** Pacientes ya atendidos, del más reciente al más viejo, sin repetir. */
-function pastPatients(
-  appointments: Appointment[],
-  now: Date,
-): { patient: AppointmentParty; lastDate: string }[] {
-  const seen = new Map<string, { patient: AppointmentParty; lastDate: string }>();
-  [...appointments]
-    .filter((a) => a.status === 'COMPLETADO' && Date.parse(a.scheduledAt) < now.getTime())
-    .sort((a, b) => Date.parse(b.scheduledAt) - Date.parse(a.scheduledAt))
-    .forEach((a) => {
-      if (a.patient && !seen.has(a.patient.id)) {
-        seen.set(a.patient.id, { patient: a.patient, lastDate: a.date });
-      }
-    });
-  return [...seen.values()].slice(0, 3);
-}
 
 /**
  * Panel del profesional (ENG-44, rediseñado con la misma estructura que el del
@@ -78,7 +62,7 @@ export function ProfessionalDashboardPage() {
   const estaSemana = withinNextWeek(lista, now).sort(
     (a, b) => Date.parse(a.scheduledAt) - Date.parse(b.scheduledAt),
   );
-  const recientes = pastPatients(lista, now);
+  const recientes = recentCounterparts(lista, now, (a) => a.patient);
   const tareas = professionalTasks(perfil.data, agenda.data);
 
   // Turnos que genera la agenda en la semana en curso: la oferta, contra las
@@ -89,7 +73,16 @@ export function ProfessionalDashboardPage() {
     : 0;
 
   const saludo = user?.firstName ? `Buen día, ${user.firstName}.` : 'Buen día.';
-  const perfilIncompleto = tareas.some((t) => t.id === 'matricula' || t.id === 'precio');
+  // El precio se resuelve en el perfil; la matrícula no (la valida un
+  // moderador), pero el perfil muestra su estado. Por eso el detalle dice qué
+  // falta en vez de un "te falta algo" que mande a buscar.
+  const faltaPrecio = tareas.some((t) => t.id === 'precio');
+  const matricula = tareas.find((t) => t.id === 'matricula');
+  const detallePerfil = faltaPrecio
+    ? 'Te falta publicar tu precio de consulta.'
+    : matricula
+      ? `${matricula.title}.`
+      : 'Bio, especialidades, foto y precio.';
 
   return (
     <DashboardLayout
@@ -180,7 +173,7 @@ export function ProfessionalDashboardPage() {
               {recientes.length > 0 && (
                 <DashboardSection title="Pacientes recientes">
                   <ul className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3">
-                    {recientes.map(({ patient, lastDate }) => (
+                    {recientes.map(({ party: patient, lastDate }) => (
                       <li
                         key={patient.id}
                         className="grid gap-3 rounded-[14px] border border-line bg-white p-4"
@@ -240,13 +233,9 @@ export function ProfessionalDashboardPage() {
                 <IconTile
                   to="/perfil"
                   title="Mi perfil público"
-                  detail={
-                    perfilIncompleto
-                      ? 'Te falta algo para aparecer en el catálogo.'
-                      : 'Bio, especialidades, foto y precio.'
-                  }
+                  detail={detallePerfil}
                   icon="user"
-                  warn={perfilIncompleto}
+                  warn={faltaPrecio || matricula !== undefined}
                 />
                 <IconTile
                   to="/profesional/resenas"

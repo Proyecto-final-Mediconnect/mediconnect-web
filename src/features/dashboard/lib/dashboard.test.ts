@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import {
   completedCount,
   nextAppointment,
+  nextPhrase,
   patientTasks,
   professionalTasks,
+  recentCounterparts,
   upcomingCount,
   withinNextWeek,
 } from './dashboard';
@@ -164,5 +166,76 @@ describe('professionalTasks', () => {
   it('mientras la agenda no cargó no la reporta como vacía', () => {
     // Sin esto el panel acusaría "agenda vacía" en cada carga, antes de saberlo.
     expect(professionalTasks(PERFIL_PRO, undefined)).toEqual([]);
+  });
+});
+
+describe('nextPhrase', () => {
+  it('sin turno lo dice', () => {
+    expect(nextPhrase(null)).toBe('No tenés consultas agendadas.');
+  });
+
+  it('con el día de la semana, y con quién si se pasa', () => {
+    const t = turno({ id: 'a', date: '2026-11-10', startTime: '10:00' });
+    expect(nextPhrase(t)).toBe('Tu próxima consulta es el martes 10 de noviembre a las 10:00.');
+    expect(nextPhrase(t, 'Julián Sosa')).toBe(
+      'Tu próxima consulta es el martes 10 de noviembre a las 10:00, con Julián Sosa.',
+    );
+  });
+
+  it('el día de la semana no se corre en el cambio de año', () => {
+    expect(nextPhrase(turno({ id: 'a', date: '2026-12-31', startTime: '23:30' }))).toMatch(
+      /^Tu próxima consulta es el jueves 31 de diciembre/,
+    );
+    expect(nextPhrase(turno({ id: 'b', date: '2027-01-01', startTime: '00:00' }))).toMatch(
+      /^Tu próxima consulta es el viernes 1 de enero/,
+    );
+  });
+});
+
+describe('recentCounterparts', () => {
+  const ana = { id: 'ana', firstName: 'Ana', lastName: 'García' };
+  const luis = { id: 'luis', firstName: 'Luis', lastName: 'Paz' };
+
+  it('solo consultas completadas y pasadas, la más reciente primero y sin repetir', () => {
+    const lista = [
+      turno({
+        id: '1',
+        status: 'COMPLETADO',
+        scheduledAt: '2026-08-01T12:00:00Z',
+        date: '2026-08-01',
+        professional: ana,
+      }),
+      turno({
+        id: '2',
+        status: 'COMPLETADO',
+        scheduledAt: '2026-08-20T12:00:00Z',
+        date: '2026-08-20',
+        professional: ana,
+      }),
+      turno({
+        id: '3',
+        status: 'COMPLETADO',
+        scheduledAt: '2026-08-10T12:00:00Z',
+        date: '2026-08-10',
+        professional: luis,
+      }),
+      turno({
+        id: '4',
+        status: 'CANCELADO',
+        scheduledAt: '2026-08-25T12:00:00Z',
+        professional: luis,
+      }),
+      turno({
+        id: '5',
+        status: 'COMPLETADO',
+        scheduledAt: '2026-09-10T12:00:00Z',
+        professional: luis,
+      }),
+    ];
+
+    expect(recentCounterparts(lista, AHORA, (a) => a.professional)).toEqual([
+      { party: ana, lastDate: '2026-08-20' },
+      { party: luis, lastDate: '2026-08-10' },
+    ]);
   });
 });

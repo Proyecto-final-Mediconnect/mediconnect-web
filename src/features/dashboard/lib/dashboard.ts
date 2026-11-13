@@ -1,6 +1,6 @@
 import { isActive } from '../../appointments/lib/myAppointments';
 import { formatDate } from '../../appointments/lib/weeks';
-import type { Appointment } from '../../appointments/types/appointment';
+import type { Appointment, AppointmentParty } from '../../appointments/types/appointment';
 import type { PatientProfile } from '../../patient-profile/types/patientProfile';
 import type { ProfessionalProfile } from '../../profile/types/professionalProfile';
 import type { Schedule } from '../../schedule/types/schedule';
@@ -204,4 +204,26 @@ export function nextPhrase(appointment: Appointment | null, con?: string | null)
   const weekday = WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
   const quien = con ? `, con ${con}` : '';
   return `Tu próxima consulta es el ${weekday} ${formatDate(appointment.date)} a las ${appointment.startTime}${quien}.`;
+}
+
+/**
+ * Con quién ya hubo una consulta, del más reciente al más viejo y sin repetir:
+ * los profesionales en el panel del paciente y los pacientes en el del
+ * profesional. `pick` elige la contraparte.
+ */
+export function recentCounterparts(
+  appointments: Appointment[],
+  now: Date,
+  pick: (a: Appointment) => AppointmentParty | null | undefined,
+  limit = 3,
+): { party: AppointmentParty; lastDate: string }[] {
+  const seen = new Map<string, { party: AppointmentParty; lastDate: string }>();
+  appointments
+    .filter((a) => a.status === 'COMPLETADO' && Date.parse(a.scheduledAt) < now.getTime())
+    .sort((a, b) => Date.parse(b.scheduledAt) - Date.parse(a.scheduledAt))
+    .forEach((a) => {
+      const party = pick(a);
+      if (party && !seen.has(party.id)) seen.set(party.id, { party, lastDate: a.date });
+    });
+  return [...seen.values()].slice(0, limit);
 }
