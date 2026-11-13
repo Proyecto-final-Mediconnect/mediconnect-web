@@ -199,6 +199,11 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
       counterpartName={counterpartName}
       patientId={appointment?.patient?.id ?? null}
       joinedAt={joinedAt}
+      endsAt={
+        appointment
+          ? new Date(Date.parse(appointment.scheduledAt) + appointment.durationMinutes * 60_000)
+          : null
+      }
       onFinish={() => setFase('CIERRE')}
     />
   );

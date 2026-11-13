@@ -47,6 +47,13 @@ function renderComponent() {
   );
 }
 
+/** Toca "Finalizar" y confirma: antes de la hora de fin del turno se pide
+ *  confirmación (review de #75), y estos tests corren en ese caso. */
+async function finalizar(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+  await user.click(await screen.findByRole('button', { name: 'Sí, finalizar' }));
+}
+
 /**
  * La pantalla lee tres cosas: la sesión, la lista de turnos (para saber si la
  * ventana de ingreso está abierta) y el acceso a la sala. Se responden por URL:
@@ -316,7 +323,7 @@ describe('VideoConsultation', () => {
       renderComponent();
       await screen.findByTitle(/Videoconsulta con Ana Gómez/);
 
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+      await finalizar(user);
 
       expect(
         await screen.findByRole('heading', { name: 'Evolución de la consulta' }),
@@ -345,7 +352,7 @@ describe('VideoConsultation', () => {
       const user = userEvent.setup();
       renderComponent();
       await screen.findByTitle(/Videoconsulta con Ana Gómez/);
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+      await finalizar(user);
 
       await user.click(await screen.findByRole('button', { name: 'Lo cargo después' }));
 
@@ -363,12 +370,28 @@ describe('VideoConsultation', () => {
       renderComponent();
       await screen.findByTitle(/Videoconsulta con Ana Gómez/);
 
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+      await finalizar(user);
 
       expect(
         await screen.findByRole('heading', { name: 'Evolución de la consulta' }),
       ).toBeInTheDocument();
       expect(screen.queryByText(/no tiene videoconsulta/i)).not.toBeInTheDocument();
+    });
+
+    it('antes de la hora de fin pide confirmación, y "Seguir en la consulta" no cierra nada', async () => {
+      const user = userEvent.setup();
+      renderComponent();
+      await screen.findByTitle(/Videoconsulta con Ana Gómez/);
+
+      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+      await user.click(await screen.findByRole('button', { name: 'Seguir en la consulta' }));
+
+      expect(screen.getByTitle(/Videoconsulta con Ana Gómez/)).toBeInTheDocument();
+      expect(
+        fetchSpy.mock.calls.some(([input]: [RequestInfo | URL]) =>
+          String(input).includes('/complete'),
+        ),
+      ).toBe(false);
     });
 
     it('si cerrar el turno falla, sigue en la llamada con el error y se puede reintentar', async () => {
@@ -377,13 +400,13 @@ describe('VideoConsultation', () => {
       renderComponent();
       await screen.findByTitle(/Videoconsulta con Ana Gómez/);
 
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+      await finalizar(user);
 
       expect(await screen.findByText(/ya no se puede cerrar.*reintentar/i)).toBeInTheDocument();
       expect(screen.getByTitle(/Videoconsulta con Ana Gómez/)).toBeInTheDocument();
 
       completar = () => jsonResponse({ id: APPOINTMENT, status: 'COMPLETADO' });
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+      await finalizar(user);
 
       expect(
         await screen.findByRole('heading', { name: 'Evolución de la consulta' }),
