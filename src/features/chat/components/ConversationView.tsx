@@ -60,7 +60,6 @@ export function ConversationView({ conversationId, counterpart, myId }: Props) {
   const { othersTyping, notifyTyping, notifyRead, clearTyping } = useChatSignals(conversationId);
   const [infoOpen, setInfoOpen] = useState(false);
   const [confirmingHide, setConfirmingHide] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
   const bodyRef = useRef<HTMLDivElement>(null);
   /** Si el usuario está al fondo del chat. Leyendo historial, no se lo mueve. */
   const atBottom = useRef(true);
@@ -113,14 +112,14 @@ export function ConversationView({ conversationId, counterpart, myId }: Props) {
 
   // Se baja al último solo si el usuario ya estaba al fondo, o si el mensaje es
   // suyo. Leyendo mensajes viejos, ni lo que llega ni la burbuja de "escribiendo"
-  // lo mueven. `scrollIntoView` no existe en jsdom: el `?.` evita que los tests
-  // lo necesiten.
+  // lo mueven. Se mueve la caja de mensajes y nada más: `scrollIntoView` también
+  // scrollea la página, que al abrir un chat bajaba más allá del pie de la tarjeta.
   const lastIsMine = last?.autorId === myId;
   useEffect(() => {
-    if (atBottom.current || lastIsMine) bottomRef.current?.scrollIntoView?.({ block: 'end' });
+    if (atBottom.current || lastIsMine) scrollToEnd(bodyRef.current);
   }, [lastId, lastIsMine]);
   useEffect(() => {
-    if (atBottom.current) bottomRef.current?.scrollIntoView?.({ block: 'end' });
+    if (atBottom.current) scrollToEnd(bodyRef.current);
   }, [othersTyping]);
 
   function confirmHide() {
@@ -261,7 +260,6 @@ export function ConversationView({ conversationId, counterpart, myId }: Props) {
         <p role="status" className="sr-only">
           {othersTyping ? `${counterpart.nombre} está escribiendo` : ''}
         </p>
-        <div ref={bottomRef} />
       </ChatFrame>
 
       <ChatInfoPanel
@@ -301,4 +299,9 @@ export function ConversationView({ conversationId, counterpart, myId }: Props) {
       </ConfirmDialog>
     </>
   );
+}
+
+/** Lleva la caja de mensajes al final sin mover nada más de la página. */
+function scrollToEnd(box: HTMLElement | null): void {
+  if (box) box.scrollTop = box.scrollHeight;
 }

@@ -183,7 +183,7 @@ export function ChatFrame({
 
       <div
         ref={bodyRef}
-        className="flex-1 overflow-y-auto bg-surface px-3 py-4 sm:px-6 sm:py-5"
+        className="relative flex-1 overflow-y-auto bg-surface px-3 py-4 sm:px-6 sm:py-5"
         aria-busy={busy}
       >
         {children}

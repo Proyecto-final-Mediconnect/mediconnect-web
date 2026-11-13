@@ -317,6 +317,38 @@ describe('MessagesPage (ENG-70)', () => {
     );
   });
 
+  it('al abrir un chat baja la caja de mensajes, no la página', async () => {
+    const scrollIntoView = vi.fn();
+    const setScrollTop = vi.fn();
+    Object.defineProperty(Element.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+      configurable: true,
+      get: () => 640,
+    });
+    Object.defineProperty(HTMLElement.prototype, 'scrollTop', {
+      configurable: true,
+      get: () => 0,
+      set: setScrollTop,
+    });
+    try {
+      fakeBackend();
+      renderAt(`/mensajes/${CONV}`);
+
+      await screen.findByRole('list', { name: 'Mensajes con Ana García' });
+      await waitFor(() => expect(setScrollTop).toHaveBeenCalledWith(640));
+      // `scrollIntoView` mueve todos los contenedores con scroll, la página incluida.
+      expect(scrollIntoView).not.toHaveBeenCalled();
+    } finally {
+      // Vuelven a heredarse los de jsdom (`Element.prototype`).
+      Reflect.deleteProperty(Element.prototype, 'scrollIntoView');
+      Reflect.deleteProperty(HTMLElement.prototype, 'scrollHeight');
+      Reflect.deleteProperty(HTMLElement.prototype, 'scrollTop');
+    }
+  });
+
   it('muestra la conversación en orden y marca leído lo de la otra persona una sola vez', async () => {
     const { calls } = fakeBackend();
     renderAt(`/mensajes/${CONV}`);
