@@ -59,7 +59,10 @@ export function MessagesPage() {
         </div>
       ) : (
         <>
-          <div className="h-[min(720px,calc(100dvh-180px))] min-h-[480px] overflow-hidden rounded-[16px] border border-line bg-white lg:grid lg:grid-cols-[340px_minmax(0,1fr)]">
+          {/* 224 px es lo que ocupa todo lo que no es la tarjeta: la barra de
+              arriba (66), el padding del main (32 + 72) y el subtítulo con su
+              margen (~50). Con menos, la página entera scrollea unos píxeles. */}
+          <div className="h-[min(720px,calc(100dvh-224px))] min-h-[480px] overflow-hidden rounded-[16px] border border-line bg-white lg:grid lg:grid-cols-[340px_minmax(0,1fr)]">
             <div
               className={`h-full min-h-0 border-line lg:border-r ${showingChat ? 'hidden lg:block' : ''}`}
             >
