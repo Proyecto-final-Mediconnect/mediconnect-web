@@ -100,7 +100,9 @@ export function SectionCard({
     >
       <h3 className="text-base font-bold text-brand-deep">{title}</h3>
       <p className="mt-[7px] text-[13px] leading-[1.6] text-muted">{description}</p>
-      <span className="mt-3 inline-block text-[13px] font-semibold text-brand-hover">Abrir →</span>
+      <span className="mt-3 inline-block text-[13px] font-semibold text-brand-hover">
+        Abrir →
+      </span>
     </Link>
   );
 }

@@ -92,7 +92,11 @@ function isFullDay(block: ScheduleBlock): boolean {
 }
 
 /** ¿El turno [slot, slot+duración) pisa la franja bloqueada? */
-function slotHitsBlock(slotStart: number, slotEnd: number, block: ScheduleBlock): boolean {
+function slotHitsBlock(
+  slotStart: number,
+  slotEnd: number,
+  block: ScheduleBlock,
+): boolean {
   const blockStart = toMinutes(block.startTime!);
   const blockEnd = toMinutes(block.endTime!);
   return slotStart < blockEnd && blockStart < slotEnd;

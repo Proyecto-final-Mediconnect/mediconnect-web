@@ -45,11 +45,14 @@ export function ProfilePreview({
   currency,
 }: ProfilePreviewProps) {
   const fullName = `${firstName} ${lastName}`.trim() || 'Tu nombre';
-  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || '👤';
+  const initials =
+    `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || '👤';
 
   return (
     <div className="rounded-[14px] border border-line bg-white p-6 shadow-sm">
-      <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">Vista previa</p>
+      <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
+        Vista previa
+      </p>
 
       <div className="flex items-center gap-4">
         {photoUrl ? (

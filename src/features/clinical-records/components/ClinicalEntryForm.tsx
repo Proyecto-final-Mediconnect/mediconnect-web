@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Button } from '../../../shared/ui/Button';
 import { EntryField } from './EntryField';
 import { useAddClinicalEntry } from '../hooks/useClinicalRecord';
@@ -33,6 +33,8 @@ type ClinicalEntryFormProps = {
   onCancel?: () => void;
   /** Texto del botón de cancelar: "Lo cargo después" al cerrar la consulta (ENG-191). */
   cancelLabel?: string;
+  /** Avisa si hay algo escrito sin guardar, para no perderlo al salir (ENG-191). */
+  onDirtyChange?: (dirty: boolean) => void;
 };
 
 const EMPTY = {
@@ -49,8 +51,15 @@ export function ClinicalEntryForm({
   onSaved,
   onCancel,
   cancelLabel = 'Cancelar',
+  onDirtyChange,
 }: ClinicalEntryFormProps) {
   const [form, setForm] = useState(EMPTY);
+  const dirty = [form.reason, form.findings, form.diagnosis, form.plan].some(
+    (campo) => campo.trim() !== '',
+  );
+  useEffect(() => {
+    onDirtyChange?.(dirty);
+  }, [dirty, onDirtyChange]);
   const [attempted, setAttempted] = useState(false);
   const add = useAddClinicalEntry(patientId);
 

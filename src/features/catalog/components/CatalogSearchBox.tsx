@@ -48,8 +48,8 @@ export function CatalogSearchBox({ value, onChange }: Props) {
       </div>
 
       <p className="mt-3 text-[13px] leading-[1.6] text-muted">
-        Podés escribir una especialidad o el nombre de un profesional. Se busca entre los resultados
-        que ya están cargados.
+        Podés escribir una especialidad o el nombre de un profesional. Se busca entre los
+        resultados que ya están cargados.
       </p>
     </form>
   );

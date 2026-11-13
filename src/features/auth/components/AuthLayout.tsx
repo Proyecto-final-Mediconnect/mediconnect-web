@@ -44,7 +44,14 @@ const PUNTOS_POR_DEFECTO = [
   },
 ];
 
-export function AuthLayout({ title, subtitle, children, footer, eyebrow, aside }: AuthLayoutProps) {
+export function AuthLayout({
+  title,
+  subtitle,
+  children,
+  footer,
+  eyebrow,
+  aside,
+}: AuthLayoutProps) {
   return (
     <div className="flex min-h-svh">
       <aside className="hidden w-1/2 flex-col justify-between bg-night p-12 text-white lg:flex">

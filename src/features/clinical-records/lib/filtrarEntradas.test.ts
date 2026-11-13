@@ -46,18 +46,18 @@ describe('filtrarEntradas', () => {
       entrada(),
       entrada({ id: 'e2', professional: { firstName: 'Martín', lastName: 'Olivares' } }),
     ];
-    expect(
-      filtrarEntradas(todas, con({ profesional: 'Martín Olivares' })).map((e) => e.id),
-    ).toEqual(['e2']);
+    expect(filtrarEntradas(todas, con({ profesional: 'Martín Olivares' })).map((e) => e.id)).toEqual(
+      ['e2'],
+    );
   });
 
   describe('rango de fechas', () => {
     it('incluye los extremos', () => {
       const todas = [entrada({ createdAt: '2026-08-20T13:00:00.000Z' })];
 
-      expect(
-        filtrarEntradas(todas, con({ desde: '2026-08-20', hasta: '2026-08-20' })),
-      ).toHaveLength(1);
+      expect(filtrarEntradas(todas, con({ desde: '2026-08-20', hasta: '2026-08-20' }))).toHaveLength(
+        1,
+      );
     });
 
     it('deja afuera lo anterior y lo posterior', () => {

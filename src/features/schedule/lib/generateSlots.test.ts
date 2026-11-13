@@ -79,7 +79,10 @@ describe('slotsForRule', () => {
 
   it('no ofrece un turno que se pasaría del horario de atención', () => {
     // 09:00-10:20 con turnos de 30: el de 10:00 terminaría 10:30, fuera de la franja.
-    expect(slotsForRule(rule(1, '09:00', '10:20', 30))).toEqual(['09:00', '09:30']);
+    expect(slotsForRule(rule(1, '09:00', '10:20', 30))).toEqual([
+      '09:00',
+      '09:30',
+    ]);
   });
 
   it('devuelve vacío si la franja es más corta que un turno', () => {

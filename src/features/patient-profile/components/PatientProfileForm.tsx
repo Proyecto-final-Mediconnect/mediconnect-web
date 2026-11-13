@@ -135,8 +135,9 @@ export function PatientProfileForm() {
     <form onSubmit={handleSubmit} noValidate className="grid gap-5">
       {!profile.completed && (
         <p className="rounded-[14px] border border-brand/30 bg-surface-teal px-5 py-4 text-[13px] leading-[1.7] text-brand-deep">
-          <strong className="font-bold">Todavía no completaste tu perfil.</strong> Cargá tus datos
-          para que los profesionales puedan atenderte: sin esto no vas a poder reservar un turno.
+          <strong className="font-bold">Todavía no completaste tu perfil.</strong> Cargá tus
+          datos para que los profesionales puedan atenderte: sin esto no vas a poder reservar
+          un turno.
         </p>
       )}
 

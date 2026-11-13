@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog';
 import { ClinicalEntryForm } from '../../clinical-records/components/ClinicalEntryForm';
 
 const BOTON =
@@ -26,6 +27,14 @@ export function ConsultationEvolution({
 }) {
   const navigate = useNavigate();
   const [guardada, setGuardada] = useState(false);
+  // Lo escrito vive en el formulario: salir sin guardar lo pierde. Si hay algo
+  // escrito, se confirma antes (review de #77).
+  const [conCambios, setConCambios] = useState(false);
+  const [salida, setSalida] = useState<(() => void) | null>(null);
+  const salir = (accion: () => void) => {
+    if (conCambios) setSalida(() => accion);
+    else accion();
+  };
 
   return (
     <section
@@ -54,7 +63,8 @@ export function ConsultationEvolution({
           consultationId={consultationId}
           cancelLabel="Lo cargo después"
           onSaved={() => setGuardada(true)}
-          onCancel={() => void navigate('/mis-turnos')}
+          onCancel={() => salir(() => void navigate('/mis-turnos'))}
+          onDirtyChange={setConCambios}
         />
       ) : (
         <div className="grid justify-items-start gap-3">
@@ -71,12 +81,27 @@ export function ConsultationEvolution({
       {!guardada && (
         <button
           type="button"
-          onClick={onBack}
+          onClick={() => salir(onBack)}
           className="justify-self-start text-sm font-semibold text-brand-hover hover:underline"
         >
           Volver a la consulta
         </button>
       )}
+      <ConfirmDialog
+        open={salida !== null}
+        titulo="¿Salir sin guardar la evolución?"
+        confirmar="Salir sin guardar"
+        cancelar="Seguir escribiendo"
+        destructivo
+        onCancel={() => setSalida(null)}
+        onConfirm={() => {
+          const accion = salida;
+          setSalida(null);
+          accion?.();
+        }}
+      >
+        <p>Lo que escribiste no se guarda en la historia clínica.</p>
+      </ConfirmDialog>
     </section>
   );
 }

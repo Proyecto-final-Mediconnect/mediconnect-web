@@ -37,7 +37,9 @@ export function validateRules(rules: ScheduleRule[]): string | null {
 
 /** Primer par de franjas que se pisan dentro del mismo día. Tocarse en el borde
  *  (09:00-13:00 y 13:00-17:00) no es solape: son contiguas. */
-export function findOverlap(rules: ScheduleRule[]): [ScheduleRule, ScheduleRule] | null {
+export function findOverlap(
+  rules: ScheduleRule[],
+): [ScheduleRule, ScheduleRule] | null {
   const byWeekday = new Map<number, ScheduleRule[]>();
 
   for (const rule of rules) {

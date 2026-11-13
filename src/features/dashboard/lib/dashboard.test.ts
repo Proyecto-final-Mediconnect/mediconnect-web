@@ -114,10 +114,7 @@ describe('patientTasks', () => {
 });
 
 describe('professionalTasks', () => {
-  const agenda = {
-    rules: [{ weekday: 2, startTime: '09:00', endTime: '13:00', slotDurationMinutes: 30 }],
-    blocks: [],
-  };
+  const agenda = { rules: [{ weekday: 2, startTime: '09:00', endTime: '13:00', slotDurationMinutes: 30 }], blocks: [] };
 
   it('un perfil completo y validado no tiene pendientes', () => {
     expect(professionalTasks(PERFIL_PRO, agenda)).toEqual([]);
@@ -157,7 +154,11 @@ describe('professionalTasks', () => {
       agenda,
     );
 
-    expect(tareas.map((t) => t.severity)).toEqual(['blocker', 'warning', 'warning']);
+    expect(tareas.map((t) => t.severity)).toEqual([
+      'blocker',
+      'warning',
+      'warning',
+    ]);
   });
 
   it('mientras la agenda no cargó no la reporta como vacía', () => {

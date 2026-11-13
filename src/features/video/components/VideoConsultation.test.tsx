@@ -348,6 +348,39 @@ describe('VideoConsultation', () => {
       });
     });
 
+    it('si hay algo escrito, salir de la evolución pide confirmación (review de #77)', async () => {
+      const user = userEvent.setup();
+      renderComponent();
+      await screen.findByTitle(/Videoconsulta con Ana Gómez/);
+      await finalizar(user);
+
+      await user.type(await screen.findByLabelText(/motivo de consulta/i), 'Control');
+      await user.click(screen.getByRole('button', { name: 'Lo cargo después' }));
+
+      expect(
+        await screen.findByRole('heading', { name: '¿Salir sin guardar la evolución?' }),
+      ).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Seguir escribiendo' }));
+      expect(screen.getByLabelText(/motivo de consulta/i)).toHaveValue('Control');
+      expect(alta).not.toHaveBeenCalled();
+    });
+
+    it('la ficha no se vuelve a pedir al volver a la pestaña (cada lectura se audita)', async () => {
+      renderComponent();
+      await screen.findByText(/penicilina/i);
+      const lecturas = () =>
+        fetchSpy.mock.calls.filter(([input]: [RequestInfo | URL]) =>
+          String(input).includes('/clinical-record/vital'),
+        ).length;
+      const antes = lecturas();
+
+      window.dispatchEvent(new Event('visibilitychange'));
+      window.dispatchEvent(new Event('focus'));
+      await new Promise((r) => setTimeout(r, 50));
+
+      expect(lecturas()).toBe(antes);
+    });
+
     it('"Lo cargo después" no crea ninguna entrada', async () => {
       const user = userEvent.setup();
       renderComponent();

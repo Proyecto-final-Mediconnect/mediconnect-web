@@ -15,11 +15,27 @@ const recordKey = (patientId: string) => ['clinical-record', patientId] as const
 const retryServerErrorsOnly = (failureCount: number, error: Error) =>
   !isClientError(error) && failureCount < 1;
 
-export function useClinicalRecord(patientId: string) {
+/**
+ * Para una lectura que se pide una vez y no se repite sola: cada lectura de la
+ * HC o de la ficha queda auditada (Ley 26.529) y el paciente la ve en "Quién
+ * miró mi historia". Durante la videoconsulta, volver a la pestaña no puede
+ * sumar un acceso nuevo cada vez (review de #77). "Reintentar" sigue andando.
+ */
+export const LECTURA_DE_CONSULTA = {
+  staleTime: 60 * 60_000,
+  refetchOnWindowFocus: false,
+  refetchOnReconnect: false,
+} as const;
+
+export function useClinicalRecord(
+  patientId: string,
+  options: Partial<typeof LECTURA_DE_CONSULTA> = {},
+) {
   return useQuery({
     queryKey: recordKey(patientId),
     queryFn: () => getClinicalRecord(patientId),
     retry: retryServerErrorsOnly,
+    ...options,
   });
 }
 
@@ -28,6 +44,8 @@ export function usePatientVital(patientId: string) {
   return useQuery({
     queryKey: ['clinical-record', patientId, 'vital'],
     queryFn: () => getPatientVital(patientId),
+    // Solo se lee durante la consulta, y cada lectura queda auditada.
+    ...LECTURA_DE_CONSULTA,
     retry: retryServerErrorsOnly,
   });
 }

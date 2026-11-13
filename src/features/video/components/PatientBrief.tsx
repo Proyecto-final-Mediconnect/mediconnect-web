@@ -1,5 +1,10 @@
+import { memo, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { useClinicalRecord, usePatientVital } from '../../clinical-records/hooks/useClinicalRecord';
+import {
+  LECTURA_DE_CONSULTA,
+  useClinicalRecord,
+  usePatientVital,
+} from '../../clinical-records/hooks/useClinicalRecord';
 import { ENTRY_TYPE_LABELS } from '../../clinical-records/types/clinicalRecord';
 
 const FECHA = new Intl.DateTimeFormat('es-AR', {
@@ -20,14 +25,27 @@ const ULTIMAS = 3;
  * Si algo no carga, la llamada sigue: el error se queda en la columna, con su
  * reintento. Las alergias van primero y en rojo porque son el dato que cambia
  * una indicación en el momento.
+ *
+ * Con `memo`: la llamada tiene un cronómetro que redibuja cada segundo, y esta
+ * columna no depende de él (review de #77).
  */
-export function PatientBrief({ patientId, nombre }: { patientId: string; nombre: string }) {
+export const PatientBrief = memo(function PatientBrief({
+  patientId,
+  nombre,
+}: {
+  patientId: string;
+  nombre: string;
+}) {
   const vital = usePatientVital(patientId);
-  const historia = useClinicalRecord(patientId);
+  const historia = useClinicalRecord(patientId, LECTURA_DE_CONSULTA);
 
-  const ultimas = [...(historia.data ?? [])]
-    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-    .slice(0, ULTIMAS);
+  const ultimas = useMemo(
+    () =>
+      [...(historia.data ?? [])]
+        .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+        .slice(0, ULTIMAS),
+    [historia.data],
+  );
 
   const alergias = vital.data?.alergias ?? [];
   const medicacion = vital.data?.medicacion ?? [];
@@ -72,9 +90,9 @@ export function PatientBrief({ patientId, nombre }: { patientId: string; nombre:
           {alergias.length > 0 && (
             <Dato titulo="Alergias">
               <ul className="flex flex-wrap gap-1.5">
-                {alergias.map((a) => (
+                {alergias.map((a, i) => (
                   <li
-                    key={a.que}
+                    key={`${a.que}-${i}`}
                     className="rounded-full bg-danger/10 px-2.5 py-0.5 text-[12px] font-bold text-danger"
                   >
                     {a.que}
@@ -87,8 +105,8 @@ export function PatientBrief({ patientId, nombre }: { patientId: string; nombre:
           {medicacion.length > 0 && (
             <Dato titulo="Medicación">
               <ul className="grid gap-0.5">
-                {medicacion.map((m) => (
-                  <li key={`${m.droga}-${m.dosis}`}>
+                {medicacion.map((m, i) => (
+                  <li key={`${m.droga}-${m.dosis}-${i}`}>
                     {m.droga} {m.dosis}
                   </li>
                 ))}
@@ -98,8 +116,8 @@ export function PatientBrief({ patientId, nombre }: { patientId: string; nombre:
           {condiciones.length > 0 && (
             <Dato titulo="Condiciones">
               <ul className="grid gap-0.5">
-                {condiciones.map((c) => (
-                  <li key={c.nombre}>{c.nombre}</li>
+                {condiciones.map((c, i) => (
+                  <li key={`${c.nombre}-${i}`}>{c.nombre}</li>
                 ))}
               </ul>
             </Dato>
@@ -148,7 +166,7 @@ export function PatientBrief({ patientId, nombre }: { patientId: string; nombre:
       </div>
     </section>
   );
-}
+});
 
 function Dato({ titulo, children }: { titulo: string; children: React.ReactNode }) {
   return (
