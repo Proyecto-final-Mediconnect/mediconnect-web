@@ -15,14 +15,20 @@ export function ReviewForm({
   professionalName,
   onDone,
   onCancel,
+  initialRating = 0,
+  cancelLabel = 'Cancelar',
 }: {
   appointmentId: string;
   professionalName: string;
   onDone: () => void;
   onCancel: () => void;
+  /** Las estrellas que ya tocó en la tarjeta del inicio (ENG-190). */
+  initialRating?: number;
+  /** "Ahora no" en la pantalla de cierre de la consulta (ENG-190). */
+  cancelLabel?: string;
 }) {
   const crear = useCreateReview(appointmentId);
-  const [rating, setRating] = useState(0);
+  const [rating, setRating] = useState(initialRating);
   const [comment, setComment] = useState('');
   const [falta, setFalta] = useState(false);
 
@@ -87,7 +93,7 @@ export function ReviewForm({
 
       <div className="flex justify-end gap-3">
         <Button type="button" variant="ghost" onClick={onCancel} disabled={crear.isPending}>
-          Cancelar
+          {cancelLabel}
         </Button>
         <Button type="submit" disabled={crear.isPending}>
           {crear.isPending ? 'Enviando…' : 'Enviar reseña'}

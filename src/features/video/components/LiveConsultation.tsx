@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog';
 import { useNow } from '../../../shared/hooks/useNow';
 import { useCompleteAppointment } from '../../appointments/hooks/useAppointments';
@@ -38,6 +37,8 @@ type LiveConsultationProps = {
    *  `null` si el turno no está en la lista: se confirma siempre. */
   endsAt: Date | null;
   onFinish: () => void;
+  /** El paciente sale de la sala: va a la pantalla de cierre (ENG-190). */
+  onLeave: () => void;
 };
 
 export function LiveConsultation({
@@ -47,6 +48,7 @@ export function LiveConsultation({
   joinedAt,
   endsAt,
   onFinish,
+  onLeave,
 }: LiveConsultationProps) {
   // Un tick por segundo: es un cronómetro a la vista, no un botón que aparece.
   const now = useNow(1000);
@@ -118,12 +120,13 @@ export function LiveConsultation({
               {complete.isPending ? 'Cerrando la consulta…' : 'Finalizar y ver el resumen'}
             </button>
           ) : (
-            <Link
-              to="/mis-turnos"
+            <button
+              type="button"
+              onClick={onLeave}
               className="rounded-[9px] border border-line-strong bg-white px-5 py-3 text-sm font-bold text-brand-deep transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             >
               Salir de la consulta
-            </Link>
+            </button>
           )}
         </div>
 
