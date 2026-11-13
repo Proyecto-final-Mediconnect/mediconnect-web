@@ -90,6 +90,7 @@ export interface ApiHandlers {
   payment?: () => Response;
   reviews?: () => Response;
   noShow?: () => Response;
+  pending?: () => Response;
 }
 
 export function mockApi(handlers: ApiHandlers = {}) {
@@ -116,6 +117,10 @@ export function mockApi(handlers: ApiHandlers = {}) {
     }
     if (url.includes(`/professionals/${PRO_ID}`)) {
       return Promise.resolve(handlers.profile?.() ?? jsonResponse({}, 404));
+    }
+    // Las reseñas pendientes (ENG-190).
+    if (url.includes('/reviews/pending')) {
+      return Promise.resolve(handlers.pending?.() ?? jsonResponse([]));
     }
     // Las reseñas propias (ENG-80): antes que "/me", que también la matchea.
     if (url.includes('/reviews/me')) {

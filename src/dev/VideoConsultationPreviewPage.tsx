@@ -167,6 +167,7 @@ export function VideoConsultationPreviewPage() {
             joinedAt={joinedAt}
             endsAt={null}
             onFinish={() => setFase('CIERRE')}
+            onLeave={() => setFase('CIERRE')}
           />
         ) : (
           <ConsultationSummary
