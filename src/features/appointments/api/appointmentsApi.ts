@@ -120,3 +120,38 @@ export async function getCancellationQuote(appointmentId: string): Promise<Cance
 
   return (await response.json()) as CancellationRefund;
 }
+
+/** Estado de un turno recién cerrado por el profesional (ENG-189). */
+export type ClosedAppointment = { id: string; status: 'COMPLETADO' | 'NO_ASISTIO' };
+
+/**
+ * El profesional finaliza la consulta (ENG-189): el turno queda `COMPLETADO` y
+ * el paciente ya puede reseñarlo. Idempotente, así que reintentar tras un error
+ * de red no duplica nada.
+ */
+export async function completeAppointment(appointmentId: string): Promise<ClosedAppointment> {
+  const response = await apiFetch(`/appointments/${encodeURIComponent(appointmentId)}/complete`, {
+    method: 'PATCH',
+  });
+
+  if (!response.ok) {
+    throw await toApiError(response, 'No se pudo cerrar la consulta.');
+  }
+
+  return (await response.json()) as ClosedAppointment;
+}
+
+/**
+ * El profesional marca que el paciente no se presentó (ENG-189). No reembolsa.
+ */
+export async function markAppointmentNoShow(appointmentId: string): Promise<ClosedAppointment> {
+  const response = await apiFetch(`/appointments/${encodeURIComponent(appointmentId)}/no-show`, {
+    method: 'PATCH',
+  });
+
+  if (!response.ok) {
+    throw await toApiError(response, 'No se pudo marcar el turno.');
+  }
+
+  return (await response.json()) as ClosedAppointment;
+}

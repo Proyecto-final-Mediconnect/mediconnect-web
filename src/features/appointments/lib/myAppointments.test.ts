@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   canCancel,
+  canMarkNoShow,
   counterpartOf,
   formatLongDate,
   isActive,
@@ -102,6 +103,33 @@ describe('canCancel', () => {
 
   it('sin sesión cargada todavía no se ofrece cancelar', () => {
     expect(canCancel(appointment(), null, NOW)).toBe(false);
+  });
+});
+
+describe('canMarkNoShow (ENG-189)', () => {
+  // Turno confirmado de 30 minutos a las 13:00 UTC.
+  const confirmado = appointment({ status: 'CONFIRMADO' });
+  const at = (minutes: number) => new Date(Date.parse('2026-08-17T13:00:00Z') + minutes * 60_000);
+
+  it('el profesional puede desde la hora del turno', () => {
+    expect(canMarkNoShow(confirmado, PRO_ID, at(0))).toBe(true);
+  });
+
+  it('antes de la hora no', () => {
+    expect(canMarkNoShow(confirmado, PRO_ID, at(-1))).toBe(false);
+  });
+
+  it('hasta 24 horas después del final, no más', () => {
+    expect(canMarkNoShow(confirmado, PRO_ID, at(30 + 24 * 60))).toBe(true);
+    expect(canMarkNoShow(confirmado, PRO_ID, at(30 + 24 * 60 + 1))).toBe(false);
+  });
+
+  it('el paciente nunca', () => {
+    expect(canMarkNoShow(confirmado, PATIENT_ID, at(10))).toBe(false);
+  });
+
+  it('solo con el turno confirmado', () => {
+    expect(canMarkNoShow(appointment({ status: 'COMPLETADO' }), PRO_ID, at(10))).toBe(false);
   });
 });
 

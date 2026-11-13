@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog';
 import { useNow } from '../../../shared/hooks/useNow';
+import { useCompleteAppointment } from '../../appointments/hooks/useAppointments';
 import { formatElapsed } from '../lib/elapsed';
 import { MOCK_TRANSCRIPT, mockPatientBrief } from '../lib/mockConsultation';
 import type { VideoConsultationAccess } from '../types/dailyRoom';
@@ -28,6 +31,9 @@ type LiveConsultationProps = {
   counterpartName: string;
   /** Momento en que se abrió la sala: el cronómetro cuenta desde acá. */
   joinedAt: Date;
+  /** Hora de fin del turno. Antes de esa hora, "Finalizar" pide confirmación.
+   *  `null` si el turno no está en la lista: se confirma siempre. */
+  endsAt: Date | null;
   onFinish: () => void;
 };
 
@@ -35,11 +41,33 @@ export function LiveConsultation({
   access,
   counterpartName,
   joinedAt,
+  endsAt,
   onFinish,
 }: LiveConsultationProps) {
   // Un tick por segundo: es un cronómetro a la vista, no un botón que aparece.
   const now = useNow(1000);
   const esProfesional = access.role === 'PROFESIONAL';
+  // "Finalizar" cierra el turno en el backend (ENG-189) antes de pasar al
+  // resumen: es lo que deja al paciente reseñar. Si falla, se queda en la
+  // llamada con el error a la vista y se puede reintentar (es idempotente).
+  const complete = useCompleteAppointment();
+  const cerrarTurno = () =>
+    complete.mutate(access.appointmentId, {
+      onSuccess: () => {
+        setConfirmando(false);
+        onFinish();
+      },
+      // El error se muestra en la pantalla de la llamada, no detrás del modal.
+      onError: () => setConfirmando(false),
+    });
+  // Cerrar el turno no tiene vuelta atrás: con el turno completado la sala ya
+  // no deja entrar. Antes de la hora de fin se confirma, por si fue un click de
+  // más (review de #75); después, la consulta ya terminó y se cierra directo.
+  const [confirmando, setConfirmando] = useState(false);
+  const finalizar = () => {
+    if (endsAt === null || now < endsAt) setConfirmando(true);
+    else cerrarTurno();
+  };
 
   return (
     <div
@@ -74,10 +102,18 @@ export function LiveConsultation({
           {esProfesional ? (
             <button
               type="button"
-              onClick={onFinish}
-              className="rounded-[9px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              onClick={finalizar}
+              disabled={complete.isPending}
+              aria-busy={complete.isPending}
+              className="inline-flex items-center gap-2 rounded-[9px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-70"
             >
-              Finalizar y ver el resumen
+              {complete.isPending && (
+                <span
+                  aria-hidden="true"
+                  className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white motion-reduce:animate-none"
+                />
+              )}
+              {complete.isPending ? 'Cerrando la consulta…' : 'Finalizar y ver el resumen'}
             </button>
           ) : (
             <Link
@@ -88,7 +124,28 @@ export function LiveConsultation({
             </Link>
           )}
         </div>
+
+        {complete.isError && (
+          <p role="alert" className="text-sm text-danger">
+            {complete.error.message} Podés reintentar sin salir de la llamada.
+          </p>
+        )}
       </div>
+
+      <ConfirmDialog
+        open={confirmando}
+        titulo="¿Finalizar la consulta?"
+        confirmar={complete.isPending ? 'Cerrando…' : 'Sí, finalizar'}
+        cancelar="Seguir en la consulta"
+        pendiente={complete.isPending}
+        onCancel={() => setConfirmando(false)}
+        onConfirm={cerrarTurno}
+      >
+        <p>
+          Todavía no es la hora de fin del turno. Si finalizás, el turno queda completado y ya no se
+          puede volver a entrar a la sala.
+        </p>
+      </ConfirmDialog>
 
       {esProfesional && (
         <aside className="grid gap-4">

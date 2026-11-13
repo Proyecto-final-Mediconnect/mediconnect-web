@@ -101,6 +101,27 @@ export function canCancel(
   );
 }
 
+/** Horas después del final del turno en que el profesional todavía lo puede
+ *  cerrar a mano. Espeja `MANUAL_CLOSE_HOURS_AFTER` del backend (ENG-189). */
+export const MANUAL_CLOSE_HOURS_AFTER = 24;
+
+/**
+ * Si el profesional puede marcar que el paciente no se presentó (ENG-189):
+ * turno confirmado, desde la hora del turno hasta 24 h después del final.
+ * Decide si se dibuja el botón; el backend revalida lo mismo.
+ */
+export function canMarkNoShow(
+  appointment: Appointment,
+  userId: string | null,
+  now: Date = new Date(),
+): boolean {
+  if (userId === null || appointment.professional?.id !== userId) return false;
+  if (appointment.status !== 'CONFIRMADO') return false;
+  const start = new Date(appointment.scheduledAt).getTime();
+  const until = start + appointment.durationMinutes * 60_000 + MANUAL_CLOSE_HOURS_AFTER * 3_600_000;
+  return now.getTime() >= start && now.getTime() <= until;
+}
+
 /**
  * La otra persona del turno: el profesional si mirás como paciente, el paciente
  * si mirás como profesional. El mismo endpoint sirve a los dos roles, así que la

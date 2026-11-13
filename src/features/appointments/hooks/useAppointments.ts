@@ -3,8 +3,10 @@ import { isClientError } from '../../../shared/api/apiError';
 import {
   bookAppointment,
   cancelAppointment,
+  completeAppointment,
   getAvailability,
   getMyAppointments,
+  markAppointmentNoShow,
   rescheduleAppointment,
 } from '../api/appointmentsApi';
 
@@ -94,4 +96,26 @@ export function useCancelAppointment() {
       void queryClient.invalidateQueries({ queryKey: ['availability'] });
     },
   });
+}
+
+/** Mutación que cierra un turno y refresca "mis turnos" (ENG-189). */
+function useCloseAppointment(close: (appointmentId: string) => Promise<unknown>) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: close,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: MY_APPOINTMENTS_KEY });
+    },
+  });
+}
+
+/** El profesional finaliza la consulta (ENG-189). */
+export function useCompleteAppointment() {
+  return useCloseAppointment(completeAppointment);
+}
+
+/** El profesional marca que el paciente no se presentó (ENG-189). */
+export function useMarkNoShow() {
+  return useCloseAppointment(markAppointmentNoShow);
 }
