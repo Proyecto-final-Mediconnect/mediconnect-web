@@ -98,26 +98,24 @@ export function useCancelAppointment() {
   });
 }
 
-/** El profesional finaliza la consulta (ENG-189). */
-export function useCompleteAppointment() {
+/** Mutación que cierra un turno y refresca "mis turnos" (ENG-189). */
+function useCloseAppointment(close: (appointmentId: string) => Promise<unknown>) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: completeAppointment,
+    mutationFn: close,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: MY_APPOINTMENTS_KEY });
     },
   });
 }
 
+/** El profesional finaliza la consulta (ENG-189). */
+export function useCompleteAppointment() {
+  return useCloseAppointment(completeAppointment);
+}
+
 /** El profesional marca que el paciente no se presentó (ENG-189). */
 export function useMarkNoShow() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: markAppointmentNoShow,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: MY_APPOINTMENTS_KEY });
-    },
-  });
+  return useCloseAppointment(markAppointmentNoShow);
 }
