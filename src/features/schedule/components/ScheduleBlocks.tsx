@@ -67,8 +67,8 @@ export function ScheduleBlocks({ blocks }: ScheduleBlocksProps) {
           Bloqueos puntuales
         </h2>
         <p className="mt-2 text-[13px] leading-[1.6] text-muted">
-          Feriados, licencias o un rato del día que no vas a atender. Sin horario se bloquea el día
-          completo.
+          Feriados, licencias o un rato del día que no vas a atender. Sin horario se
+          bloquea el día completo.
         </p>
       </header>
 
@@ -168,7 +168,9 @@ export function ScheduleBlocks({ blocks }: ScheduleBlocksProps) {
                 }}
                 // Solo se deshabilita el botón del bloqueo que se está
                 // borrando, no todos los de la lista.
-                disabled={deleteBlock.isPending && deleteBlock.variables === block.id}
+                disabled={
+                  deleteBlock.isPending && deleteBlock.variables === block.id
+                }
                 aria-label={`Quitar el bloqueo del ${block.blockDate}`}
               >
                 Quitar

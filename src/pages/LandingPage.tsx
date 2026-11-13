@@ -42,7 +42,8 @@ const PARA_PACIENTES = [
 const PARA_PROFESIONALES = [
   {
     titulo: 'Agenda que se maneja sola',
-    texto: 'Publicás tu disponibilidad y el sistema evita superposiciones y avisa a los pacientes.',
+    texto:
+      'Publicás tu disponibilidad y el sistema evita superposiciones y avisa a los pacientes.',
   },
   {
     titulo: 'Cobrás por adelantado',
@@ -163,7 +164,9 @@ function SectionLabel({ n, children, tone = 'light' }: SectionLabelProps) {
         isDark ? 'border-white/30' : 'border-brand-deep'
       }`}
     >
-      <span className={`text-xs font-semibold ${isDark ? 'text-brand-bright' : 'text-brand'}`}>
+      <span
+        className={`text-xs font-semibold ${isDark ? 'text-brand-bright' : 'text-brand'}`}
+      >
         {n}
       </span>
       <span
@@ -367,9 +370,7 @@ function ParaProfesionales() {
 function MediPass() {
   return (
     <section id="medipass" className="scroll-mt-20 bg-night text-white">
-      <div
-        className={`${SHELL} grid items-center gap-12 py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-[92px]`}
-      >
+      <div className={`${SHELL} grid items-center gap-12 py-16 lg:grid-cols-[1.05fr_0.95fr] lg:gap-16 lg:py-[92px]`}>
         <div>
           <SectionLabel n="03" tone="dark">
             MediPass
@@ -448,9 +449,7 @@ function ComoFunciona() {
 function TusDatos() {
   return (
     <section className="border-t border-line bg-white">
-      <div
-        className={`${SHELL} grid items-start gap-10 py-16 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16 lg:py-[92px]`}
-      >
+      <div className={`${SHELL} grid items-start gap-10 py-16 lg:grid-cols-[0.85fr_1.15fr] lg:gap-16 lg:py-[92px]`}>
         <div>
           <SectionLabel n="05">Tus datos son tuyos</SectionLabel>
           <h2 className="font-display mt-6 text-[30px] leading-[1.15] text-brand-deep lg:text-[38px]">
@@ -566,8 +565,8 @@ function SiteFooter() {
       <div
         className={`${SHELL} border-t border-white/[0.08] pb-10 pt-5 text-[11px] font-semibold tracking-[0.06em] text-footer-label`}
       >
-        © 2026 MEDICONNECT · MediConnect no reemplaza una urgencia médica. Ante una emergencia llamá
-        al 107.
+        © 2026 MEDICONNECT · MediConnect no reemplaza una urgencia médica. Ante una emergencia
+        llamá al 107.
       </div>
     </footer>
   );

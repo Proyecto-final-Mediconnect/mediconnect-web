@@ -60,6 +60,9 @@ export function usePendingReviews(enabled = true) {
     queryKey: PENDING,
     queryFn: getPendingReviews,
     enabled,
+    // Cambia poco y las mutaciones ya la invalidan: no hace falta repedirla en
+    // cada navegación entre el panel y el detalle (review de #76).
+    staleTime: 60_000,
     retry: retryServerErrorsOnly,
   });
 }

@@ -6,7 +6,9 @@ import { useState } from 'react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactElement, ReactNode } from 'react';
+import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AppointmentReview } from './AppointmentReview';
+import { ConsultationClosing } from './ConsultationClosing';
 import { ModerationQueue } from './ModerationQueue';
 import { PendingReviewCards } from './PendingReviewCards';
 import { ProfessionalReviews } from './ProfessionalReviews';
@@ -434,5 +436,71 @@ describe('PendingReviewCards (ENG-190)', () => {
         String(input).includes(`/reviews/pending/${TURNO}/dismiss`),
       ),
     ).toBe(true);
+  });
+});
+
+describe('ConsultationClosing (ENG-190)', () => {
+  const MIA = {
+    id: 'r-1',
+    appointmentId: TURNO,
+    professionalId: PRO,
+    rating: 5,
+    comment: null,
+    status: 'PENDIENTE_MODERACION',
+    moderationReason: null,
+    createdAt: '2026-11-20T16:00:00.000Z',
+  };
+
+  function cierre(responder: (url: string, init?: RequestInit) => Response) {
+    return renderWith(
+      <MemoryRouter initialEntries={['/sala']}>
+        <Routes>
+          <Route
+            path="/sala"
+            element={
+              <ConsultationClosing
+                appointmentId={TURNO}
+                professionalName="Ana Gómez"
+                onBack={() => {}}
+              />
+            }
+          />
+          <Route path="/mis-turnos" element={<h1>Mis turnos</h1>} />
+        </Routes>
+      </MemoryRouter>,
+      responder,
+    );
+  }
+
+  it('si ya la había reseñado, lo dice y ofrece ir a mis turnos', async () => {
+    cierre(() => json([MIA]));
+
+    expect(await screen.findByText(/ya dejaste tu reseña de esta consulta/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ir a mis turnos' })).toHaveAttribute(
+      'href',
+      '/mis-turnos',
+    );
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+  });
+
+  it('al enviar agradece y ofrece ir a mis turnos', async () => {
+    const user = userEvent.setup();
+    cierre((_url, init) => (init?.method === 'POST' ? json(MIA, 201) : json([])));
+
+    await user.click(await screen.findByRole('radio', { name: /5 estrellas/i }));
+    await user.click(screen.getByRole('button', { name: 'Enviar reseña' }));
+
+    expect(await screen.findByText(/¡gracias! tu reseña se publica/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Ir a mis turnos' })).toBeInTheDocument();
+  });
+
+  it('"Ahora no" va a mis turnos sin mandar nada', async () => {
+    const user = userEvent.setup();
+    const fetchMock = cierre(() => json([]));
+
+    await user.click(await screen.findByRole('button', { name: 'Ahora no' }));
+
+    expect(await screen.findByRole('heading', { name: 'Mis turnos' })).toBeInTheDocument();
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'POST')).toBe(false);
   });
 });

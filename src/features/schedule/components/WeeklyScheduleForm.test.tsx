@@ -116,7 +116,9 @@ describe('WeeklyScheduleForm (ENG-53)', () => {
     // Se activa el lunes (agrega 09:00-13:00 de 30 min → 8 turnos más).
     await user.click(screen.getByRole('checkbox', { name: /lunes/i }));
 
-    await waitFor(() => expect(within(preview()).getByText(/16 turnos/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(within(preview()).getByText(/16 turnos/i)).toBeInTheDocument(),
+    );
     // Sin haber tocado "Guardar": nada viajó al backend.
     expect(putBodies).toHaveLength(0);
   });
@@ -177,7 +179,9 @@ describe('WeeklyScheduleForm (ENG-53)', () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation((input, init) => {
       const url = String(input);
       if (url.includes('/schedule/blocks/') && init?.method === 'DELETE') {
-        return Promise.resolve(jsonResponse({ message: 'No se pudo borrar el bloqueo.' }, 500));
+        return Promise.resolve(
+          jsonResponse({ message: 'No se pudo borrar el bloqueo.' }, 500),
+        );
       }
       if (url.endsWith('/professionals/me/schedule')) {
         return Promise.resolve(
@@ -203,7 +207,9 @@ describe('WeeklyScheduleForm (ENG-53)', () => {
 
     await user.click(await screen.findByRole('button', { name: /quitar/i }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/no se pudo borrar/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /no se pudo borrar/i,
+    );
   });
 
   it('no manda el id de las franjas guardadas (el backend rechaza campos desconocidos)', async () => {
@@ -267,7 +273,9 @@ describe('WeeklyScheduleForm (ENG-53)', () => {
     await user.click(screen.getByRole('button', { name: /semana siguiente/i }));
 
     await waitFor(() =>
-      expect(within(preview()).getByText(/no se genera ningún turno/i)).toBeInTheDocument(),
+      expect(
+        within(preview()).getByText(/no se genera ningún turno/i),
+      ).toBeInTheDocument(),
     );
     expect(within(preview()).getByText(/bloqueado/i)).toBeInTheDocument();
   });

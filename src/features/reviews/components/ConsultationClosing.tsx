@@ -13,13 +13,20 @@ const BOTON_MIS_TURNOS =
  * Es una pantalla y no un modal: después de una consulta médica un popup
  * molesta y se cierra sin leer. "Ahora no" lleva a "Mis turnos" sin guardar
  * nada; el pedido sigue en la tarjeta del inicio.
+ *
+ * El título pregunta y no afirma que la consulta "terminó": el paciente puede
+ * haber salido antes de que el profesional la finalice, o por error, y para
+ * eso está "Volver a la consulta" (review de #76).
  */
 export function ConsultationClosing({
   appointmentId,
   professionalName,
+  onBack,
 }: {
   appointmentId: string;
-  professionalName: string;
+  /** `null` si la sala no trajo la contraparte: el texto no la nombra. */
+  professionalName: string | null;
+  onBack: () => void;
 }) {
   const navigate = useNavigate();
   const mias = useMyReviews();
@@ -36,11 +43,13 @@ export function ConsultationClosing({
           id="cierre-consulta"
           className="font-display text-[26px] leading-[1.2] text-brand-deep [text-wrap:balance]"
         >
-          Tu consulta con {professionalName} terminó
+          {professionalName
+            ? `¿Cómo te fue en tu consulta con ${professionalName}?`
+            : '¿Cómo te fue en tu consulta?'}
         </h2>
         {!enviada && !yaReseno && (
           <p className="text-sm leading-[1.7] text-muted">
-            ¿Cómo te fue? Tu opinión ayuda a otros pacientes a elegir.
+            Tu opinión ayuda a otros pacientes a elegir.
           </p>
         )}
       </div>
@@ -59,11 +68,21 @@ export function ConsultationClosing({
       ) : (
         <ReviewForm
           appointmentId={appointmentId}
-          professionalName={professionalName}
+          professionalName={professionalName ?? 'tu profesional'}
           cancelLabel="Ahora no"
           onDone={() => setEnviada(true)}
           onCancel={() => void navigate('/mis-turnos')}
         />
+      )}
+
+      {!enviada && !yaReseno && (
+        <button
+          type="button"
+          onClick={onBack}
+          className="justify-self-start text-sm font-semibold text-brand-hover underline-offset-2 hover:underline"
+        >
+          Volver a la consulta
+        </button>
       )}
     </section>
   );

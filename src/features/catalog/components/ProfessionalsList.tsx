@@ -76,7 +76,11 @@ export function ProfessionalsList({
     <div aria-busy={isFiltering}>
       {/* aria-live: al refiltrar, un lector de pantalla anuncia cuántos
           resultados quedaron sin que el usuario tenga que recorrer la lista. */}
-      <p className="mb-4 text-sm font-medium text-muted" role="status" aria-live="polite">
+      <p
+        className="mb-4 text-sm font-medium text-muted"
+        role="status"
+        aria-live="polite"
+      >
         {total === 1 ? '1 profesional disponible' : `${total} profesionales disponibles`}
       </p>
 

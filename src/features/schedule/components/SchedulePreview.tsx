@@ -1,5 +1,11 @@
 import { useMemo, useState } from 'react';
-import { addDays, buildWeekPreview, countSlots, mondayOf, todayLocal } from '../lib/generateSlots';
+import {
+  addDays,
+  buildWeekPreview,
+  countSlots,
+  mondayOf,
+  todayLocal,
+} from '../lib/generateSlots';
 import { WEEKDAY_NAMES, type ScheduleBlock, type ScheduleRule } from '../types/schedule';
 
 interface SchedulePreviewProps {
@@ -44,7 +50,10 @@ function formatDate(date: string): string {
 export function SchedulePreview({ rules, blocks }: SchedulePreviewProps) {
   const [weekOffset, setWeekOffset] = useState(0);
 
-  const weekStart = useMemo(() => addDays(mondayOf(todayLocal()), weekOffset * 7), [weekOffset]);
+  const weekStart = useMemo(
+    () => addDays(mondayOf(todayLocal()), weekOffset * 7),
+    [weekOffset],
+  );
 
   const days = useMemo(
     () => buildWeekPreview(rules, blocks, weekStart),
@@ -131,8 +140,8 @@ export function SchedulePreview({ rules, blocks }: SchedulePreviewProps) {
                 </div>
                 {day.blockedSlots > 0 && (
                   <p className="mt-2 text-[11px] text-muted">
-                    {day.blockedSlots} turno{day.blockedSlots === 1 ? '' : 's'} sin ofrecer por un
-                    bloqueo
+                    {day.blockedSlots} turno{day.blockedSlots === 1 ? '' : 's'} sin ofrecer
+                    por un bloqueo
                   </p>
                 )}
               </>

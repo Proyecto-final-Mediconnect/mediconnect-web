@@ -88,26 +88,22 @@ export function VideoConsultationPreviewPage() {
   // Tick de un segundo, para que la cuenta regresiva corra de verdad.
   const now = useNow(1000);
 
-  const access = {
-    ...accesoDeJuguete(role),
-    recording: {
-      enabled: grabando,
-      mode: grabando ? ('cloud-audio-only' as const) : ('off' as const),
-    },
-  };
+  const access = { ...accesoDeJuguete(role), recording: { enabled: grabando, mode: grabando ? ('cloud-audio-only' as const) : ('off' as const) } };
   const counterpartName = `${access.counterpart!.firstName} ${access.counterpart!.lastName}`;
 
   return (
     <DashboardLayout barTitle="Videoconsulta — vista de desarrollo">
       <div className="grid gap-5">
         <div className="rounded-[14px] border border-dashed border-line-strong bg-surface p-5">
-          <p className="text-[15px] font-bold text-brand-deep">Vista de desarrollo, sin backend</p>
+          <p className="text-[15px] font-bold text-brand-deep">
+            Vista de desarrollo, sin backend
+          </p>
           <p className="mt-1.5 max-w-[640px] text-[13px] leading-[1.7] text-muted">
-            Son los componentes reales de la videoconsulta con datos de juguete. La ruta real es{' '}
-            <code className="font-mono">/turnos/:id/videoconsulta</code>: se entra con un turno
-            propio y, si todavía no es la hora, muestra la sala de espera. Para llegar a la llamada
-            hace falta además DAILY_API_KEY en el backend. Esta pantalla no existe en el build de
-            producción.
+            Son los componentes reales de la videoconsulta con datos de juguete. La ruta real
+            es <code className="font-mono">/turnos/:id/videoconsulta</code>: se entra con un
+            turno propio y, si todavía no es la hora, muestra la sala de espera. Para llegar a
+            la llamada hace falta además DAILY_API_KEY en el backend. Esta pantalla no existe
+            en el build de producción.
           </p>
 
           <div className="mt-4 flex flex-wrap gap-5">

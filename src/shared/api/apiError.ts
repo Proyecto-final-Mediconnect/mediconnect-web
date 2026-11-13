@@ -29,7 +29,10 @@ export function isUnauthorized(error: unknown): boolean {
  * Nest devuelve `message` como string o como array de strings (un ítem por
  * validación que falló); las dos formas se aplanan a un solo texto legible.
  */
-export async function toApiError(response: Response, fallback: string): Promise<ApiError> {
+export async function toApiError(
+  response: Response,
+  fallback: string,
+): Promise<ApiError> {
   const data = (await response.json().catch(() => null)) as {
     message?: string | string[];
   } | null;

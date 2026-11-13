@@ -38,9 +38,7 @@ function postCount(spy: ReturnType<typeof vi.spyOn>): number {
   return calls.filter((call) => call[1]?.method === 'POST').length;
 }
 
-function renderForm(
-  props: { consultationId?: string; onSaved?: () => void; onCancel?: () => void } = {},
-) {
+function renderForm(props: { consultationId?: string; onSaved?: () => void; onCancel?: () => void } = {}) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false }, queries: { retry: false } },
   });
@@ -56,7 +54,9 @@ describe('ClinicalEntryForm (ENG-58)', () => {
   let fetchSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ id: 'nueva' }, 201));
+    fetchSpy = vi
+      .spyOn(globalThis, 'fetch')
+      .mockResolvedValue(jsonResponse({ id: 'nueva' }, 201));
   });
 
   afterEach(() => {

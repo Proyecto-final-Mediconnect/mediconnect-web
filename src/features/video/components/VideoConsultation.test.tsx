@@ -209,12 +209,23 @@ describe('VideoConsultation', () => {
     await user.click(screen.getByRole('button', { name: /salir de la consulta/i }));
 
     expect(
-      await screen.findByRole('heading', { name: 'Tu consulta con Ana Gómez terminó' }),
+      await screen.findByRole('heading', { name: '¿Cómo te fue en tu consulta con Ana Gómez?' }),
     ).toBeInTheDocument();
     expect(screen.getByRole('radiogroup')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Ahora no' })).toBeInTheDocument();
     // La llamada ya no sigue detrás.
     expect(screen.queryByTitle(/Videoconsulta con Ana Gómez/)).not.toBeInTheDocument();
+  });
+
+  it('si salió por error, "Volver a la consulta" lo devuelve a la sala (review de #76)', async () => {
+    const user = userEvent.setup();
+    renderComponent();
+    await screen.findByTitle(/Videoconsulta con Ana Gómez/);
+
+    await user.click(screen.getByRole('button', { name: /salir de la consulta/i }));
+    await user.click(await screen.findByRole('button', { name: 'Volver a la consulta' }));
+
+    expect(await screen.findByTitle(/Videoconsulta con Ana Gómez/)).toBeInTheDocument();
   });
 
   it('cuenta el tiempo en consulta desde que se abre la sala', async () => {

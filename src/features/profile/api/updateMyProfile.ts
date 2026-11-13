@@ -1,4 +1,7 @@
-import type { ProfessionalProfile, ProfessionalProfileInput } from '../types/professionalProfile';
+import type {
+  ProfessionalProfile,
+  ProfessionalProfileInput,
+} from '../types/professionalProfile';
 import { apiError } from './apiError';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
@@ -35,7 +38,9 @@ export async function updateMyProfile(
     const message = data?.message;
     throw apiError(
       response.status,
-      Array.isArray(message) ? message.join(' ') : (message ?? 'No se pudo guardar tu perfil.'),
+      Array.isArray(message)
+        ? message.join(' ')
+        : (message ?? 'No se pudo guardar tu perfil.'),
     );
   }
 

@@ -62,7 +62,8 @@ export function PendingReviewCards() {
               <button
                 type="button"
                 aria-label={`No calificar la consulta con ${nombre}`}
-                disabled={descartar.isPending}
+                // Solo se traba la tarjeta que se está descartando.
+                disabled={descartar.isPending && descartar.variables === p.appointmentId}
                 onClick={() => descartar.mutate(p.appointmentId)}
                 className="flex size-8 flex-none items-center justify-center rounded-full text-muted transition-colors hover:bg-surface hover:text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-50"
               >

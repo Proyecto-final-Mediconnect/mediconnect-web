@@ -258,6 +258,39 @@ describe('AppointmentDetail (ENG-178)', () => {
     });
   });
 
+  it('ofrece reseñar un turno todavía confirmado si el backend lo da como pendiente (ENG-190)', async () => {
+    const enCurso = {
+      ...UPCOMING,
+      id: '88888888-8888-4888-8888-888888888888',
+      scheduledAt: '2026-08-17T10:30:00.000Z',
+      date: '2026-08-17',
+      status: 'CONFIRMADO',
+    };
+    mockApi({
+      mine: () => jsonResponse([enCurso]),
+      pending: () =>
+        jsonResponse([
+          {
+            appointmentId: enCurso.id,
+            scheduledAt: enCurso.scheduledAt,
+            professional: { ...enCurso.professional, photoUrl: null },
+          },
+        ]),
+    });
+    renderDetail(enCurso.id);
+
+    expect(await screen.findByRole('button', { name: 'Dejar una reseña' })).toBeInTheDocument();
+  });
+
+  it('un turno confirmado que no está pendiente no ofrece reseñar', async () => {
+    const enCurso = { ...UPCOMING, status: 'CONFIRMADO' };
+    mockApi({ mine: () => jsonResponse([enCurso]) });
+    renderDetail(enCurso.id);
+
+    await screen.findByRole('heading', { name: 'Ana Médica' });
+    expect(screen.queryByRole('button', { name: 'Dejar una reseña' })).not.toBeInTheDocument();
+  });
+
   it('un turno que no está en la lista lo dice y ofrece volver', async () => {
     mockApi({ mine: () => jsonResponse(ALL) });
     renderDetail('no-existe');

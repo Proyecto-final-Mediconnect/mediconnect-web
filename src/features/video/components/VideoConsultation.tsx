@@ -192,7 +192,12 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
     return (
       <ConsultationClosing
         appointmentId={access.appointmentId}
-        professionalName={counterpartName}
+        professionalName={
+          access.counterpart
+            ? `${access.counterpart.firstName} ${access.counterpart.lastName}`
+            : null
+        }
+        onBack={() => setFase('CURSO')}
       />
     );
   }

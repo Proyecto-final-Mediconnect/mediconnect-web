@@ -25,7 +25,9 @@ export async function getMySchedule(): Promise<Schedule> {
  * backend corre con `forbidNonWhitelisted`, así que un `id` de más haría fallar
  * el request entero con un 400.
  */
-export async function saveMySchedule(payload: SaveSchedulePayload): Promise<Schedule> {
+export async function saveMySchedule(
+  payload: SaveSchedulePayload,
+): Promise<Schedule> {
   const response = await apiFetch(BASE, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -39,7 +41,9 @@ export async function saveMySchedule(payload: SaveSchedulePayload): Promise<Sche
   return (await response.json()) as Schedule;
 }
 
-export async function createBlock(payload: CreateBlockPayload): Promise<ScheduleBlock> {
+export async function createBlock(
+  payload: CreateBlockPayload,
+): Promise<ScheduleBlock> {
   const response = await apiFetch(`${BASE}/blocks`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
