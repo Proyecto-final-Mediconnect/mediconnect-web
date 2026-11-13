@@ -3,9 +3,9 @@ import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog';
 import { useNow } from '../../../shared/hooks/useNow';
 import { useCompleteAppointment } from '../../appointments/hooks/useAppointments';
 import { formatElapsed } from '../lib/elapsed';
-import { MOCK_TRANSCRIPT, mockPatientBrief } from '../lib/mockConsultation';
 import type { VideoConsultationAccess } from '../types/dailyRoom';
 import { DailyPrebuiltFrame } from './DailyPrebuiltFrame';
+import { PatientBrief } from './PatientBrief';
 
 /**
  * Consulta en curso (ENG-56), con el diseño del canvas.
@@ -28,6 +28,9 @@ import { DailyPrebuiltFrame } from './DailyPrebuiltFrame';
 type LiveConsultationProps = {
   access: VideoConsultationAccess;
   counterpartName: string;
+  /** El paciente del turno, para su ficha al costado (ENG-191). `null` si el
+   *  turno no está en la lista: la columna lo dice en vez de inventar. */
+  patientId: string | null;
   /** Momento en que se abrió la sala: el cronómetro cuenta desde acá. */
   joinedAt: Date;
   /** Hora de fin del turno. Antes de esa hora, "Finalizar" pide confirmación.
@@ -41,6 +44,7 @@ type LiveConsultationProps = {
 export function LiveConsultation({
   access,
   counterpartName,
+  patientId,
   joinedAt,
   endsAt,
   onFinish,
@@ -81,8 +85,6 @@ export function LiveConsultation({
         <BarraDeEstado
           transcurrido={formatElapsed(now.getTime() - joinedAt.getTime())}
           grabando={access.recording.enabled}
-          mostrarConsentimiento={esProfesional}
-          consentimientoFirmado={mockPatientBrief().consentimientoFirmado}
         />
 
         <DailyPrebuiltFrame
@@ -152,8 +154,14 @@ export function LiveConsultation({
 
       {esProfesional && (
         <aside className="grid gap-4">
-          <InfoDeLaPaciente nombre={counterpartName} />
-          <TranscripcionEnVivo />
+          {patientId ? (
+            <PatientBrief patientId={patientId} nombre={counterpartName} />
+          ) : (
+            <p className="rounded-[14px] border border-line bg-white px-5 py-4 text-[13px] text-muted">
+              No pudimos identificar al paciente de este turno. Abrí su historia clínica desde
+              &quot;Mis turnos&quot;.
+            </p>
+          )}
         </aside>
       )}
     </div>
@@ -161,17 +169,7 @@ export function LiveConsultation({
 }
 
 /** Cabecera oscura: cuánto hace que estás en la sala y bajo qué condiciones. */
-function BarraDeEstado({
-  transcurrido,
-  grabando,
-  mostrarConsentimiento,
-  consentimientoFirmado,
-}: {
-  transcurrido: string;
-  grabando: boolean;
-  mostrarConsentimiento: boolean;
-  consentimientoFirmado: boolean;
-}) {
+function BarraDeEstado({ transcurrido, grabando }: { transcurrido: string; grabando: boolean }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] bg-night px-5 py-3.5">
       <p className="flex items-center gap-2.5 text-[13px] font-semibold text-on-night-strong">
@@ -194,9 +192,6 @@ function BarraDeEstado({
         <Chip tono={grabando ? 'aviso' : 'neutro'}>
           {grabando ? 'Grabando audio' : 'Sin grabar'}
         </Chip>
-        {mostrarConsentimiento && consentimientoFirmado && (
-          <Chip tono="ok">✓ Consentimiento firmado</Chip>
-        )}
       </div>
     </div>
   );
@@ -241,115 +236,5 @@ function RecordingNotice({ enabled }: { enabled: boolean }) {
       la transcripción y el resumen clínico. El resumen lo revisa el profesional antes de
       incorporarse a la historia clínica.
     </p>
-  );
-}
-
-/** Ficha de la contraparte, con las alergias primero: es el dato que cambia una
- *  indicación en el momento. */
-function InfoDeLaPaciente({ nombre }: { nombre: string }) {
-  const ficha = mockPatientBrief();
-
-  return (
-    <section
-      aria-labelledby="info-paciente"
-      className="overflow-hidden rounded-[14px] border border-line bg-white"
-    >
-      <header className="border-b border-line-soft px-5 py-[18px]">
-        <h2
-          id="info-paciente"
-          className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted"
-        >
-          Info de la paciente
-        </h2>
-        <p className="mt-1.5 text-[15px] font-bold text-brand-deep">
-          {nombre} · {ficha.edad} años
-        </p>
-      </header>
-
-      <dl className="divide-y divide-line-soft">
-        <Dato titulo="Alergias" destacado>
-          {ficha.alergias}
-        </Dato>
-        <Dato titulo="Medicación">{ficha.medicacion}</Dato>
-        <Dato titulo="Condiciones">{ficha.condiciones}</Dato>
-        <Dato titulo="Seguimiento">{ficha.seguimiento}</Dato>
-      </dl>
-    </section>
-  );
-}
-
-function Dato({
-  titulo,
-  destacado = false,
-  children,
-}: {
-  titulo: string;
-  destacado?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="px-5 py-3.5">
-      <dt className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-soft">
-        {titulo}
-      </dt>
-      <dd
-        className={`mt-1 text-[13px] leading-[1.6] ${
-          destacado ? 'font-bold text-danger' : 'font-semibold text-ink'
-        }`}
-      >
-        {children}
-      </dd>
-    </div>
-  );
-}
-
-/**
- * Transcripción en vivo.
- *
- * Muestra líneas fijas y no un stream: no hay transcripción de verdad. El botón
- * de pausar existe en el canvas y acá **no hace nada**, así que va deshabilitado
- * con su motivo en el `title` — un botón que responde al click sin efecto es
- * peor que uno que se ve apagado.
- */
-function TranscripcionEnVivo() {
-  return (
-    <section
-      aria-labelledby="transcripcion"
-      className="overflow-hidden rounded-[14px] border border-line bg-white"
-    >
-      <header className="flex items-center justify-between gap-3 border-b border-line-soft px-5 py-[18px]">
-        <div>
-          <h2
-            id="transcripcion"
-            className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted"
-          >
-            Transcripción en vivo
-          </h2>
-          <p className="mt-1.5 text-[11px] font-semibold text-muted-soft">Español (AR)</p>
-        </div>
-
-        <button
-          type="button"
-          disabled
-          title="La transcripción todavía no está conectada"
-          className="rounded-[7px] border border-line-strong px-3 py-1.5 text-[12px] font-bold text-muted disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          Pausar
-        </button>
-      </header>
-
-      <div className="max-h-[280px] overflow-y-auto px-5 py-4">
-        <ul className="grid gap-3">
-          {MOCK_TRANSCRIPT.map((linea) => (
-            <li key={linea.id}>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-soft">
-                {linea.quien === 'PROFESIONAL' ? 'Vos' : 'Paciente'}
-              </p>
-              <p className="mt-0.5 text-[13px] leading-[1.6] text-ink">{linea.texto}</p>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
   );
 }

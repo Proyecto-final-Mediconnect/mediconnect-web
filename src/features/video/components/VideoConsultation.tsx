@@ -8,7 +8,7 @@ import { useSession } from '../../auth/hooks/useSession';
 import { ConsultationClosing } from '../../reviews/components/ConsultationClosing';
 import { useVideoConsultationAccess } from '../hooks/useVideoConsultation';
 import { joinStateOf } from '../lib/joinWindow';
-import { ConsultationSummary } from './ConsultationSummary';
+import { ConsultationEvolution } from './ConsultationEvolution';
 import { LiveConsultation } from './LiveConsultation';
 import { WaitingRoom } from './WaitingRoom';
 
@@ -40,7 +40,7 @@ type VideoConsultationProps = {
   appointmentId: string;
 };
 
-/** `CIERRE`: el resumen del profesional. `SALIDA`: el pedido de reseña del
+/** `CIERRE`: la evolución que carga el profesional. `SALIDA`: el pedido de reseña del
  *  paciente al salir de la sala (ENG-190). */
 type Fase = 'CURSO' | 'CIERRE' | 'SALIDA';
 
@@ -75,9 +75,6 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
   const { estado, reintentar } = useVideoConsultationAccess(appointmentId, habilitado);
 
   const [fase, setFase] = useState<Fase>('CURSO');
-  /** Cuándo se cerró la consulta. Fija el rango que muestra el resumen: si se
-   *  recalculara en cada render, la hora de fin correría sola. */
-  const [endedAt, setEndedAt] = useState<Date | null>(null);
 
   /**
    * Momento en que se abrió la pantalla: es el cero del cronómetro.
@@ -204,10 +201,10 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
 
   if (fase === 'CIERRE') {
     return (
-      <ConsultationSummary
+      <ConsultationEvolution
+        patientId={appointment?.patient?.id ?? null}
+        consultationId={access.consultationId}
         counterpartName={counterpartName}
-        joinedAt={joinedAt}
-        endedAt={endedAt ?? new Date()}
         onBack={() => setFase('CURSO')}
       />
     );
@@ -217,16 +214,14 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
     <LiveConsultation
       access={access}
       counterpartName={counterpartName}
+      patientId={appointment?.patient?.id ?? null}
       joinedAt={joinedAt}
       endsAt={
         appointment
           ? new Date(Date.parse(appointment.scheduledAt) + appointment.durationMinutes * 60_000)
           : null
       }
-      onFinish={() => {
-        setEndedAt(new Date());
-        setFase('CIERRE');
-      }}
+      onFinish={() => setFase('CIERRE')}
       onLeave={() => setFase('SALIDA')}
     />
   );

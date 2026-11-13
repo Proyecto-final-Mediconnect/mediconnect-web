@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNow } from '../shared/hooks/useNow';
-import { ConsultationSummary } from '../features/video/components/ConsultationSummary';
+import { ConsultationEvolution } from '../features/video/components/ConsultationEvolution';
 import { LiveConsultation } from '../features/video/components/LiveConsultation';
 import { WaitingRoom } from '../features/video/components/WaitingRoom';
 import type { Appointment } from '../features/appointments/types/appointment';
@@ -16,7 +16,7 @@ import { DashboardLayout } from '../pages/DashboardLayout';
  * construía. (La sala de espera sí se ve con solo tener un turno agendado.)
  *
  * Acá se montan **los componentes de verdad** —`LiveConsultation` y
- * `ConsultationSummary`, los mismos que usa la ruta real— con un acceso de
+ * `ConsultationEvolution`, los mismos que usa la ruta real— con un acceso de
  * juguete y sin pasar por la API. Lo único falso es de dónde salen los datos.
  *
  * La ruta se registra solo si `import.meta.env.DEV`, así que no existe en el
@@ -34,6 +34,7 @@ const VIDEO_PLACEHOLDER = `data:text/html,${encodeURIComponent(
 function accesoDeJuguete(role: VideoConsultationAccess['role']): VideoConsultationAccess {
   return {
     appointmentId: 'preview',
+    consultationId: 'preview',
     role,
     roomUrl: VIDEO_PLACEHOLDER,
     expiresAt: new Date(Date.now() + 60 * 60_000).toISOString(),
@@ -164,16 +165,17 @@ export function VideoConsultationPreviewPage() {
           <LiveConsultation
             access={access}
             counterpartName={counterpartName}
+            patientId={null}
             joinedAt={joinedAt}
             endsAt={null}
             onFinish={() => setFase('CIERRE')}
             onLeave={() => setFase('CIERRE')}
           />
         ) : (
-          <ConsultationSummary
+          <ConsultationEvolution
+            patientId={null}
+            consultationId={access.consultationId}
             counterpartName={counterpartName}
-            joinedAt={joinedAt}
-            endedAt={new Date()}
             onBack={() => setFase('CURSO')}
           />
         )}

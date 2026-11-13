@@ -33,6 +33,8 @@ export interface MeetingSession {
  */
 export interface VideoConsultationAccess {
   appointmentId: string;
+  /** La consulta del turno: la evolución se asocia a ella (ENG-191). */
+  consultationId: string;
   role: 'PACIENTE' | 'PROFESIONAL';
   /** URL de la sala con el meeting token. Es efímera: no se guarda en ningún lado. */
   roomUrl: string;
