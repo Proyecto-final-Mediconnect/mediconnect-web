@@ -224,6 +224,29 @@ describe('AppointmentDetail (ENG-178)', () => {
       expect(llamada?.[1]).toEqual(expect.objectContaining({ method: 'PATCH' }));
     });
 
+    it('si el backend lo rechaza, el diálogo sigue abierto con el motivo (review de #75)', async () => {
+      mockApi({
+        session: () => jsonResponse(PRO_SESSION),
+        mine: () => jsonResponse([EN_CURSO]),
+        noShow: () =>
+          jsonResponse(
+            { message: 'El paciente entró a la sala, así que no se puede marcar como no asistió.' },
+            409,
+          ),
+      });
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderDetail(EN_CURSO.id);
+
+      await user.click(await screen.findByRole('button', { name: 'Marcar como no asistió' }));
+      const dialog = await screen.findByRole('dialog');
+      await user.click(within(dialog).getByRole('button', { name: 'Sí, no asistió' }));
+
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+        /el paciente entró a la sala/i,
+      );
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
     it('el paciente no ve el botón', async () => {
       mockApi({ mine: () => jsonResponse([EN_CURSO]) });
       renderDetail(EN_CURSO.id);

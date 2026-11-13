@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog';
 import { useNow } from '../../../shared/hooks/useNow';
 import { useCompleteAppointment } from '../../appointments/hooks/useAppointments';
 import { formatElapsed } from '../lib/elapsed';
@@ -28,6 +30,9 @@ type LiveConsultationProps = {
   counterpartName: string;
   /** Momento en que se abrió la sala: el cronómetro cuenta desde acá. */
   joinedAt: Date;
+  /** Hora de fin del turno. Antes de esa hora, "Finalizar" pide confirmación.
+   *  `null` si el turno no está en la lista: se confirma siempre. */
+  endsAt: Date | null;
   onFinish: () => void;
   /** El paciente sale de la sala: va a la pantalla de cierre (ENG-190). */
   onLeave: () => void;
@@ -37,6 +42,7 @@ export function LiveConsultation({
   access,
   counterpartName,
   joinedAt,
+  endsAt,
   onFinish,
   onLeave,
 }: LiveConsultationProps) {
@@ -47,7 +53,23 @@ export function LiveConsultation({
   // resumen: es lo que deja al paciente reseñar. Si falla, se queda en la
   // llamada con el error a la vista y se puede reintentar (es idempotente).
   const complete = useCompleteAppointment();
-  const finalizar = () => complete.mutate(access.appointmentId, { onSuccess: () => onFinish() });
+  const cerrarTurno = () =>
+    complete.mutate(access.appointmentId, {
+      onSuccess: () => {
+        setConfirmando(false);
+        onFinish();
+      },
+      // El error se muestra en la pantalla de la llamada, no detrás del modal.
+      onError: () => setConfirmando(false),
+    });
+  // Cerrar el turno no tiene vuelta atrás: con el turno completado la sala ya
+  // no deja entrar. Antes de la hora de fin se confirma, por si fue un click de
+  // más (review de #75); después, la consulta ya terminó y se cierra directo.
+  const [confirmando, setConfirmando] = useState(false);
+  const finalizar = () => {
+    if (endsAt === null || now < endsAt) setConfirmando(true);
+    else cerrarTurno();
+  };
 
   return (
     <div
@@ -112,6 +134,21 @@ export function LiveConsultation({
           </p>
         )}
       </div>
+
+      <ConfirmDialog
+        open={confirmando}
+        titulo="¿Finalizar la consulta?"
+        confirmar={complete.isPending ? 'Cerrando…' : 'Sí, finalizar'}
+        cancelar="Seguir en la consulta"
+        pendiente={complete.isPending}
+        onCancel={() => setConfirmando(false)}
+        onConfirm={cerrarTurno}
+      >
+        <p>
+          Todavía no es la hora de fin del turno. Si finalizás, el turno queda completado y ya no se
+          puede volver a entrar a la sala.
+        </p>
+      </ConfirmDialog>
 
       {esProfesional && (
         <aside className="grid gap-4">

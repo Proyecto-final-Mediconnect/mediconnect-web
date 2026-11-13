@@ -130,7 +130,7 @@ export type ClosedAppointment = { id: string; status: 'COMPLETADO' | 'NO_ASISTIO
  * de red no duplica nada.
  */
 export async function completeAppointment(appointmentId: string): Promise<ClosedAppointment> {
-  const response = await apiFetch(`/appointments/${appointmentId}/complete`, {
+  const response = await apiFetch(`/appointments/${encodeURIComponent(appointmentId)}/complete`, {
     method: 'PATCH',
   });
 
@@ -145,7 +145,7 @@ export async function completeAppointment(appointmentId: string): Promise<Closed
  * El profesional marca que el paciente no se presentó (ENG-189). No reembolsa.
  */
 export async function markAppointmentNoShow(appointmentId: string): Promise<ClosedAppointment> {
-  const response = await apiFetch(`/appointments/${appointmentId}/no-show`, {
+  const response = await apiFetch(`/appointments/${encodeURIComponent(appointmentId)}/no-show`, {
     method: 'PATCH',
   });
 
