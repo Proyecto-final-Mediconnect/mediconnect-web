@@ -16,34 +16,26 @@ import type { PendingTask } from '../lib/dashboard';
  * treinta líneas que siempre se editan al mismo tiempo.
  */
 
-/** Rótulo de sección: filete arriba, número y texto en versalitas. Es el mismo
- *  patrón que ordena la landing y "Mis turnos". */
-export function PanelSection({
-  numero,
-  titulo,
-  accion,
+/** Rótulo de sección en versalitas, con una acción opcional a la derecha. Es
+ *  el mismo en los dos paneles. */
+export function DashboardSection({
+  title,
+  action,
   children,
 }: {
-  numero: string;
-  titulo: string;
-  accion?: ReactNode;
+  title: string;
+  action?: ReactNode;
   children: ReactNode;
 }) {
   return (
-    <section aria-labelledby={`panel-${numero}`}>
-      <div className="flex items-baseline justify-between gap-4 border-t border-brand-deep pt-4">
-        <div className="flex items-baseline gap-4">
-          <span className="text-xs font-semibold text-brand">{numero}</span>
-          <h2
-            id={`panel-${numero}`}
-            className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted"
-          >
-            {titulo}
-          </h2>
-        </div>
-        {accion}
+    <section className="grid gap-3" aria-label={title}>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+          {title}
+        </h2>
+        {action}
       </div>
-      <div className="mt-4">{children}</div>
+      {children}
     </section>
   );
 }
@@ -59,15 +51,25 @@ export function NextAppointmentCard({
   appointment,
   counterpartLabel,
   counterpartName,
+  canPay = false,
+  primaryAction,
 }: {
   appointment: Appointment;
   /** "Profesional" o "Paciente", según quién esté mirando. */
   counterpartLabel: string;
   counterpartName: string | null;
+  /**
+   * Solo el paciente paga. El profesional ve el mismo turno sin pagar, pero el
+   * botón no es suyo: lo llevaría al checkout de su propio paciente.
+   */
+  canPay?: boolean;
+  /** El botón principal cuando no hay sala abierta ni pago: la historia
+   *  clínica del paciente, para el profesional. */
+  primaryAction?: { to: string; label: string };
 }) {
   const now = useNow();
   const joinState = joinStateOf(appointment, now);
-  const sinPagar = appointment.status === 'RESERVADO_SIN_PAGAR';
+  const sinPagar = canPay && appointment.status === 'RESERVADO_SIN_PAGAR';
 
   return (
     <article className="rounded-[14px] border border-night bg-night p-7 text-white lg:p-8">
@@ -102,13 +104,20 @@ export function NextAppointmentCard({
           >
             Ingresar a videoconsulta
           </Link>
+        ) : sinPagar ? (
+          <Link
+            to={`/turnos/${appointment.id}/pago`}
+            className="inline-flex items-center rounded-[9px] bg-brand px-5 py-3 text-sm font-bold text-ink-deep transition-colors hover:bg-brand-bright focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-bright focus-visible:ring-offset-2 focus-visible:ring-offset-night"
+          >
+            Pagar la consulta
+          </Link>
         ) : (
-          sinPagar && (
+          primaryAction && (
             <Link
-              to={`/turnos/${appointment.id}/pago`}
+              to={primaryAction.to}
               className="inline-flex items-center rounded-[9px] bg-brand px-5 py-3 text-sm font-bold text-ink-deep transition-colors hover:bg-brand-bright focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-bright focus-visible:ring-offset-2 focus-visible:ring-offset-night"
             >
-              Pagar la consulta
+              {primaryAction.label}
             </Link>
           )
         )}
@@ -138,10 +147,12 @@ export function NoNextAppointment({
   titulo,
   detalle,
   accion,
+  secundaria,
 }: {
   titulo: string;
   detalle: string;
   accion?: { to: string; label: string };
+  secundaria?: { to: string; label: string };
 }) {
   return (
     // En pantallas anchas va en una franja: texto a la izquierda, acción a la
@@ -151,14 +162,24 @@ export function NoNextAppointment({
         <p className="font-display text-[24px] leading-[1.2] text-brand-deep">{titulo}</p>
         <p className="mt-2 max-w-[560px] text-sm leading-[1.6] text-muted">{detalle}</p>
       </div>
-      {accion && (
-        <Link
-          to={accion.to}
-          className="inline-flex flex-none items-center rounded-[9px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-        >
-          {accion.label}
-        </Link>
-      )}
+      <div className="flex flex-wrap gap-3">
+        {accion && (
+          <Link
+            to={accion.to}
+            className="inline-flex flex-none items-center rounded-[9px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+          >
+            {accion.label}
+          </Link>
+        )}
+        {secundaria && (
+          <Link
+            to={secundaria.to}
+            className="inline-flex flex-none items-center rounded-[9px] border border-line-strong bg-white px-5 py-3 text-sm font-bold text-brand-deep transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+          >
+            {secundaria.label}
+          </Link>
+        )}
+      </div>
     </article>
   );
 }
@@ -211,66 +232,60 @@ export function PendingTaskList({ tasks }: { tasks: PendingTask[] }) {
   );
 }
 
-/** Un número y qué significa. Los dígitos van en Newsreader, como el resto de
- *  las cifras grandes del sistema. */
-export function StatTile({
-  valor,
-  etiqueta,
+const ICONS = {
+  qr: 'M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 18h2v2h-2zM14 18h2',
+  doc: 'M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6',
+  user: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM5 21a7 7 0 0 1 14 0',
+  calendar: 'M5 5h14v15H5zM16 3v4M8 3v4M5 10h14',
+  star: 'm12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.2-.9z',
+} as const;
+
+/** Acceso de la columna lateral: ícono, qué es y una línea de su estado. */
+export function IconTile({
   to,
-}: {
-  valor: number | string;
-  etiqueta: string;
-  to?: string;
-}) {
-  const contenido = (
-    <>
-      <span className="font-display block text-[38px] leading-none text-brand-deep tabular-nums">
-        {valor}
-      </span>
-      <span className="mt-2.5 block text-[11px] font-semibold uppercase tracking-[0.1em] text-muted">
-        {etiqueta}
-      </span>
-    </>
-  );
-
-  const clases = 'block rounded-[14px] border border-line bg-white p-5';
-
-  return to ? (
-    <Link
-      to={to}
-      className={`${clases} transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2`}
-    >
-      {contenido}
-    </Link>
-  ) : (
-    <div className={clases}>{contenido}</div>
-  );
-}
-
-/** Acceso a una sección, con una línea de qué se hace ahí. */
-export function QuickLink({
   title,
-  description,
-  to,
+  detail,
+  icon,
+  warn = false,
 }: {
-  title: string;
-  description: string;
   to: string;
+  title: string;
+  detail: string;
+  icon: keyof typeof ICONS;
+  /** Algo falta y bloquea: el ícono y la línea van en ámbar. */
+  warn?: boolean;
 }) {
   return (
     <Link
       to={to}
-      className="group flex items-start justify-between gap-4 rounded-[14px] border border-line bg-white p-5 transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+      className="flex items-center gap-4 rounded-[14px] border border-line bg-white p-4 transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
     >
-      <span className="min-w-0">
-        <span className="block text-[15px] font-bold text-brand-deep">{title}</span>
-        <span className="mt-1.5 block text-[13px] leading-[1.6] text-muted">{description}</span>
-      </span>
       <span
         aria-hidden="true"
-        className="mt-0.5 flex-none text-brand-hover transition-transform group-hover:translate-x-0.5"
+        className={`flex size-11 flex-none items-center justify-center rounded-[12px] ${
+          warn ? 'bg-tag-warm text-tag-warm-ink' : 'bg-surface-teal text-brand-deep'
+        }`}
       >
-        →
+        <svg
+          viewBox="0 0 24 24"
+          className="size-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d={ICONS[icon]} />
+        </svg>
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-[15px] font-bold text-brand-deep">{title}</span>
+        <span className={`block text-sm ${warn ? 'text-tag-warm-ink' : 'text-muted'}`}>
+          {detail}
+        </span>
+      </span>
+      <span aria-hidden="true" className="text-muted-soft">
+        ›
       </span>
     </Link>
   );

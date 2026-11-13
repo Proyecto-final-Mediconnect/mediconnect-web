@@ -1,5 +1,6 @@
 import { isActive } from '../../appointments/lib/myAppointments';
-import type { Appointment } from '../../appointments/types/appointment';
+import { formatDate } from '../../appointments/lib/weeks';
+import type { Appointment, AppointmentParty } from '../../appointments/types/appointment';
 import type { PatientProfile } from '../../patient-profile/types/patientProfile';
 import type { ProfessionalProfile } from '../../profile/types/professionalProfile';
 import type { Schedule } from '../../schedule/types/schedule';
@@ -48,18 +49,13 @@ export function nextAppointment(
 ): Appointment | null {
   const futuros = appointments
     .filter((a) => isActive(a) && new Date(a.scheduledAt).getTime() > now.getTime())
-    .sort(
-      (a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime(),
-    );
+    .sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime());
 
   return futuros[0] ?? null;
 }
 
 /** Turnos vigentes de acá en adelante. Es el número del panel. */
-export function upcomingCount(
-  appointments: Appointment[],
-  now: Date = new Date(),
-): number {
+export function upcomingCount(appointments: Appointment[], now: Date = new Date()): number {
   return appointments.filter(
     (a) => isActive(a) && new Date(a.scheduledAt).getTime() > now.getTime(),
   ).length;
@@ -74,10 +70,7 @@ export function completedCount(appointments: Appointment[]): number {
  * Turnos dentro de los próximos 7 días. En el panel del profesional es la carga
  * de la semana, que es lo que mira antes que nada.
  */
-export function withinNextWeek(
-  appointments: Appointment[],
-  now: Date = new Date(),
-): Appointment[] {
+export function withinNextWeek(appointments: Appointment[], now: Date = new Date()): Appointment[] {
   const limite = now.getTime() + 7 * 24 * 60 * 60_000;
 
   return appointments.filter((a) => {
@@ -197,4 +190,40 @@ export function professionalTasks(
   }
 
   return tasks;
+}
+
+const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+
+/**
+ * El subtítulo del panel: "Tu próxima consulta es el lunes 27 de octubre a las
+ * 10:00", como en la app. El profesional suma con quién (`con`).
+ */
+export function nextPhrase(appointment: Appointment | null, con?: string | null): string {
+  if (!appointment) return 'No tenés consultas agendadas.';
+  const [y, m, d] = appointment.date.split('-').map(Number);
+  const weekday = WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  const quien = con ? `, con ${con}` : '';
+  return `Tu próxima consulta es el ${weekday} ${formatDate(appointment.date)} a las ${appointment.startTime}${quien}.`;
+}
+
+/**
+ * Con quién ya hubo una consulta, del más reciente al más viejo y sin repetir:
+ * los profesionales en el panel del paciente y los pacientes en el del
+ * profesional. `pick` elige la contraparte.
+ */
+export function recentCounterparts(
+  appointments: Appointment[],
+  now: Date,
+  pick: (a: Appointment) => AppointmentParty | null | undefined,
+  limit = 3,
+): { party: AppointmentParty; lastDate: string }[] {
+  const seen = new Map<string, { party: AppointmentParty; lastDate: string }>();
+  appointments
+    .filter((a) => a.status === 'COMPLETADO' && Date.parse(a.scheduledAt) < now.getTime())
+    .sort((a, b) => Date.parse(b.scheduledAt) - Date.parse(a.scheduledAt))
+    .forEach((a) => {
+      const party = pick(a);
+      if (party && !seen.has(party.id)) seen.set(party.id, { party, lastDate: a.date });
+    });
+  return [...seen.values()].slice(0, limit);
 }
