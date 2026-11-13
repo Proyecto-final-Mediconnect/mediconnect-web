@@ -47,6 +47,13 @@ function renderComponent() {
   );
 }
 
+/** Toca "Finalizar" y confirma: antes de la hora de fin del turno se pide
+ *  confirmación (review de #75), y estos tests corren en ese caso. */
+async function finalizar(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+  await user.click(await screen.findByRole('button', { name: 'Sí, finalizar' }));
+}
+
 /**
  * La pantalla lee tres cosas: la sesión, la lista de turnos (para saber si la
  * ventana de ingreso está abierta) y el acceso a la sala. Se responden por URL:
@@ -222,7 +229,7 @@ describe('VideoConsultation', () => {
       const user = userEvent.setup();
       await screen.findByTitle(/Videoconsulta con Ana Gómez/);
 
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+      await finalizar(user);
 
       expect(await screen.findByText(/consulta finalizada/i)).toBeInTheDocument();
       // El iframe se desmonta: la llamada no sigue detrás del resumen.
@@ -237,7 +244,7 @@ describe('VideoConsultation', () => {
       const user = userEvent.setup();
       await screen.findByTitle(/Videoconsulta con Ana Gómez/);
 
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+      await finalizar(user);
 
       await screen.findByText(/consulta finalizada/i);
       const llamada = fetchSpy.mock.calls.find(([input]: [RequestInfo | URL]) =>
@@ -273,10 +280,25 @@ describe('VideoConsultation', () => {
       const user = userEvent.setup();
       await screen.findByTitle(/Videoconsulta con Ana Gómez/);
 
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+      await finalizar(user);
 
       expect(await screen.findByText(/consulta finalizada/i)).toBeInTheDocument();
       expect(screen.queryByText(/no tiene videoconsulta/i)).not.toBeInTheDocument();
+    });
+
+    it('antes de la hora de fin pide confirmación, y "Seguir en la consulta" no cierra nada', async () => {
+      const user = userEvent.setup();
+      await screen.findByTitle(/Videoconsulta con Ana Gómez/);
+
+      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+      await user.click(await screen.findByRole('button', { name: 'Seguir en la consulta' }));
+
+      expect(screen.getByTitle(/Videoconsulta con Ana Gómez/)).toBeInTheDocument();
+      expect(
+        fetchSpy.mock.calls.some(([input]: [RequestInfo | URL]) =>
+          String(input).includes('/complete'),
+        ),
+      ).toBe(false);
     });
 
     it('si cerrar el turno falla, sigue en la llamada con el error y se puede reintentar', async () => {
@@ -284,7 +306,7 @@ describe('VideoConsultation', () => {
       const user = userEvent.setup();
       await screen.findByTitle(/Videoconsulta con Ana Gómez/);
 
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+      await finalizar(user);
 
       expect(await screen.findByRole('alert')).toHaveTextContent(
         /ya no se puede cerrar.*reintentar/i,
@@ -292,7 +314,7 @@ describe('VideoConsultation', () => {
       expect(screen.getByTitle(/Videoconsulta con Ana Gómez/)).toBeInTheDocument();
 
       completar = () => jsonResponse({ id: APPOINTMENT, status: 'COMPLETADO' });
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+      await finalizar(user);
 
       expect(await screen.findByText(/consulta finalizada/i)).toBeInTheDocument();
     });
@@ -300,7 +322,7 @@ describe('VideoConsultation', () => {
     it('el resumen se puede editar antes de firmar', async () => {
       const user = userEvent.setup();
       await screen.findByTitle(/Videoconsulta con Ana Gómez/);
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+      await finalizar(user);
 
       await user.click(await screen.findByRole('button', { name: /^editar$/i }));
 
@@ -318,7 +340,7 @@ describe('VideoConsultation', () => {
       // que la pantalla no puede dar por hecho algo que no pasó.
       const user = userEvent.setup();
       await screen.findByTitle(/Videoconsulta con Ana Gómez/);
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+      await finalizar(user);
 
       await user.click(
         await screen.findByRole('button', { name: /firmar e incorporar a la historia/i }),
@@ -332,7 +354,7 @@ describe('VideoConsultation', () => {
     it('la transcripción completa se despliega a pedido', async () => {
       const user = userEvent.setup();
       await screen.findByTitle(/Videoconsulta con Ana Gómez/);
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+      await finalizar(user);
 
       const ver = await screen.findByRole('button', { name: /ver transcripción/i });
       expect(ver).toHaveAttribute('aria-expanded', 'false');

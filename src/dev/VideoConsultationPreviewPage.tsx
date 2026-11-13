@@ -165,6 +165,7 @@ export function VideoConsultationPreviewPage() {
             access={access}
             counterpartName={counterpartName}
             joinedAt={joinedAt}
+            endsAt={null}
             onFinish={() => setFase('CIERRE')}
           />
         ) : (
