@@ -117,18 +117,15 @@ describe('ClinicalRecord', () => {
 
       // El enlace dice a dónde lleva. Antes decía "entrada #1", que es la
       // posición en la cadena: un dato interno que obliga a buscar a mano.
-      const correccion = (await screen.findByRole('heading', { name: 'La corrige' })).closest(
-        'article',
-      )!;
-      expect(
-        within(correccion).getByRole('button', { name: /ver el registro original/i }),
-      ).toBeInTheDocument();
+      // La línea de tiempo muestra la versión vigente: la original va plegada
+      // dentro de su corrección y se abre a un toque. Nada desaparece.
+      await screen.findByRole('heading', { name: 'La corrige' });
+      expect(screen.queryByRole('heading', { name: 'La original' })).not.toBeInTheDocument();
 
-      const original = screen.getByRole('heading', { name: 'La original' }).closest('article')!;
-      expect(
-        within(original).getByRole('button', { name: /ver la corrección/i }),
-      ).toBeInTheDocument();
-      expect(original).toHaveTextContent(/se conserva como se escribió/i);
+      await userEvent.click(screen.getByText('Ver versión original'));
+      const version = screen.getByRole('region', { name: 'Versión original' });
+      expect(version).toHaveTextContent('La original');
+      expect(version).toBeVisible();
     });
 
     /**
@@ -136,9 +133,7 @@ describe('ClinicalRecord', () => {
      * filtro la esconde, la fila no está dibujada: se limpian los filtros para
      * que el click lleve a algún lado.
      */
-    it('ir a la original con un filtro que la esconde limpia los filtros y la despliega', async () => {
-      const scroll = vi.fn();
-      Element.prototype.scrollIntoView = scroll;
+    it('con un filtro que deja afuera la corrección, la original se muestra en la línea de tiempo', async () => {
       entries = [
         makeEntry({ id: 'vieja', sequenceNumber: 1, content: { description: 'La original' } }),
         makeEntry({
@@ -150,20 +145,51 @@ describe('ClinicalRecord', () => {
         }),
       ];
       renderRecord();
-      await screen.findByText('La original');
+      await screen.findByText('La corrige');
+      expect(screen.queryByText('La original')).not.toBeInTheDocument();
 
       await userEvent.click(
         within(screen.getByRole('radiogroup', { name: /tipo de registro/i })).getByRole('radio', {
-          name: 'Correcciones',
+          name: 'Consultas',
         }),
       );
-      expect(screen.queryByText('La original')).not.toBeInTheDocument();
-      await desplegarRegistros();
-      await userEvent.click(screen.getByRole('button', { name: /ver el registro original/i }));
 
-      expect(await screen.findByRole('heading', { name: 'La original' })).toBeInTheDocument();
-      expect(scroll).toHaveBeenCalled();
-      delete (Element.prototype as Partial<Element>).scrollIntoView;
+      // Nada desaparece: sin su corrección a la vista, la original se muestra.
+      expect(await screen.findByText('La original')).toBeInTheDocument();
+      expect(screen.queryByText('La corrige')).not.toBeInTheDocument();
+    });
+
+    it('con correcciones encadenadas muestra solo la vigente y todas las anteriores plegadas', async () => {
+      entries = [
+        makeEntry({ id: 'a', sequenceNumber: 1, content: { description: 'Versión A' } }),
+        makeEntry({
+          id: 'b',
+          sequenceNumber: 2,
+          entryType: 'CORRECCION',
+          correctsEntryId: 'a',
+          content: { description: 'Versión B' },
+        }),
+        makeEntry({
+          id: 'c',
+          sequenceNumber: 3,
+          entryType: 'CORRECCION',
+          correctsEntryId: 'b',
+          content: { description: 'Versión C' },
+        }),
+      ];
+      renderRecord();
+      await desplegarRegistros();
+
+      await screen.findByRole('heading', { name: 'Versión C' });
+      expect(screen.queryByRole('heading', { name: 'Versión B' })).not.toBeInTheDocument();
+
+      await userEvent.click(screen.getByText('Ver versiones anteriores (2)'));
+      expect(screen.getByRole('region', { name: 'Versión anterior' })).toHaveTextContent(
+        'Versión B',
+      );
+      expect(screen.getByRole('region', { name: 'Versión original' })).toHaveTextContent(
+        'Versión A',
+      );
     });
 
     /** La corregida puede no estar en la lista que se recibió. */
@@ -441,12 +467,8 @@ describe('ClinicalRecord', () => {
       // El único botón que queda es el de la corrección, que todavía no fue
       // corregida.
       expect(screen.getAllByRole('button', { name: /corregir esta entrada/i })).toHaveLength(1);
-      const original = screen
-        .getByRole('heading', { name: 'Dolor lumbar de 3 días' })
-        .closest('article');
-      expect(
-        within(original as HTMLElement).queryByRole('button', { name: /corregir esta entrada/i }),
-      ).not.toBeInTheDocument();
+      // La original quedó plegada dentro de la corrección, sin botón de corregir.
+      expect(screen.getByText('Ver versión original')).toBeInTheDocument();
     });
 
     it('avisa con qué entrada, para que la pantalla abra el diálogo', async () => {

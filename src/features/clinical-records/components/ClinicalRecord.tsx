@@ -107,27 +107,56 @@ export function ClinicalRecord({
   // tiempo se recalcula cuando React tiene un hueco, no en cada tecla.
   const filtrosAplicados = useDeferredValue(filtros);
 
-  const { visibles, opciones, corregidaPor, posicionDe, porNumero } = useMemo(() => {
-    // Los vínculos de corrección se calculan sobre la cadena completa y no
-    // sobre lo filtrado: si no, filtrar por tipo escondería el otro lado del
-    // vínculo y una entrada corregida aparecería como si estuviera firme.
-    const corregidaPor = new Map<string, number>();
-    const posicionDe = new Map<string, number>();
-    const porNumero = new Map<number, ClinicalEntry>();
-    for (const e of entries) {
-      posicionDe.set(e.id, e.sequenceNumber);
-      porNumero.set(e.sequenceNumber, e);
-      if (e.correctsEntryId) corregidaPor.set(e.correctsEntryId, e.sequenceNumber);
-    }
+  const { visibles, coincidencias, opciones, corregidaPor, posicionDe, porNumero, porId } =
+    useMemo(() => {
+      // Los vínculos de corrección se calculan sobre la cadena completa y no
+      // sobre lo filtrado: si no, filtrar por tipo escondería el otro lado del
+      // vínculo y una entrada corregida aparecería como si estuviera firme.
+      const corregidaPor = new Map<string, number>();
+      const posicionDe = new Map<string, number>();
+      const porNumero = new Map<number, ClinicalEntry>();
+      const porId = new Map<string, ClinicalEntry>();
+      for (const e of entries) {
+        posicionDe.set(e.id, e.sequenceNumber);
+        porNumero.set(e.sequenceNumber, e);
+        porId.set(e.id, e);
+        if (e.correctsEntryId) corregidaPor.set(e.correctsEntryId, e.sequenceNumber);
+      }
 
-    return {
-      visibles: filtrarEntradas(entries, filtrosAplicados),
-      opciones: opcionesDe(entries),
-      corregidaPor,
-      posicionDe,
-      porNumero,
-    };
-  }, [entries, filtrosAplicados]);
+      const coincidencias = filtrarEntradas(entries, filtrosAplicados);
+      // La línea de tiempo muestra la versión vigente: un registro corregido se
+      // pliega dentro de su corrección ("Ver versión original"). Solo se pliega si
+      // su corrección está en la lista: si un filtro la deja afuera, el original
+      // se muestra y nada desaparece. En la copia impresa va todo.
+      const enLista = new Set(coincidencias.map((e) => e.sequenceNumber));
+      const visibles = imprimiendo
+        ? coincidencias
+        : coincidencias.filter((e) => {
+            const seq = corregidaPor.get(e.id);
+            return seq === undefined || !enLista.has(seq);
+          });
+
+      return {
+        visibles,
+        coincidencias,
+        opciones: opcionesDe(entries),
+        corregidaPor,
+        posicionDe,
+        porNumero,
+        porId,
+      };
+    }, [entries, filtrosAplicados, imprimiendo]);
+
+  /** Las versiones previas de un registro, de la más cercana a la original. */
+  function versionesPrevias(entry: ClinicalEntry): ClinicalEntry[] {
+    const previas: ClinicalEntry[] = [];
+    let actual = entry.correctsEntryId ? porId.get(entry.correctsEntryId) : undefined;
+    while (actual && !previas.includes(actual)) {
+      previas.push(actual);
+      actual = actual.correctsEntryId ? porId.get(actual.correctsEntryId) : undefined;
+    }
+    return previas;
+  }
 
   // La fila a la que llevó un vínculo de corrección en angosto. Se scrollea
   // cuando ya está dibujada: si hubo que limpiar los filtros, eso pasa uno o
@@ -157,6 +186,7 @@ export function ClinicalRecord({
         variant={variant}
         corregidaPor={corregidaPor.get(entry.id)}
         corrigeA={entry.correctsEntryId ? posicionDe.get(entry.correctsEntryId) : undefined}
+        anteriores={imprimiendo ? undefined : versionesPrevias(entry)}
         onIrA={
           variant !== 'panel'
             ? undefined
@@ -235,7 +265,7 @@ export function ClinicalRecord({
             <EncabezadoImpreso
               scopeNote={scopeNote}
               total={entries.length}
-              visibles={visibles.length}
+              visibles={coincidencias.length}
             />
             <div className="grid items-start gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-8 print:block">
               <RecordFilters
@@ -244,11 +274,11 @@ export function ClinicalRecord({
                 tipos={opciones.tipos}
                 profesionales={opciones.profesionales}
                 total={entries.length}
-                visibles={visibles.length}
+                visibles={coincidencias.length}
                 onDescargar={descargar}
               />
 
-              {visibles.length === 0 ? (
+              {coincidencias.length === 0 ? (
                 <div className="rounded-[14px] border border-dashed border-line-strong bg-white p-6 text-[13px] leading-[1.6] text-muted">
                   Ninguna entrada coincide con esos filtros. Probá con otras palabras o ampliando
                   las fechas.{' '}
