@@ -100,6 +100,7 @@ describe('AccessHistory', () => {
     });
 
     await screen.findByText('Martín Olivares');
+    await user.click(screen.getByRole('button', { name: 'Ver todos los accesos' }));
     await user.click(screen.getByRole('button', { name: 'Anteriores →' }));
 
     expect(await screen.findByText('Guardia — Hospital Privado')).toBeVisible();
@@ -118,5 +119,24 @@ describe('AccessHistory', () => {
 
     await screen.findByText('Martín Olivares');
     expect(screen.queryByRole('navigation', { name: 'Páginas del historial' })).toBeNull();
+  });
+
+  it('muestra solo los últimos accesos y "Ver todos" despliega el resto', async () => {
+    const user = userEvent.setup();
+    const accesos = Array.from({ length: 7 }, (_, i) => ({
+      ...MARTIN,
+      sesionId: `s-${i}`,
+      consultante: { nombre: `Consultante ${i}`, matricula: null },
+    }));
+    renderHistory({ 1: { accesos, pagina: 1, hayMas: false } });
+
+    await screen.findByText('Consultante 0');
+    expect(screen.getByText('Consultante 4')).toBeVisible();
+    expect(screen.queryByText('Consultante 5')).toBeNull();
+
+    await user.click(screen.getByRole('button', { name: 'Ver todos los accesos' }));
+
+    expect(screen.getByText('Consultante 6')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Ver todos los accesos' })).toBeNull();
   });
 });
