@@ -171,7 +171,17 @@ export function ProfessionalDashboardPage() {
               )}
 
               {recientes.length > 0 && (
-                <DashboardSection title="Pacientes recientes">
+                <DashboardSection
+                  title="Pacientes recientes"
+                  action={
+                    <Link
+                      to="/profesional/pacientes"
+                      className="text-sm font-semibold text-brand-hover hover:underline"
+                    >
+                      Ver todos
+                    </Link>
+                  }
+                >
                   <ul className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-3">
                     {recientes.map(({ party: patient, lastDate }) => (
                       <li
