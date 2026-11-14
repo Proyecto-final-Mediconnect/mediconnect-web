@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { ActivitySection } from '../features/activity/components/ActivitySection';
 import { DateBadge } from '../features/appointments/components/agenda/DateBadge';
 import { StatusChip } from '../features/appointments/components/agenda/StatusChip';
 import { useMyAppointments } from '../features/appointments/hooks/useAppointments';
@@ -18,22 +19,18 @@ import {
   nextPhrase,
   professionalTasks,
   recentCounterparts,
-  upcomingCount,
   withinNextWeek,
 } from '../features/dashboard/lib/dashboard';
 import { useMyProfile } from '../features/profile/hooks/useProfile';
 import { useMySchedule } from '../features/schedule/hooks/useSchedule';
-import {
-  buildWeekPreview,
-  countSlots,
-  mondayOf,
-  todayLocal,
-} from '../features/schedule/lib/generateSlots';
 import { useNow } from '../shared/hooks/useNow';
 import { DashboardLayout } from './DashboardLayout';
 
 const fullName = (p: AppointmentParty) => `${p.firstName} ${p.lastName}`;
 const clinicalRecordOf = (p: AppointmentParty) => `/pacientes/${p.id}/historia-clinica`;
+
+/** Cuántos turnos de la semana se listan: el resto queda en "Mis consultas". */
+const PROXIMOS_VISIBLES = 5;
 
 /**
  * Panel del profesional (ENG-44, rediseñado con la misma estructura que el del
@@ -45,7 +42,11 @@ const clinicalRecordOf = (p: AppointmentParty) => `/pacientes/${p.id}/historia-c
  *
  * Después, lo que se mira todos los días: la próxima consulta (con la historia
  * clínica a un clic, que es lo que se abre antes de atender), la semana y los
- * pacientes recientes. En la columna lateral, los números de la semana y el
+ * pacientes recientes. Antes de esas listas, "Mi actividad" (ENG-196): consultas, tasas de
+ * cancelación y ausentismo, calificación y pacientes del período, con datos del
+ * backend. Reemplaza a la vieja tarjeta "Tu semana", que contaba en el navegador
+ * lo mismo que ya muestra la lista de los próximos siete días y un "Publicados"
+ * (la oferta de la agenda) que se entendía mal. En la columna lateral, el
  * consultorio. El profesional no paga: la tarjeta no le ofrece el pago aunque
  * el turno esté sin pagar.
  */
@@ -64,13 +65,6 @@ export function ProfessionalDashboardPage() {
   );
   const recientes = recentCounterparts(lista, now, (a) => a.patient);
   const tareas = professionalTasks(perfil.data, agenda.data);
-
-  // Turnos que genera la agenda en la semana en curso: la oferta, contra las
-  // consultas ya reservadas, que son la demanda. Se calcula igual que la vista
-  // previa de la agenda, con las mismas funciones puras.
-  const turnosQuePublica = agenda.data
-    ? countSlots(buildWeekPreview(agenda.data.rules, agenda.data.blocks, mondayOf(todayLocal())))
-    : 0;
 
   const saludo = user?.firstName ? `Buen día, ${user.firstName}.` : 'Buen día.';
   // El precio se resuelve en el perfil; la matrícula no (la valida un
@@ -125,6 +119,10 @@ export function ProfessionalDashboardPage() {
               )}
             </DashboardSection>
 
+            {/* Arriba de las listas: con una semana cargada, la lista de turnos
+                empujaba la actividad fuera de la pantalla. */}
+            <ActivitySection />
+
             <div className="grid items-start gap-8 2xl:grid-cols-2">
               {estaSemana.length > 0 && (
                 <DashboardSection
@@ -139,7 +137,7 @@ export function ProfessionalDashboardPage() {
                   }
                 >
                   <ul className="divide-y divide-line-soft overflow-hidden rounded-[14px] border border-line bg-white">
-                    {estaSemana.map((turno) => {
+                    {estaSemana.slice(0, PROXIMOS_VISIBLES).map((turno) => {
                       const paciente = counterpartOf(turno, user?.id ?? null);
                       return (
                         <li key={turno.id}>
@@ -167,6 +165,17 @@ export function ProfessionalDashboardPage() {
                       );
                     })}
                   </ul>
+                  {estaSemana.length > PROXIMOS_VISIBLES && (
+                    <p className="text-sm text-muted">
+                      Y {estaSemana.length - PROXIMOS_VISIBLES} más esta semana.{' '}
+                      <Link
+                        to="/mis-turnos"
+                        className="font-semibold text-brand-hover hover:underline"
+                      >
+                        Ver todos
+                      </Link>
+                    </p>
+                  )}
                 </DashboardSection>
               )}
 
@@ -211,16 +220,6 @@ export function ProfessionalDashboardPage() {
           </div>
 
           <aside className="grid gap-8 lg:sticky lg:top-24">
-            <DashboardSection title="Tu semana">
-              <div className="grid grid-cols-3 divide-x divide-line overflow-hidden rounded-[14px] border border-line bg-white">
-                <WeekStat valor={estaSemana.length} etiqueta="Consultas" to="/mis-turnos" />
-                <WeekStat valor={upcomingCount(lista, now)} etiqueta="Próximos" to="/mis-turnos" />
-                {/* "Publicados" y no "libres": es la oferta que genera la
-                    agenda, no lo que queda sin reservar. */}
-                <WeekStat valor={turnosQuePublica} etiqueta="Publicados" to="/profesional/agenda" />
-              </div>
-            </DashboardSection>
-
             <DashboardSection title="Tu consultorio">
               <div className="grid gap-3">
                 <IconTile
@@ -259,25 +258,5 @@ export function ProfessionalDashboardPage() {
         </div>
       </div>
     </DashboardLayout>
-  );
-}
-
-/** Un número de la semana. Los dígitos van en Newsreader, como el resto de las
- *  cifras grandes del sistema; en gris cuando son cero. */
-function WeekStat({ valor, etiqueta, to }: { valor: number; etiqueta: string; to: string }) {
-  return (
-    <Link
-      to={to}
-      className="block p-4 transition-colors hover:bg-surface focus:outline-none focus-visible:bg-surface"
-    >
-      <span
-        className={`font-display block text-[32px] leading-none tabular-nums ${
-          valor === 0 ? 'text-muted' : 'text-brand-deep'
-        }`}
-      >
-        {valor}
-      </span>
-      <span className="mt-2 block text-xs text-muted">{etiqueta}</span>
-    </Link>
   );
 }
