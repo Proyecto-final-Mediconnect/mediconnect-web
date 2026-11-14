@@ -35,7 +35,7 @@ const PARA_PACIENTES = [
   {
     titulo: 'Seguimiento entre consulta y consulta',
     texto:
-      'Podés escribirle a tu profesional, cargar tus controles y recibir avisos, sin esperar al próximo turno.',
+      'Podés escribirle a tu profesional, mandarle tus estudios y recibir avisos, sin esperar al próximo turno.',
   },
 ];
 
@@ -55,9 +55,9 @@ const PARA_PROFESIONALES = [
       'Registros firmados que no se pueden alterar, con corrección trazable si hace falta rectificar algo.',
   },
   {
-    titulo: 'Señales tempranas',
+    titulo: 'Seguimiento por mensajes',
     texto:
-      'El sistema te avisa cuando el historial de un paciente muestra un cambio que conviene mirar.',
+      'Tus pacientes te escriben y te mandan estudios entre consulta y consulta, sin pasar tu número personal.',
   },
 ];
 
@@ -66,7 +66,7 @@ const PASOS = [
     n: '01',
     titulo: 'Buscás quién te puede ayudar',
     texto:
-      'Por especialidad, por nombre o describiendo lo que te pasa. Ves precio, calificación y el próximo turno libre.',
+      'Por especialidad o por nombre. Ves el precio, la calificación y las reseñas de otros pacientes.',
   },
   {
     n: '02',
@@ -123,15 +123,15 @@ const FAQS = [
   },
   {
     q: '¿Puedo cancelar un turno?',
-    a: 'Sí. Hasta 24 h antes se devuelve el total; después de ese plazo se reintegra el 50%.',
+    a: 'Sí. Cada profesional define cuánto se devuelve según la anticipación; lo ves antes de reservar.',
   },
   {
     q: '¿Quién puede ver mi historia clínica?',
-    a: 'Solo vos y los profesionales a los que se la compartas, por el tiempo que vos definas. Podés cortar el acceso cuando quieras.',
+    a: 'Vos y los profesionales con los que tenés un turno. Cada vez que alguien la abre queda registrado, y lo ves en "Quién vio mi historia clínica".',
   },
   {
     q: '¿Qué pasa si mi médico deja de atender en la plataforma?',
-    a: 'Tu historia clínica es tuya y sigue en tu cuenta. Podés compartirla con el próximo profesional en un paso.',
+    a: 'Tu historia clínica es tuya y sigue en tu cuenta. El próximo profesional con el que saques un turno la va a poder ver, y también podés descargarla en PDF.',
   },
   {
     q: '¿Necesito instalar algo?',
@@ -142,15 +142,27 @@ const FAQS = [
 const FOOTER_COLUMNS = [
   {
     titulo: 'Pacientes',
-    items: ['Buscar profesionales', 'Cómo funciona', 'MediPass', 'Precios'],
+    items: [
+      { label: 'Buscar profesionales', to: '/profesionales' },
+      { label: 'Cómo funciona', to: '/#como-funciona' },
+      { label: 'MediPass', to: '/#medipass' },
+      { label: 'Crear mi cuenta', to: '/registro' },
+    ],
   },
   {
     titulo: 'Profesionales',
-    items: ['Publicar mi perfil', 'Agenda y cobros', 'Verificar matrícula', 'Ayuda'],
+    items: [
+      { label: 'Publicar mi perfil', to: '/registro/profesional' },
+      { label: 'Ingresar', to: '/ingresar' },
+    ],
   },
   {
     titulo: 'Legales',
-    items: ['Términos y condiciones', 'Privacidad de datos', 'Consentimiento informado'],
+    items: [
+      { label: 'Términos y condiciones', to: '/legales#terminos' },
+      { label: 'Privacidad de datos', to: '/legales#privacidad' },
+      { label: 'Consentimiento informado', to: '/legales#consentimiento' },
+    ],
   },
 ];
 
@@ -349,7 +361,7 @@ function ParaProfesionales() {
               to="/registro/profesional"
               className="mt-[26px] inline-block rounded-[9px] bg-brand-deep px-[22px] py-[13px] text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             >
-              Ver el panel del profesional
+              Registrarme como profesional
             </Link>
           </div>
 
@@ -380,14 +392,14 @@ function MediPass() {
             Si te pasa algo lejos de casa, tu información llega antes que vos.
           </h2>
           <p className="mt-5 max-w-[520px] text-[17px] leading-[1.7] text-on-night text-pretty">
-            MediPass es tu pasaporte médico: un código único que te acompaña toda la vida. Un médico
-            de guardia — acá o en otro país — lo escanea y ve al instante tus alergias, tu
-            medicación y tus condiciones, traducidas a su idioma.
+            MediPass es tu pasaporte médico: un código que mostrás desde la app. Un médico de
+            guardia lo escanea con su celular, sin instalar nada, y ve al instante tus alergias, tu
+            medicación y tus condiciones.
           </p>
 
           <ul className="mt-[30px] grid max-w-[520px] gap-3.5">
             {[
-              'Vos decidís quién lo ve, qué parte y por cuánto tiempo.',
+              'Vos decidís qué parte se ve, y cada acceso vence solo a los 30 minutos.',
               'Podés cortar un acceso en cualquier momento, con un toque.',
               'En una emergencia se muestra solo lo indispensable, nunca tu historia completa.',
             ].map((linea) => (
@@ -404,7 +416,7 @@ function MediPass() {
             to="/registro"
             className="mt-8 inline-block rounded-[9px] border border-white/[0.28] px-[22px] py-[13px] text-sm font-semibold text-white transition-colors hover:border-brand-bright focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-bright focus-visible:ring-offset-2 focus-visible:ring-offset-night"
           >
-            Ver lo que ve el médico de guardia
+            Crear mi cuenta y mi MediPass
           </Link>
         </div>
 
@@ -426,7 +438,7 @@ function MediPass() {
 
 function ComoFunciona() {
   return (
-    <section className="bg-white">
+    <section id="como-funciona" className="scroll-mt-20 bg-white">
       <div className={`${SHELL} py-16 lg:py-[92px]`}>
         <SectionLabel n="04">Cómo es atenderse acá</SectionLabel>
 
@@ -555,9 +567,17 @@ function SiteFooter() {
             <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-footer-label">
               {col.titulo}
             </span>
-            {col.items.map((item) => (
-              <span key={item}>{item}</span>
-            ))}
+            {col.items.map((item) =>
+              item.to.startsWith('/#') ? (
+                <a key={item.label} href={item.to.slice(1)} className="hover:text-white">
+                  {item.label}
+                </a>
+              ) : (
+                <Link key={item.label} to={item.to} className="hover:text-white">
+                  {item.label}
+                </Link>
+              ),
+            )}
           </div>
         ))}
       </div>

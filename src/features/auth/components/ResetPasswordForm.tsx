@@ -65,7 +65,7 @@ export function ResetPasswordForm({ tokenHash }: ResetPasswordFormProps) {
           to="/ingresar"
           className="mt-5 inline-flex items-center justify-center rounded-[9px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
         >
-          Iniciar sesión
+          Ingresar
         </Link>
       </div>
     );
@@ -121,7 +121,7 @@ export function ResetPasswordForm({ tokenHash }: ResetPasswordFormProps) {
       />
 
       {error && (
-        <div role="alert" className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-danger">
+        <div role="alert" className="rounded-lg bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
           <p>{error.message}</p>
           {/* Solo con el 400 de enlace inválido o vencido: ante un 429 o un 503
               el enlace todavía sirve y alcanza con reintentar, y pedir otro

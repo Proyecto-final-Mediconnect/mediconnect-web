@@ -164,8 +164,7 @@ describe('WeeklyScheduleForm (ENG-53)', () => {
 
     // Se pisa a mano la hora de inicio de la segunda franja para solapar.
     const desde = screen.getAllByLabelText(/desde/i);
-    await user.clear(desde[1]);
-    await user.type(desde[1], '11:00');
+    await user.selectOptions(desde[1], '11:00');
 
     await user.click(screen.getByRole('button', { name: /guardar agenda/i }));
 

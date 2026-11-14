@@ -44,7 +44,12 @@ function json(body: unknown, status = 200): Response {
  * respuesta para todo: el ítem de videoconsulta depende de que
  * `/appointments/me` devuelva una lista de verdad.
  */
-function renderShell(user: SessionUser | null, ruta = '/paciente', appointments: unknown[] = []) {
+function renderShell(
+  user: SessionUser | null,
+  ruta = '/paciente',
+  appointments: unknown[] = [],
+  displayTitle = false,
+) {
   vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
     const url = String(input);
     if (url.includes('/appointments/me')) return Promise.resolve(json(appointments));
@@ -59,7 +64,7 @@ function renderShell(user: SessionUser | null, ruta = '/paciente', appointments:
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[ruta]}>
-        <AppShell title="Panel">
+        <AppShell title="Panel" displayTitle={displayTitle}>
           <p>contenido</p>
         </AppShell>
       </MemoryRouter>
@@ -85,6 +90,12 @@ describe('AppShell', () => {
     expect(screen.getByText('contenido')).toBeVisible();
   });
 
+  it('el título usa la tipografía display solo si se pide', async () => {
+    renderShell(PACIENTE, '/paciente', [], true);
+
+    expect(await screen.findByRole('heading', { name: 'Panel' })).toHaveClass('font-display');
+  });
+
   it('al paciente le ofrece sus secciones', async () => {
     renderShell(PACIENTE);
     await screen.findByText('Marina Sosa');
@@ -99,7 +110,7 @@ describe('AppShell', () => {
     await screen.findByText('Valeria Ocampo');
 
     expect(menu().getByRole('link', { name: 'Mi agenda' })).toBeVisible();
-    expect(menu().getByRole('link', { name: 'Mis consultas' })).toBeVisible();
+    expect(menu().getByRole('link', { name: 'Mis turnos' })).toBeVisible();
     // "Buscar profesionales" es del recorrido del paciente: un profesional no
     // reserva turnos con otros desde su panel.
     expect(menu().queryByRole('link', { name: 'Buscar profesionales' })).not.toBeInTheDocument();

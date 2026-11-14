@@ -410,7 +410,7 @@ function EstadoMatricula({
   const texto: Record<string, string> = {
     VALIDADO: 'Tu perfil aparece en el catálogo y los pacientes pueden reservarte.',
     PENDIENTE_VALIDACION_MATRICULA:
-      'Un moderador la revisa a mano. Hasta que la aprueben, tu perfil no aparece en el catálogo.',
+      'El equipo de MediConnect la revisa a mano. Hasta que la aprobemos, tu perfil no aparece en el catálogo.',
     RECHAZADO: 'Tu perfil no aparece en el catálogo. Escribinos para revisar el caso.',
     SUSPENDIDO: 'Tu cuenta está suspendida: no aparecés en el catálogo ni recibís turnos.',
   };

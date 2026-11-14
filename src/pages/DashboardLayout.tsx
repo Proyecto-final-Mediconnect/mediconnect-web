@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { usePageTitle } from '../shared/hooks/usePageTitle';
 import { AppShell } from '../shared/ui/AppShell';
 
 type DashboardLayoutProps = {
@@ -35,8 +36,10 @@ export function DashboardLayout({
   action,
   children,
 }: DashboardLayoutProps) {
+  usePageTitle(barTitle);
+
   return (
-    <AppShell title={barTitle}>
+    <AppShell title={barTitle} displayTitle={!greeting}>
       {(greeting || subtitle || action) && (
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-0">
@@ -100,9 +103,7 @@ export function SectionCard({
     >
       <h3 className="text-base font-bold text-brand-deep">{title}</h3>
       <p className="mt-[7px] text-[13px] leading-[1.6] text-muted">{description}</p>
-      <span className="mt-3 inline-block text-[13px] font-semibold text-brand-hover">
-        Abrir →
-      </span>
+      <span className="mt-3 inline-block text-[13px] font-semibold text-brand-hover">Abrir →</span>
     </Link>
   );
 }

@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useMyClinicalRecordAccesses } from '../hooks/useClinicalRecord';
 
 const CUANDO = new Intl.DateTimeFormat('es-AR', {
@@ -19,14 +20,37 @@ const CUANDO = new Intl.DateTimeFormat('es-AR', {
  *
  * Colapsada por defecto: es para chequear de vez en cuando, no lo primero que
  * se busca al abrir la historia. Pide la lista recién al abrirla.
+ *
+ * Si la URL trae `#accesos` (el tile "Accesos a tu información" del resumen del
+ * paciente), se abre sola y se scrollea hasta ella: React Router no hace scroll
+ * al ancla por su cuenta, y la sección plegada no tendría nada que mostrar.
  */
 export function RecordAccesses() {
-  const [abierta, setAbierta] = useState(false);
+  const { hash, key } = useLocation();
+  const iraAcceso = hash === '#accesos';
+  const [abierta, setAbierta] = useState(iraAcceso);
   const [pagina, setPagina] = useState(1);
+  // Cada navegación trae un `key` nuevo: si es hacia `#accesos`, se abre aunque
+  // la sección ya estuviera montada y cerrada. (Ajuste de estado durante el
+  // render, no en un efecto: React lo reevalúa antes de pintar.)
+  const [navegacion, setNavegacion] = useState(key);
+  if (navegacion !== key) {
+    setNavegacion(key);
+    if (iraAcceso) setAbierta(true);
+  }
   const accesos = useMyClinicalRecordAccesses(pagina, abierta);
+  const seccion = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (iraAcceso) seccion.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  }, [iraAcceso, key]);
 
   return (
-    <section className="overflow-hidden rounded-[14px] border border-line bg-white print:hidden">
+    <section
+      id="accesos"
+      ref={seccion}
+      className="scroll-mt-24 overflow-hidden rounded-[14px] border border-line bg-white print:hidden"
+    >
       <button
         type="button"
         aria-expanded={abierta}

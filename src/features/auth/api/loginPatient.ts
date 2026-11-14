@@ -19,7 +19,7 @@ export async function loginPatient(input: LoginInput): Promise<LoginResponse> {
     throw new Error(
       Array.isArray(message)
         ? message.join(' ')
-        : (message ?? 'No se pudo iniciar sesión. Intentá de nuevo.'),
+        : (message ?? 'No pudimos ingresar a tu cuenta. Intentá de nuevo.'),
     );
   }
 

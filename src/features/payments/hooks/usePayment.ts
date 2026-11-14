@@ -33,6 +33,12 @@ export function usePaymentStatus(
   appointmentId: string,
   poll: boolean,
   resultado: CheckoutResult | null = null,
+  /**
+   * Seguir preguntando con la pestaña en segundo plano: mientras el paciente
+   * paga en la pestaña de MercadoPago, la de MediConnect no está visible
+   * (ENG-199).
+   */
+  enSegundoPlano = false,
 ) {
   return useQuery({
     queryKey: ['payment', appointmentId] as const,
@@ -41,6 +47,7 @@ export function usePaymentStatus(
     // en el momento más sensible del flujo y un corte de red de un segundo no
     // tiene que terminar en "No pudimos consultar tu pago".
     retry: 2,
+    refetchIntervalInBackground: enSegundoPlano,
     refetchInterval: (query) => {
       if (!poll) return false;
       const data = query.state.data;
