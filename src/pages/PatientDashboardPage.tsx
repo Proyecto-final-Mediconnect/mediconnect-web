@@ -23,6 +23,7 @@ import { relativeTime } from '../features/notifications/lib/relativeTime';
 import { useMyProfile } from '../features/patient-profile/hooks/usePatientProfile';
 import { PendingReviewCards } from '../features/reviews/components/PendingReviewCards';
 import { useNow } from '../shared/hooks/useNow';
+import { PatientSummaryTiles } from '../features/patient-summary/PatientSummaryTiles';
 import { DashboardLayout } from './DashboardLayout';
 
 /**
@@ -63,6 +64,7 @@ export function PatientDashboardPage() {
       <div className="grid gap-8">
         {tareas.length > 0 && <PendingTaskList tasks={tareas} />}
         <PendingReviewCards />
+        <PatientSummaryTiles />
 
         <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
           <div className="grid min-w-0 gap-8">

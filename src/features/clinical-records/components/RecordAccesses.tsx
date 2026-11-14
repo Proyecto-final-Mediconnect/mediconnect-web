@@ -26,7 +26,10 @@ export function RecordAccesses() {
   const accesos = useMyClinicalRecordAccesses(pagina, abierta);
 
   return (
-    <section className="overflow-hidden rounded-[14px] border border-line bg-white print:hidden">
+    <section
+      id="accesos"
+      className="scroll-mt-24 overflow-hidden rounded-[14px] border border-line bg-white print:hidden"
+    >
       <button
         type="button"
         aria-expanded={abierta}
