@@ -54,13 +54,6 @@ export function nextAppointment(
   return futuros[0] ?? null;
 }
 
-/** Turnos vigentes de acá en adelante. Es el número del panel. */
-export function upcomingCount(appointments: Appointment[], now: Date = new Date()): number {
-  return appointments.filter(
-    (a) => isActive(a) && new Date(a.scheduledAt).getTime() > now.getTime(),
-  ).length;
-}
-
 /** Consultas que ya se dieron. `COMPLETADO` lo marca el backend al cerrarlas. */
 export function completedCount(appointments: Appointment[]): number {
   return appointments.filter((a) => a.status === 'COMPLETADO').length;
