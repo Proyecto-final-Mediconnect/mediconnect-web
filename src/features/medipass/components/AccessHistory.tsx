@@ -20,6 +20,9 @@ const TIME = new Intl.DateTimeFormat('es-AR', {
   hourCycle: 'h23',
 });
 
+/** Cuántos accesos se ven de entrada; el resto está a un toque ("Ver todos"). */
+const RECIENTES = 5;
+
 const STATUS: Record<MediPassAccessStatus, { label: string; className: string }> = {
   ACTIVO: { label: 'Abierto ahora', className: 'bg-brand/15 text-brand-hover' },
   VENCIDO: { label: 'Cerrado', className: 'bg-surface text-muted' },
@@ -36,6 +39,9 @@ const STATUS: Record<MediPassAccessStatus, { label: string; className: string }>
  */
 export function AccessHistory() {
   const [pagina, setPagina] = useState(1);
+  /** El historial completo nunca se oculta: se pliega a los últimos accesos y
+   *  "Ver todos" lo muestra entero, con su paginación. */
+  const [verTodos, setVerTodos] = useState(false);
   const history = useMyMediPassHistory(pagina);
 
   return (
@@ -65,12 +71,24 @@ export function AccessHistory() {
       ) : (
         <>
           <ul className="grid gap-3" aria-busy={history.isFetching}>
-            {history.data.accesos.map((acceso) => (
-              <AccessItem key={acceso.sesionId} acceso={acceso} />
-            ))}
+            {(verTodos ? history.data.accesos : history.data.accesos.slice(0, RECIENTES)).map(
+              (acceso) => (
+                <AccessItem key={acceso.sesionId} acceso={acceso} />
+              ),
+            )}
           </ul>
 
-          {(pagina > 1 || history.data.hayMas) && (
+          {!verTodos && (history.data.accesos.length > RECIENTES || history.data.hayMas) && (
+            <button
+              type="button"
+              onClick={() => setVerTodos(true)}
+              className="justify-self-start rounded-[9px] border border-line-strong bg-white px-4 py-2 text-[13px] font-bold text-brand-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+            >
+              Ver todos los accesos
+            </button>
+          )}
+
+          {verTodos && (pagina > 1 || history.data.hayMas) && (
             <nav
               aria-label="Páginas del historial"
               className="flex items-center justify-between gap-3"
