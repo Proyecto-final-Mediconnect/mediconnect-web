@@ -6,7 +6,11 @@ import type { Appointment } from '../../appointments/types/appointment';
 import { useSession } from '../../auth/hooks/useSession';
 import { useStartCheckout } from '../hooks/usePayment';
 import { amountLinesFor, PAYMENT_METHODS, payabilityOf } from '../lib/checkout';
-import { abrirPestanaDePago, marcarPagoEnPestana } from '../lib/checkoutTab';
+import {
+  abrirPestanaDePago,
+  marcarPagoEnPestana,
+  olvidarPagoEnPestana,
+} from '../lib/checkoutTab';
 import { PaymentWaiting } from './PaymentWaiting';
 
 /**
@@ -139,7 +143,12 @@ export function Checkout({
           appointment={appointment}
           checkoutUrl={esperando}
           onReabrir={reabrir}
-          onPagarAca={redirigir}
+          onPagarAca={(url) => {
+            // Se paga en esta pestaña: no queda otra de MediConnect esperando, así
+            // que al volver no tiene que decir "ya podés cerrar esta pestaña".
+            olvidarPagoEnPestana(appointment.id);
+            redirigir(url);
+          }}
           onNoSalio={noSalio}
         />
         <ResumenDelTurno appointment={appointment} profesional={profesional} />

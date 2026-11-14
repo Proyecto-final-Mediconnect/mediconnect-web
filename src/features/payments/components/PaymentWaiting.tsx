@@ -67,6 +67,35 @@ export function PaymentWaiting({
 
   const restante = restanteParaPagar(appointment.createdAt, now);
 
+  // El polling se corta con estos dos resultados: si no se muestran acá, la
+  // pantalla queda en "Esperando el pago" para siempre. Mismos textos que
+  // `PaymentReturn`.
+  if (outcome === 'SIN_TURNO' || outcome === 'TURNO_VENCIDO') {
+    return (
+      <section
+        aria-labelledby="pago-sin-turno"
+        className="grid gap-4 rounded-[14px] border border-line bg-white p-7 lg:p-9"
+      >
+        <h2 id="pago-sin-turno" className="font-display text-[26px] leading-[1.2] text-brand-deep">
+          {outcome === 'SIN_TURNO'
+            ? 'El pago se acreditó, pero el turno ya no estaba reservado.'
+            : 'El turno se liberó porque no se pagó a tiempo.'}
+        </h2>
+        <p className="text-sm leading-[1.6] text-muted">
+          {outcome === 'SIN_TURNO'
+            ? 'El turno se canceló o se liberó mientras pagabas, así que no lo pudimos confirmar. Vamos a devolverte el pago. Si no lo ves en unos días, escribinos con el comprobante de MercadoPago.'
+            : 'El horario volvió a estar disponible y no pudimos confirmarlo. Si llegaste a pagar, vamos a devolverte el pago; si no lo ves en unos días, escribinos con el comprobante de MercadoPago. Podés reservar otro horario cuando quieras.'}
+        </p>
+        <Link
+          to="/mis-turnos"
+          className="inline-flex w-fit items-center rounded-[9px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+        >
+          Volver a mis turnos
+        </Link>
+      </section>
+    );
+  }
+
   return (
     <section
       aria-labelledby="esperando-pago"
