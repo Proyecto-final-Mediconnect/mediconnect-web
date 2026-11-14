@@ -18,6 +18,7 @@ export function EntryCard({
   entry,
   corregidaPor,
   corrigeA,
+  anteriores,
   onCorregir,
   onIrA,
   variant = 'card',
@@ -27,6 +28,12 @@ export function EntryCard({
   corregidaPor?: number;
   /** Nº de la entrada que esta corrige, si está en la historia. */
   corrigeA?: number;
+  /**
+   * Las versiones que esta corrige, de la más cercana a la original. Si vienen,
+   * se muestran plegadas acá mismo ("Ver versión original"): la línea de tiempo
+   * solo lista la versión vigente, pero nada se pierde.
+   */
+  anteriores?: ClinicalEntry[];
   /**
    * Abre la corrección de esta entrada (ENG-100). Viene solo cuando el que mira
    * la firmó y todavía no tiene corrección: lo decide `ClinicalRecord`, que ve
@@ -121,13 +128,15 @@ export function EntryCard({
         <Aviso variant={variant}>
           Corrige un registro anterior, que se conserva sin cambios.{' '}
           {/* La corregida puede no estar: un filtro puesto la deja afuera. */}
-          {corrigeA !== undefined && (
+          {corrigeA !== undefined && !anteriores?.length && (
             <Vinculo seq={corrigeA} onIrA={onIrA}>
               Ver el registro original
             </Vinculo>
           )}
         </Aviso>
       )}
+
+      {anteriores && anteriores.length > 0 && <VersionesAnteriores versiones={anteriores} />}
 
       {corregida && (
         <Aviso variant={variant}>
@@ -161,6 +170,55 @@ export function EntryCard({
         </div>
       )}
     </article>
+  );
+}
+
+/** Las versiones previas de un registro, plegadas: se conservan sin cambios. */
+function VersionesAnteriores({ versiones }: { versiones: ClinicalEntry[] }) {
+  return (
+    <details className="group rounded-[10px] border border-line bg-surface px-4 py-3 text-[13px]">
+      <summary className="cursor-pointer font-semibold text-brand-deep">
+        {versiones.length === 1
+          ? 'Ver versión original'
+          : `Ver versiones anteriores (${versiones.length})`}
+      </summary>
+      <div className="mt-3 grid gap-3">
+        {versiones.map((version, i) => {
+          const [titular, ...resto] = readEntryFields(version);
+          const esOriginal = i === versiones.length - 1;
+          return (
+            <section
+              key={version.id}
+              aria-label={esOriginal ? 'Versión original' : 'Versión anterior'}
+              className="grid gap-2 rounded-[10px] bg-white p-3.5"
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+                {esOriginal ? 'Versión original' : 'Versión anterior'} ·{' '}
+                {formatEntryDate(version.createdAt)}
+              </p>
+              <p className="text-[15px] font-semibold text-brand-deep">
+                {titular?.value ?? 'Registro sin contenido legible'}
+              </p>
+              <p className="text-[12px] text-muted">
+                {version.professional
+                  ? `Firmada por ${nombreDe(version)}`
+                  : 'Profesional no disponible'}
+              </p>
+              {resto.map((campo) => (
+                <div key={campo.label}>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+                    {campo.label}
+                  </p>
+                  <p className="mt-1 whitespace-pre-line text-[14px] leading-[1.6] text-ink">
+                    {campo.value}
+                  </p>
+                </div>
+              ))}
+            </section>
+          );
+        })}
+      </div>
+    </details>
   );
 }
 
