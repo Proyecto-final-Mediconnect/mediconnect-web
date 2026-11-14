@@ -4,11 +4,9 @@ import type { VitalBlock } from '../types/medipass';
 /**
  * El bloque vital, como lo lee un médico de guardia.
  *
- * **Está en inglés a propósito, y eso es del canvas.** El caso de uso es una
- * guardia en el exterior: quien la lee puede no hablar español, y una alergia mal
- * entendida es el peor error posible de esta pantalla. Los códigos van en CIE-10
- * por lo mismo — un diagnóstico escrito en otro idioma sigue siendo legible por
- * su código.
+ * Todo en español para la demo. El multilenguaje (inglés para guardias en el
+ * exterior) queda como trabajo futuro; los diagnósticos van con su código CIE-10,
+ * legible en cualquier idioma.
  */
 export function VitalBlockCard({
   vital,
@@ -24,17 +22,17 @@ export function VitalBlockCard({
   const medicacion = vital.medicacion ?? [];
   const condiciones = vital.condiciones ?? [];
   // Un bloque que el paciente eligió no mostrar (ENG-149) **no viene** en la
-  // respuesta. Se dice "not shared" y no "none": un médico que lee "No known
-  // allergies" puede indicar justo lo que no debe.
+  // respuesta. Se dice "no compartido" y no "ninguna": un médico que lee "Sin
+  // alergias conocidas" puede indicar justo lo que no debe.
   const oculto = (clave: keyof VitalBlock) => !(clave in vital);
   const datos = [
     vital.sexo,
-    typeof vital.edad === 'number' ? `${vital.edad} y` : null,
+    typeof vital.edad === 'number' ? `${vital.edad} años` : null,
     oculto('grupoSanguineo')
-      ? 'Blood type not shared'
+      ? 'Grupo sanguíneo no compartido'
       : vital.grupoSanguineo
-        ? `Blood type ${vital.grupoSanguineo}`
-        : 'Blood type not recorded',
+        ? `Grupo sanguíneo ${vital.grupoSanguineo}`
+        : 'Grupo sanguíneo sin registrar',
     vital.pais,
   ].filter(Boolean);
 
@@ -46,11 +44,11 @@ export function VitalBlockCard({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-[15px] font-bold text-white">MediPass</p>
           <p className="rounded-full bg-danger/20 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-danger">
-            Emergency access · read only
+            Acceso de emergencia · solo lectura
           </p>
         </div>
         <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-bright">
-          Critical information
+          Información crítica
         </p>
         <h2 className="font-display mt-2 text-[30px] leading-[1.1] text-white">{vital.nombre}</h2>
         <p className="mt-2 text-[13px] text-on-night">{datos.join(' · ')}</p>
@@ -59,11 +57,11 @@ export function VitalBlockCard({
       <div className="grid gap-6 px-6 py-6 sm:px-7">
         {/* Las alergias van primero y en rojo: es el dato que cambia lo que el
             médico indica en los primeros segundos. */}
-        <Bloque titulo="Allergies" destacado>
+        <Bloque titulo="Alergias" destacado>
           {oculto('alergias') ? (
             <NoCompartido />
           ) : alergias.length === 0 ? (
-            <p className="text-[15px] font-semibold text-white">No known allergies</p>
+            <p className="text-[15px] font-semibold text-white">Sin alergias conocidas</p>
           ) : (
             alergias.map((a) => (
               <p key={a.que} className="text-[15px] font-bold text-danger">
@@ -73,11 +71,11 @@ export function VitalBlockCard({
           )}
         </Bloque>
 
-        <Bloque titulo="Active medication">
+        <Bloque titulo="Medicación activa">
           {oculto('medicacion') ? (
             <NoCompartido />
           ) : medicacion.length === 0 ? (
-            <p className="text-[15px] font-semibold text-white">None</p>
+            <p className="text-[15px] font-semibold text-white">Ninguna</p>
           ) : (
             medicacion.map((m) => (
               <p key={m.droga} className="text-[15px] font-semibold text-white">
@@ -92,11 +90,11 @@ export function VitalBlockCard({
           )}
         </Bloque>
 
-        <Bloque titulo="Conditions">
+        <Bloque titulo="Condiciones">
           {oculto('condiciones') ? (
             <NoCompartido />
           ) : condiciones.length === 0 ? (
-            <p className="text-[15px] font-semibold text-white">None reported</p>
+            <p className="text-[15px] font-semibold text-white">Sin condiciones informadas</p>
           ) : (
             condiciones.map((c) => (
               <p key={c.codigo} className="text-[15px] font-semibold text-white">
@@ -107,7 +105,7 @@ export function VitalBlockCard({
           )}
         </Bloque>
 
-        <Bloque titulo="Emergency contact">
+        <Bloque titulo="Contacto de emergencia">
           {oculto('contacto') ? (
             <NoCompartido />
           ) : vital.contacto ? (
@@ -123,15 +121,15 @@ export function VitalBlockCard({
               </a>
             </>
           ) : (
-            <p className="text-[15px] font-semibold text-white">Not recorded</p>
+            <p className="text-[15px] font-semibold text-white">Sin registrar</p>
           )}
         </Bloque>
       </div>
 
       {footer ?? (
         <p className="border-t border-white/10 px-6 py-4 text-[12px] leading-[1.6] text-on-night-soft sm:px-7">
-          This access is logged and limited to the vital block. Full clinical notes require the
-          patient&rsquo;s explicit authorization.
+          Este acceso queda registrado y se limita al bloque vital. Las notas clínicas completas
+          requieren la autorización explícita del paciente.
         </p>
       )}
     </article>
@@ -164,6 +162,8 @@ function Bloque({
 /** Un bloque que el paciente eligió no mostrar (ENG-149). */
 function NoCompartido() {
   return (
-    <p className="text-[14px] font-medium italic text-on-night-soft">Not shared by the patient</p>
+    <p className="text-[14px] font-medium italic text-on-night-soft">
+      No compartido por el paciente
+    </p>
   );
 }

@@ -86,7 +86,7 @@ function contenido(vital: VitalBlock, clave: keyof MediPassScope): ReactNode[] {
  * Antes eran tres cosas en dos pantallas —un formulario largo en el perfil, los
  * interruptores acá y la vista previa abajo—, y para cambiar una alergia había
  * que ir y volver. Ahora cada bloque se edita en un panel lateral sin salir del
- * MediPass, y la ficha en inglés que lee el médico queda a un toque.
+ * MediPass, y la ficha que lee el médico queda a un toque.
  */
 export function EmergencyData({ vital }: { vital: VitalBlock }) {
   const scope = useMyScope();
@@ -302,8 +302,7 @@ export function EmergencyData({ vital }: { vital: VitalBlock }) {
       >
         <div className="grid gap-3">
           <p className="px-1 text-[13px] leading-[1.6] text-muted">
-            Está en inglés por si la guardia es en el exterior. Lo que apagaste aparece como “not
-            shared”; tus consultas y estudios no se ven nunca.
+            Lo que apagaste aparece como “no compartido”; tus consultas y estudios no se ven nunca.
           </p>
           {/* La ficha recortada: exactamente lo que ve el médico (ENG-149).
               Sin el scope no se sabe qué apagó el paciente, y mostrar todo le
