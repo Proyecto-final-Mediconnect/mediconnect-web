@@ -6,7 +6,7 @@ import {
   useMyAppointments,
   useRescheduleAppointment,
 } from '../hooks/useAppointments';
-import { statusLabel } from '../lib/myAppointments';
+import { relevantWithProfessional, statusLabel } from '../lib/myAppointments';
 import {
   BOOKING_HORIZON_DAYS,
   MAX_PAGE,
@@ -503,8 +503,12 @@ function Fila({ titulo, children }: { titulo: string; children: React.ReactNode 
 }
 
 /** Confirma el criterio "el turno aparece en la lista del paciente" sin invadir
- *  la pantalla de "Mis turnos", que es ENG-55. */
+ *  la pantalla de "Mis turnos", que es ENG-55: solo los próximos y las últimas
+ *  consultas, con un link a la lista entera. */
 function MyAppointmentsWithProfessional({ appointments }: { appointments: Appointment[] }) {
+  const { shown, hidden } = relevantWithProfessional(appointments);
+  if (shown.length === 0 && hidden === 0) return null;
+
   return (
     <section
       aria-labelledby="mis-turnos-profesional"
@@ -513,21 +517,33 @@ function MyAppointmentsWithProfessional({ appointments }: { appointments: Appoin
       <h2 id="mis-turnos-profesional" className="text-base font-bold text-brand-deep">
         Tus turnos con este profesional
       </h2>
-      <ul className="mt-3 space-y-2 text-sm">
-        {appointments.map((appointment) => (
-          <li
-            key={appointment.id}
-            className="flex flex-wrap items-center justify-between gap-2 border-b border-line-soft pb-2 last:border-0 last:pb-0"
-          >
-            <span className="text-ink">
-              {formatDate(appointment.date)} · {appointment.startTime}
-            </span>
-            <span className="rounded-full bg-surface px-2.5 py-0.5 text-xs text-muted">
-              {statusLabel(appointment.status)}
-            </span>
-          </li>
-        ))}
-      </ul>
+      {shown.length > 0 ? (
+        <ul className="mt-3 space-y-2 text-sm">
+          {shown.map((appointment) => (
+            <li
+              key={appointment.id}
+              className="flex flex-wrap items-center justify-between gap-2 border-b border-line-soft pb-2 last:border-0 last:pb-0"
+            >
+              <span className="text-ink">
+                {formatDate(appointment.date)} · {appointment.startTime}
+              </span>
+              <span className="rounded-full bg-surface px-2.5 py-0.5 text-xs text-muted">
+                {statusLabel(appointment.status)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm text-muted">No tenés turnos próximos con este profesional.</p>
+      )}
+      {hidden > 0 && (
+        <Link
+          to="/mis-turnos"
+          className="mt-3 inline-flex text-sm font-semibold text-brand-hover hover:underline"
+        >
+          Ver todos en Mis turnos
+        </Link>
+      )}
     </section>
   );
 }

@@ -159,16 +159,6 @@ export function PatientProfilePage() {
             </Link>
           )}
 
-          {completo && (
-            <section className="rounded-[14px] border border-line bg-white px-5 py-4">
-              <Link
-                to="/buscar"
-                className="text-[13px] font-bold text-brand-hover underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-              >
-                Buscar un profesional →
-              </Link>
-            </section>
-          )}
         </aside>
       </div>
     </DashboardLayout>

@@ -139,9 +139,9 @@ export function AppointmentDetail({
       {!panel && (
         <Link
           to="/mis-turnos"
-          className="text-xs font-semibold tracking-[0.08em] text-muted transition-colors hover:text-brand-deep"
+          className="text-xs font-semibold uppercase tracking-[0.08em] text-muted transition-colors hover:text-brand-deep"
         >
-          ← MIS TURNOS
+          ← Mis turnos
         </Link>
       )}
 
@@ -277,7 +277,7 @@ export function AppointmentDetail({
               onClick={() => setToCancel(appointment)}
               className="inline-flex items-center justify-center rounded-[10px] border border-line-strong bg-white px-4 py-2.5 text-sm font-bold text-danger transition-colors hover:border-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
             >
-              Cancelar el turno
+              Cancelar turno
             </button>
           )}
           {isPatient && !isActive(appointment) && professionalId && (
