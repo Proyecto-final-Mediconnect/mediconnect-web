@@ -25,7 +25,7 @@ export interface TimelineStep {
 const AR = 'America/Argentina/Buenos_Aires';
 
 /** Un instante ISO en hora argentina: `21 de octubre · 21:35`. */
-function cuando(iso: string | null | undefined): string | null {
+export function cuando(iso: string | null | undefined): string | null {
   if (!iso) return null;
   const instante = new Date(iso);
   if (Number.isNaN(instante.getTime())) return null;

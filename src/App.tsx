@@ -24,6 +24,7 @@ import { ProfessionalDashboardPage } from './pages/ProfessionalDashboardPage';
 import { ProfessionalPublicProfilePage } from './pages/ProfessionalPublicProfilePage';
 import { ProfessionalRegisterPage } from './pages/ProfessionalRegisterPage';
 import { ProfessionalProfilePage } from './pages/ProfessionalProfilePage';
+import { ProfessionalEarningsPage } from './pages/ProfessionalEarningsPage';
 import { ProfessionalReviewsPage } from './pages/ProfessionalReviewsPage';
 import { ProfessionalSchedulePage } from './pages/ProfessionalSchedulePage';
 import { PatientCatalogPage } from './pages/PatientCatalogPage';
@@ -272,6 +273,15 @@ function App() {
         element={
           <RequireAuth allow={['PROFESIONAL']}>
             <ProfessionalReviewsPage />
+          </RequireAuth>
+        }
+      />
+      {/* Mis cobros (ENG-194). */}
+      <Route
+        path="/profesional/cobros"
+        element={
+          <RequireAuth allow={['PROFESIONAL']}>
+            <ProfessionalEarningsPage />
           </RequireAuth>
         }
       />
