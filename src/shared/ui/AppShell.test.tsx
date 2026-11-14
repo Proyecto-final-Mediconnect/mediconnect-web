@@ -44,7 +44,12 @@ function json(body: unknown, status = 200): Response {
  * respuesta para todo: el ítem de videoconsulta depende de que
  * `/appointments/me` devuelva una lista de verdad.
  */
-function renderShell(user: SessionUser | null, ruta = '/paciente', appointments: unknown[] = []) {
+function renderShell(
+  user: SessionUser | null,
+  ruta = '/paciente',
+  appointments: unknown[] = [],
+  displayTitle = false,
+) {
   vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
     const url = String(input);
     if (url.includes('/appointments/me')) return Promise.resolve(json(appointments));
@@ -59,7 +64,7 @@ function renderShell(user: SessionUser | null, ruta = '/paciente', appointments:
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[ruta]}>
-        <AppShell title="Panel">
+        <AppShell title="Panel" displayTitle={displayTitle}>
           <p>contenido</p>
         </AppShell>
       </MemoryRouter>
@@ -83,6 +88,12 @@ describe('AppShell', () => {
 
     expect(await screen.findByRole('heading', { name: 'Panel' })).toBeVisible();
     expect(screen.getByText('contenido')).toBeVisible();
+  });
+
+  it('el título usa la tipografía display solo si se pide', async () => {
+    renderShell(PACIENTE, '/paciente', [], true);
+
+    expect(await screen.findByRole('heading', { name: 'Panel' })).toHaveClass('font-display');
   });
 
   it('al paciente le ofrece sus secciones', async () => {
