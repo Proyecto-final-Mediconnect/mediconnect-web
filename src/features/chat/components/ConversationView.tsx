@@ -166,7 +166,7 @@ export function ConversationView({ conversationId, counterpart, myId }: Props) {
               onClick={() => void messages.refetch()}
               className="rounded-[9px] border border-line-strong bg-white px-4 py-2 text-[13px] font-bold text-brand-deep"
             >
-              Probá de nuevo
+              Reintentar
             </button>
           </div>
         ) : (
@@ -195,7 +195,7 @@ export function ConversationView({ conversationId, counterpart, myId }: Props) {
                     }`}
                   >
                     {dayLabel && (
-                      <span className="mb-2 self-center rounded-full border border-line bg-white px-3 py-1 text-[12px] font-bold text-[#475569] first-letter:uppercase">
+                      <span className="mb-2 self-center rounded-full border border-line bg-white px-3 py-1 text-[12px] font-bold text-muted first-letter:uppercase">
                         {dayLabel}
                       </span>
                     )}

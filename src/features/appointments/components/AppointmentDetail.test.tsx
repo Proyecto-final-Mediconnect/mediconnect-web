@@ -94,7 +94,7 @@ describe('AppointmentDetail (ENG-178)', () => {
       'href',
       `/profesionales/${LATER.professional.id}/turnos?reprogramar=${LATER.id}`,
     );
-    expect(screen.getByRole('button', { name: 'Cancelar el turno' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cancelar turno' })).toBeInTheDocument();
   });
 
   it('un turno ya reprogramado no ofrece reprogramar de nuevo', async () => {
@@ -148,7 +148,7 @@ describe('AppointmentDetail (ENG-178)', () => {
 
       expect(await screen.findByText(/ya no se puede reprogramar/)).toHaveTextContent(/24 horas/);
       expect(screen.queryByRole('link', { name: 'Reprogramar' })).not.toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Cancelar el turno' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Cancelar turno' })).toBeInTheDocument();
     });
   });
 
@@ -157,7 +157,7 @@ describe('AppointmentDetail (ENG-178)', () => {
     mockApi({ mine: () => jsonResponse(ALL) });
     renderDetail(LATER.id);
 
-    await u.click(await screen.findByRole('button', { name: 'Cancelar el turno' }));
+    await u.click(await screen.findByRole('button', { name: 'Cancelar turno' }));
 
     expect(screen.getByRole('dialog', { name: '¿Cancelar el turno?' })).toBeInTheDocument();
   });
@@ -171,7 +171,7 @@ describe('AppointmentDetail (ENG-178)', () => {
       `/profesionales/${PAST.professional.id}/turnos`,
     );
     expect(screen.getByText('Tuviste la consulta')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Cancelar el turno' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cancelar turno' })).not.toBeInTheDocument();
   });
 
   it('un turno cancelado lo cuenta con la fecha', async () => {
@@ -191,7 +191,7 @@ describe('AppointmentDetail (ENG-178)', () => {
       'href',
       `/pacientes/${LATER.patient.id}/historia-clinica`,
     );
-    expect(screen.queryByRole('button', { name: 'Cancelar el turno' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Cancelar turno' })).not.toBeInTheDocument();
   });
 
   describe('no asistió (ENG-189)', () => {

@@ -5,6 +5,7 @@ import {
   counterpartOf,
   formatLongDate,
   isActive,
+  relevantWithProfessional,
   splitByTime,
   statusLabel,
 } from './myAppointments';
@@ -145,7 +146,7 @@ describe('counterpartOf', () => {
 
 describe('statusLabel', () => {
   it('aclara que un turno reservado todavía no está pago', () => {
-    expect(statusLabel('RESERVADO_SIN_PAGAR')).toBe('Reservado (sin pagar)');
+    expect(statusLabel('RESERVADO_SIN_PAGAR')).toBe('Sin pagar');
   });
 
   it('un estado desconocido se muestra crudo en vez de romper la fila', () => {
@@ -164,5 +165,38 @@ describe('isActive', () => {
 describe('formatLongDate', () => {
   it('incluye el año', () => {
     expect(formatLongDate('2026-08-17')).toBe('17 de agosto de 2026');
+  });
+});
+
+describe('relevantWithProfessional', () => {
+  const pasado = (id: string, dia: string, status: Appointment['status']) =>
+    appointment({
+      id,
+      scheduledAt: `2026-08-${dia}T13:00:00.000Z`,
+      date: `2026-08-${dia}`,
+      status,
+    });
+
+  it('los próximos primero y solo las últimas 3 consultas completadas', () => {
+    const lista = [
+      appointment({ id: 'prox-2', scheduledAt: '2026-08-24T13:00:00.000Z', status: 'CONFIRMADO' }),
+      appointment({ id: 'prox-1', status: 'CONFIRMADO' }),
+      pasado('c1', '03', 'COMPLETADO'),
+      pasado('c2', '05', 'COMPLETADO'),
+      pasado('c3', '07', 'COMPLETADO'),
+      pasado('c4', '10', 'COMPLETADO'),
+      pasado('lib', '12', 'LIBERADO'),
+      pasado('can', '14', 'CANCELADO'),
+    ];
+
+    const { shown, hidden } = relevantWithProfessional(lista, NOW);
+
+    expect(shown.map((a) => a.id)).toEqual(['prox-1', 'prox-2', 'c4', 'c3', 'c2']);
+    expect(hidden).toBe(3);
+  });
+
+  it('un liberado futuro no cuenta como próximo', () => {
+    const { shown } = relevantWithProfessional([appointment({ status: 'LIBERADO' })], NOW);
+    expect(shown).toEqual([]);
   });
 });

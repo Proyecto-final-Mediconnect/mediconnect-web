@@ -94,7 +94,7 @@ export function LoginForm() {
           disabled={verificar.isPending}
         />
         {verificar.isError && (
-          <p role="alert" className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-danger">
+          <p role="alert" className="rounded-lg bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
             {verificar.error.message}
           </p>
         )}
@@ -116,7 +116,7 @@ export function LoginForm() {
           }}
           className="self-center text-[13px] font-semibold text-brand-hover underline-offset-2 hover:underline"
         >
-          Volver a ingresar con otra cuenta
+          Ingresar con otra cuenta
         </button>
       </form>
     );
@@ -130,7 +130,7 @@ export function LoginForm() {
         label="Email"
         type="email"
         autoComplete="email"
-        placeholder="tucorreo@ejemplo.com"
+        placeholder="tuemail@ejemplo.com"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         error={errors.email}
@@ -154,13 +154,13 @@ export function LoginForm() {
       </Link>
 
       {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-danger">
+        <p role="alert" className="rounded-lg bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
           {error.message}
         </p>
       )}
 
       <Button type="submit" fullWidth disabled={isPending} className="mt-2">
-        {isPending ? 'Ingresando…' : 'Iniciar sesión'}
+        {isPending ? 'Ingresando…' : 'Ingresar'}
       </Button>
     </form>
   );

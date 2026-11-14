@@ -30,7 +30,7 @@ export async function registerProfessional(
     throw new Error(
       Array.isArray(message)
         ? message.join(' ')
-        : (message ?? 'No se pudo completar el registro. Intentá de nuevo.'),
+        : (message ?? 'No pudimos completar el registro. Intentá de nuevo.'),
     );
   }
 

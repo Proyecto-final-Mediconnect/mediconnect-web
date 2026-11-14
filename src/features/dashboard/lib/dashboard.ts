@@ -54,13 +54,6 @@ export function nextAppointment(
   return futuros[0] ?? null;
 }
 
-/** Turnos vigentes de acá en adelante. Es el número del panel. */
-export function upcomingCount(appointments: Appointment[], now: Date = new Date()): number {
-  return appointments.filter(
-    (a) => isActive(a) && new Date(a.scheduledAt).getTime() > now.getTime(),
-  ).length;
-}
-
 /** Consultas que ya se dieron. `COMPLETADO` lo marca el backend al cerrarlas. */
 export function completedCount(appointments: Appointment[]): number {
   return appointments.filter((a) => a.status === 'COMPLETADO').length;
@@ -107,7 +100,7 @@ const ESTADO_MATRICULA: Record<string, { title: string; detail: string }> = {
   PENDIENTE_VALIDACION_MATRICULA: {
     title: 'Tu matrícula está en validación',
     detail:
-      'Un moderador la revisa a mano. Hasta que la aprueben, tu perfil no aparece en el catálogo y nadie puede reservarte.',
+      'El equipo de MediConnect la revisa a mano. Hasta que la aprobemos, tu perfil no aparece en el catálogo y nadie puede reservarte.',
   },
   RECHAZADO: {
     title: 'Tu matrícula fue rechazada',

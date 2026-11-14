@@ -109,7 +109,7 @@ export function NextAppointmentCard({
             to={`/turnos/${appointment.id}/pago`}
             className="inline-flex items-center rounded-[9px] bg-brand px-5 py-3 text-sm font-bold text-ink-deep transition-colors hover:bg-brand-bright focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-bright focus-visible:ring-offset-2 focus-visible:ring-offset-night"
           >
-            Pagar la consulta
+            Pagar el turno
           </Link>
         ) : (
           primaryAction && (

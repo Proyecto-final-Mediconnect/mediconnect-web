@@ -11,7 +11,7 @@ export function PolicyNotice({ policy }: { policy: CancellationPolicy | undefine
   return (
     <p className="text-xs leading-[1.6] text-muted-soft">
       Vas a poder cancelarlo desde “Mis turnos”.{' '}
-      {policy ? describePolicy(policy) : 'El plazo y el reembolso los define cada profesional.'}
+      {policy ? describePolicy(policy) : 'El plazo y la devolución los define cada profesional.'}
     </p>
   );
 }

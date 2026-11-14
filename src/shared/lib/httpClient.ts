@@ -1,3 +1,5 @@
+import { NETWORK_ERROR_MESSAGE } from '../api/apiFetch';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
 export class ApiError extends Error {
@@ -25,12 +27,19 @@ export async function apiRequest<T>(
   path: string,
   { method = 'GET', body, fallbackMessage }: RequestOptions = {},
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    credentials: 'include',
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      credentials: 'include',
+      headers: body ? { 'Content-Type': 'application/json' } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  } catch (error) {
+    // Solo el fallo de red; los AbortError pasan tal cual.
+    if (error instanceof TypeError) throw new ApiError(0, NETWORK_ERROR_MESSAGE);
+    throw error;
+  }
 
   const data = await response.json().catch(() => null);
 

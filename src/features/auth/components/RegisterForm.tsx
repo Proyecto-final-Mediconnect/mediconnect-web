@@ -61,7 +61,7 @@ export function RegisterForm() {
           ✓
         </div>
         <h2 className="font-display mt-5 text-[26px] leading-[1.2] text-brand-deep">
-          Revisá tu correo
+          Revisá tu email
         </h2>
         <p className="mt-2.5 text-sm leading-[1.7] text-ink">
           Si tu email todavía no estaba registrado, te enviamos un enlace para confirmar tu cuenta.
@@ -75,7 +75,7 @@ export function RegisterForm() {
             to="/ingresar"
             className="font-semibold text-brand-hover underline-offset-2 hover:underline"
           >
-            Iniciá sesión
+            Ingresá
           </Link>
           .
         </p>
@@ -91,7 +91,7 @@ export function RegisterForm() {
         label="Email"
         type="email"
         autoComplete="email"
-        placeholder="tucorreo@ejemplo.com"
+        placeholder="tuemail@ejemplo.com"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         error={errors.email}
