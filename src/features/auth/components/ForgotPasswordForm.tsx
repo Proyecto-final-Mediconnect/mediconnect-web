@@ -38,7 +38,7 @@ export function ForgotPasswordForm() {
           ✓
         </div>
         <h2 className="font-display mt-5 text-[26px] leading-[1.2] text-brand-deep">
-          Revisá tu correo
+          Revisá tu email
         </h2>
         {/* Igual que en el registro, no decimos si el email tiene cuenta: este
             formulario no puede servir para averiguar quién está registrado. */}
@@ -53,7 +53,7 @@ export function ForgotPasswordForm() {
             to="/ingresar"
             className="font-semibold text-brand-hover underline-offset-2 hover:underline"
           >
-            Iniciá sesión
+            Ingresá
           </Link>
           .
         </p>
@@ -69,14 +69,14 @@ export function ForgotPasswordForm() {
         label="Email"
         type="email"
         autoComplete="email"
-        placeholder="tucorreo@ejemplo.com"
+        placeholder="tuemail@ejemplo.com"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
         error={emailError}
       />
 
       {error && (
-        <p role="alert" className="rounded-lg bg-red-50 px-3.5 py-2.5 text-sm text-danger">
+        <p role="alert" className="rounded-lg bg-danger/10 px-3.5 py-2.5 text-sm text-danger">
           {error.message}
         </p>
       )}

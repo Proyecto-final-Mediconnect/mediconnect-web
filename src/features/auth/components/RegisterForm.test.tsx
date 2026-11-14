@@ -67,7 +67,7 @@ describe('RegisterForm', () => {
     await user.click(screen.getByRole('checkbox', { name: /leí y acepto/i }));
     await user.click(screen.getByRole('button', { name: /crear cuenta/i }));
 
-    expect(await screen.findByText('Revisá tu correo')).toBeInTheDocument();
+    expect(await screen.findByText('Revisá tu email')).toBeInTheDocument();
     // Al backend va la versión de los textos, no el booleano del checkbox.
     const [, init] = vi.mocked(globalThis.fetch).mock.calls[0];
     const body = JSON.parse(String(init?.body)) as Record<string, unknown>;

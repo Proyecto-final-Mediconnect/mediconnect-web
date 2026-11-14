@@ -104,7 +104,7 @@ export function ClinicalEntryForm({
 
   return (
     <form onSubmit={handleSubmit} noValidate className="grid gap-4">
-      <div className="rounded-[10px] border border-amber-300 bg-amber-50 px-4 py-3 text-[13px] leading-[1.7] text-amber-900">
+      <div className="rounded-[10px] border border-tag-warm-dot/40 bg-tag-warm px-4 py-3 text-[13px] leading-[1.7] text-tag-warm-ink">
         Lo que guardes acá <span className="font-semibold">no se puede editar ni borrar</span>. Si
         después hay que corregirlo, se agrega una entrada nueva que deja constancia de la
         corrección.

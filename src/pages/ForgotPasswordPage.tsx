@@ -15,7 +15,7 @@ export function ForgotPasswordPage() {
             to="/ingresar"
             className="font-semibold text-brand-hover underline-offset-2 hover:underline"
           >
-            Volver a ingresar
+            Ingresar
           </Link>
         </p>
       }

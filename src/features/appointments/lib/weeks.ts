@@ -1,3 +1,4 @@
+import { formatMoney } from '../../../shared/lib/formatMoney';
 import { addDays, todayLocal, weekdayOf } from '../../schedule/lib/generateSlots';
 
 /**
@@ -183,9 +184,5 @@ export function formatShortDate(date: string): string {
 
 /** Precio en pesos, sin decimales: los honorarios se cargan en enteros. */
 export function formatPrice(amount: number, currency: string): string {
-  return new Intl.NumberFormat('es-AR', {
-    style: 'currency',
-    currency,
-    maximumFractionDigits: 0,
-  }).format(amount);
+  return formatMoney(amount, currency);
 }

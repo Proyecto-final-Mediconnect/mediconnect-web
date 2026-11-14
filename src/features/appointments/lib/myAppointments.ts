@@ -21,7 +21,7 @@ const ACTIVE_STATUSES = ['RESERVADO_SIN_PAGAR', 'CONFIRMADO'];
  * que saberlo. Un estado desconocido se muestra crudo en vez de romper la fila.
  */
 const STATUS_LABELS: Record<string, string> = {
-  RESERVADO_SIN_PAGAR: 'Reservado (sin pagar)',
+  RESERVADO_SIN_PAGAR: 'Sin pagar',
   CONFIRMADO: 'Confirmado',
   CANCELADO: 'Cancelado',
   COMPLETADO: 'Completado',
@@ -135,4 +135,30 @@ export function counterpartOf(appointment: Appointment, userId: string | null) {
  *  no es opcional. */
 export function formatLongDate(date: string): string {
   return `${formatDate(date)} de ${date.slice(0, 4)}`;
+}
+
+/** Cuántas consultas pasadas se muestran al reservar con el mismo profesional. */
+export const PAST_WITH_PROFESSIONAL = 3;
+
+/**
+ * Los turnos con un profesional que vale la pena ver al reservar con él: los
+ * próximos, del más cercano al más lejano, y las últimas
+ * {@link PAST_WITH_PROFESSIONAL} consultas completadas. Los liberados y
+ * cancelados no: con un paciente frecuente eran más de 30 filas que tapaban
+ * la reserva. La lista entera está en "Mis turnos".
+ */
+export function relevantWithProfessional(
+  appointments: Appointment[],
+  now: Date = new Date(),
+): { shown: Appointment[]; hidden: number } {
+  const t = now.getTime();
+  const upcoming = appointments
+    .filter((a) => isActive(a) && Date.parse(a.scheduledAt) > t)
+    .sort((a, b) => Date.parse(a.scheduledAt) - Date.parse(b.scheduledAt));
+  const past = appointments
+    .filter((a) => a.status === 'COMPLETADO' && Date.parse(a.scheduledAt) <= t)
+    .sort((a, b) => Date.parse(b.scheduledAt) - Date.parse(a.scheduledAt))
+    .slice(0, PAST_WITH_PROFESSIONAL);
+  const shown = [...upcoming, ...past];
+  return { shown, hidden: appointments.length - shown.length };
 }

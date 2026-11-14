@@ -16,9 +16,11 @@ import {
   IconMensajes,
   IconMediPass,
   IconModeracion,
+  IconPacientes,
   IconPanel,
   IconPerfil,
   IconResenas,
+  IconCobros,
   IconTurnos,
   IconVideo,
   IconPrivacidad,
@@ -103,12 +105,14 @@ const NAV_PROFESIONAL: NavItem[][] = [
   [
     { to: '/profesional', label: 'Panel', end: true, Icon: IconPanel },
     { to: '/profesional/agenda', label: 'Mi agenda', Icon: IconAgenda },
-    { to: '/mis-turnos', label: 'Mis consultas', Icon: IconTurnos },
+    { to: '/mis-turnos', label: 'Mis turnos', Icon: IconTurnos },
+    { to: '/profesional/pacientes', label: 'Mis pacientes', Icon: IconPacientes },
     { to: '/mensajes', label: 'Mensajes', Icon: IconMensajes },
   ],
   [
     { to: '/perfil', label: 'Mi perfil público', Icon: IconPerfil },
     { to: '/profesional/resenas', label: 'Mis reseñas', Icon: IconResenas },
+    { to: '/profesional/cobros', label: 'Mis cobros', Icon: IconCobros },
     { to: '/privacidad', label: 'Privacidad y datos', Icon: IconPrivacidad },
   ],
 ];
@@ -202,10 +206,13 @@ const CONTENIDO = 'mx-auto w-full max-w-[1440px] px-6 lg:px-9';
 type AppShellProps = {
   /** Título de la barra superior. */
   title: string;
+  /** Renderiza el título con la tipografía display (Newsreader). Se usa cuando
+   *  la pantalla no tiene un saludo propio que ya la lleve. */
+  displayTitle?: boolean;
   children: ReactNode;
 };
 
-export function AppShell({ title, children }: AppShellProps) {
+export function AppShell({ title, displayTitle = false, children }: AppShellProps) {
   const { user } = useSession();
   const { mutate: logout, isPending } = useLogout();
   /** Cerrar sesión pide confirmación: es un click de un solo paso que corta el
@@ -353,7 +360,15 @@ export function AppShell({ title, children }: AppShellProps) {
               arrancara en el borde y el contenido fuera centrado, en un monitor
               ancho el título quedaría a medio metro de la pantalla que titula. */}
           <div className={`${CONTENIDO} flex items-center justify-between gap-4`}>
-            <h1 className="text-[22px] font-bold text-brand-deep">{title}</h1>
+            <h1
+              className={
+                displayTitle
+                  ? 'font-display text-[26px] font-semibold leading-none text-brand-deep'
+                  : 'text-[22px] font-bold text-brand-deep'
+              }
+            >
+              {title}
+            </h1>
             {/* Los avisos (ENG-69) van en la barra de arriba y no en el menú:
                 se ven en toda pantalla privada sin abrir la barra plegada. Se
                 montan con la sesión resuelta, para no pedir la bandeja de nadie. */}

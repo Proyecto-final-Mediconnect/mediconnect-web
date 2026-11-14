@@ -75,7 +75,7 @@ describe('MyAppointments (ENG-178)', () => {
     });
     renderMyAppointments();
 
-    expect(await screen.findByText(/^Te devolvimos \$\s7\.500$/)).toHaveClass('text-brand-hover');
+    expect(await screen.findByText(/^Te devolvimos \$7\.500$/)).toHaveClass('text-brand-hover');
   });
 
   it('un reembolso pendiente o rechazado se ve con su color', async () => {
@@ -93,7 +93,7 @@ describe('MyAppointments (ENG-178)', () => {
     });
     renderMyAppointments();
 
-    expect(await screen.findByText(/^Reembolso de \$\s7\.500 en curso$/)).toHaveClass(
+    expect(await screen.findByText(/^Reembolso de \$7\.500 en curso$/)).toHaveClass(
       'text-tag-warm-ink',
     );
     expect(screen.getByText(/^Hubo un problema con el reembolso/)).toHaveClass('text-danger');
@@ -181,7 +181,7 @@ describe('MyAppointments (ENG-178)', () => {
       ),
     ).toBe(false);
 
-    await u.click(within(modal).getByRole('button', { name: 'Sí, cancelar' }));
+    await u.click(within(modal).getByRole('button', { name: 'Sí, cancelar el turno' }));
     await waitFor(() => {
       const patch = fetchMock.mock.calls.find(
         ([, init]) => (init as RequestInit | undefined)?.method === 'PATCH',
@@ -357,7 +357,7 @@ describe('MyAppointments (ENG-178)', () => {
           }),
       });
 
-      await u.click(screen.getByRole('button', { name: 'Sí, cancelar' }));
+      await u.click(screen.getByRole('button', { name: 'Sí, cancelar el turno' }));
 
       expect(
         await screen.findByText(/Te devolvemos .*15\.000 por MercadoPago/),

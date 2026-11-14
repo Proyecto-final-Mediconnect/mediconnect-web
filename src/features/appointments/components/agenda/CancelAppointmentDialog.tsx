@@ -33,7 +33,7 @@ export function CancelAppointmentDialog({
     <ConfirmDialog
       open={appointment !== null}
       titulo="¿Cancelar el turno?"
-      confirmar={cancel.isPending ? 'Cancelando…' : 'Sí, cancelar'}
+      confirmar={cancel.isPending ? 'Cancelando…' : 'Sí, cancelar el turno'}
       cancelar="Mantener el turno"
       destructivo
       pendiente={cancel.isPending}

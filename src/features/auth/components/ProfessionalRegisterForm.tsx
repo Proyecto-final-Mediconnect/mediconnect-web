@@ -73,7 +73,7 @@ export function ProfessionalRegisterForm() {
           ✓
         </div>
         <h2 className="font-display mt-5 text-[26px] leading-[1.2] text-brand-deep">
-          Revisá tu correo
+          Revisá tu email
         </h2>
         <p className="mt-2.5 text-sm leading-[1.7] text-ink">
           Te enviamos un enlace para confirmar tu cuenta.
@@ -87,8 +87,8 @@ export function ProfessionalRegisterForm() {
             Con el enlace que te mandamos.
           </Paso>
           <Paso n={2} titulo="Validamos tu matrícula a mano">
-            Lo revisa un moderador. Hasta que lo apruebe, tu cuenta funciona pero tu perfil todavía
-            no aparece en el catálogo y nadie puede reservarte.
+            Lo revisa el equipo de MediConnect. Hasta que la aprobemos, tu cuenta funciona pero tu
+            perfil todavía no aparece en el catálogo y nadie puede reservarte.
           </Paso>
         </ol>
 
@@ -98,7 +98,7 @@ export function ProfessionalRegisterForm() {
             to="/ingresar"
             className="font-semibold text-brand-hover underline-offset-2 hover:underline"
           >
-            Iniciá sesión
+            Ingresá
           </Link>
           .
         </p>
@@ -154,7 +154,7 @@ export function ProfessionalRegisterForm() {
         label="Email"
         type="email"
         autoComplete="email"
-        placeholder="tucorreo@ejemplo.com"
+        placeholder="tuemail@ejemplo.com"
         value={values.email}
         onChange={set('email')}
         error={errors.email}
