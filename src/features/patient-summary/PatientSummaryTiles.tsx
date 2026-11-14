@@ -151,5 +151,5 @@ function Tile({
 function detallePagos({ turnos, porVenir }: PatientSummary['pagos']): string {
   const base = turnos === 1 ? 'Por 1 turno' : `Por ${turnos} turnos`;
   if (porVenir === 0) return base;
-  return `${base} · ${porVenir === 1 ? '1 todavía por venir' : `${porVenir} todavía por venir`}`;
+  return `${base} · ${porVenir === 1 ? '1 pendiente' : `${porVenir} pendientes`}`;
 }

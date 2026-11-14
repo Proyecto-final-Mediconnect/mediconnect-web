@@ -55,7 +55,7 @@ describe('PatientSummaryTiles (ENG-198)', () => {
     expect(consultas).toHaveAttribute('href', '/mis-turnos');
     expect(screen.getByRole('link', { name: /pagaste/i })).toHaveTextContent(/54\.000/);
     expect(screen.getByRole('link', { name: /pagaste/i })).toHaveTextContent(
-      'Por 3 turnos · 2 todavía por venir',
+      'Por 3 turnos · 2 pendientes',
     );
     expect(screen.getByRole('link', { name: /te reembolsaron/i })).toHaveTextContent(/9\.000/);
     const accesos = screen.getByRole('link', { name: /accesos a tu información/i });
