@@ -87,8 +87,8 @@ export function ProfessionalRegisterForm() {
             Con el enlace que te mandamos.
           </Paso>
           <Paso n={2} titulo="Validamos tu matrícula a mano">
-            Lo revisa un moderador. Hasta que lo apruebe, tu cuenta funciona pero tu perfil todavía
-            no aparece en el catálogo y nadie puede reservarte.
+            Lo revisa el equipo de MediConnect. Hasta que la aprobemos, tu cuenta funciona pero tu
+            perfil todavía no aparece en el catálogo y nadie puede reservarte.
           </Paso>
         </ol>
 

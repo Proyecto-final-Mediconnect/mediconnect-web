@@ -100,7 +100,7 @@ const ESTADO_MATRICULA: Record<string, { title: string; detail: string }> = {
   PENDIENTE_VALIDACION_MATRICULA: {
     title: 'Tu matrícula está en validación',
     detail:
-      'Un moderador la revisa a mano. Hasta que la aprueben, tu perfil no aparece en el catálogo y nadie puede reservarte.',
+      'El equipo de MediConnect la revisa a mano. Hasta que la aprobemos, tu perfil no aparece en el catálogo y nadie puede reservarte.',
   },
   RECHAZADO: {
     title: 'Tu matrícula fue rechazada',

@@ -127,7 +127,7 @@ describe('professionalTasks', () => {
     );
 
     expect(tarea.severity).toBe('blocker');
-    // No depende del profesional: la valida un moderador.
+    // No depende del profesional: la valida el equipo de MediConnect.
     expect(tarea.to).toBeNull();
   });
 
