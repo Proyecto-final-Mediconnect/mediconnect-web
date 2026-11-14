@@ -83,6 +83,16 @@ describe('ClinicalRecord', () => {
       expect(screen.queryByText(/sellada en la cadena/i)).not.toBeInTheDocument();
     });
 
+    it('muestra la hora en 24 h y en horario de Buenos Aires', async () => {
+      // 23:30 UTC = 20:30 en Buenos Aires; en 12 h saldría "08:30 p. m.".
+      entries = [makeEntry({ createdAt: '2026-08-27T23:30:00.000Z' })];
+      renderRecord();
+
+      const fila = await screen.findByText(/Firmada por/);
+      expect(fila).toHaveTextContent('20:30');
+      expect(fila).not.toHaveTextContent(/[ap]\. ?m\./i);
+    });
+
     it('muestra lo más reciente primero', async () => {
       entries = [
         makeEntry({ id: 'vieja', sequenceNumber: 1, content: { description: 'La vieja' } }),
