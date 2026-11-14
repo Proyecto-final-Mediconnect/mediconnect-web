@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { apiFetch, onLegalNotAccepted } from './apiFetch';
+import { apiFetch, NETWORK_ERROR_MESSAGE, onLegalNotAccepted } from './apiFetch';
 
 const json = (status: number) => new Response(status === 200 ? '{"ok":true}' : null, { status });
 
@@ -109,5 +109,31 @@ describe('apiFetch con refreshOn401: false', () => {
 
     expect(res.status).toBe(401);
     expect(spy).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('apiFetch · errores de red', () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it('convierte el TypeError de fetch en un error legible con status 0', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('Failed to fetch'));
+
+    await expect(apiFetch('/me')).rejects.toMatchObject({
+      message: NETWORK_ERROR_MESSAGE,
+      status: 0,
+    });
+  });
+
+  it('no se traga los AbortError', async () => {
+    const abort = new DOMException('cancelado', 'AbortError');
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(abort);
+
+    await expect(apiFetch('/me')).rejects.toBe(abort);
+  });
+
+  it('un 500 sigue llegando como respuesta, sin envolver', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(null, { status: 500 }));
+
+    expect((await apiFetch('/me')).status).toBe(500);
   });
 });
