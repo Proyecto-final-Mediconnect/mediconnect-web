@@ -86,4 +86,35 @@ describe('Panel del profesional', () => {
       screen.queryByRole('region', { name: 'Los próximos siete días' }),
     ).not.toBeInTheDocument();
   });
+
+  it('"Mi actividad" reemplaza a "Tu semana" con los números del backend', async () => {
+    api.mockImplementation((input, init) =>
+      String(input).includes('/professionals/me/stats')
+        ? Promise.resolve(
+            jsonResponse({
+              from: '2026-06-01',
+              to: '2026-08-31',
+              turnos: { completados: 5, noAsistio: 0, cancelados: 1, liberados: 0, porVenir: 1 },
+              tasas: {
+                cancelacion: { porcentaje: 16.7, numerador: 1, denominador: 6 },
+                ausentismo: { porcentaje: 0, numerador: 0, denominador: 5 },
+              },
+              consultasPorMes: [
+                { mes: '2026-06', consultas: 1 },
+                { mes: '2026-07', consultas: 2 },
+                { mes: '2026-08', consultas: 2 },
+              ],
+              pacientes: { unicos: 4, recurrentes: 1 },
+              resenas: { promedio: 4.5, cantidad: 2, sinResponder: 0 },
+            }),
+          )
+        : resto(input, init),
+    );
+    renderWithRouter(<ProfessionalDashboardPage />);
+
+    const actividad = await screen.findByRole('region', { name: 'Mi actividad' });
+    expect(await within(actividad).findByText('16,7 %')).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Tu semana' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Publicados')).not.toBeInTheDocument();
+  });
 });

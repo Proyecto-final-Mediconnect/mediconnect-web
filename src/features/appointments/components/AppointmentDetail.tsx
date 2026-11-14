@@ -7,6 +7,7 @@ import { PolicyNotice } from '../../cancellation-policy/components/PolicyNotice'
 import { MAX_REFUND_PERCENT, refundPercentFor } from '../../cancellation-policy/lib/policy';
 import { usePublicProfile } from '../../catalog/hooks/usePublicProfile';
 import { getPaymentStatus } from '../../payments/api/paymentsApi';
+import { PaymentReceipt } from '../../payments/components/PaymentReceipt';
 import { canPay } from '../../payments/lib/checkout';
 import { DeviceCheck } from '../../video/components/DeviceCheck';
 import { joinStateOf, timeUntilOpen } from '../../video/lib/joinWindow';
@@ -235,92 +236,104 @@ export function AppointmentDetail({
           </ol>
         </section>
 
-        <section
-          aria-labelledby="acciones"
-          className="grid gap-3 rounded-[16px] border border-line bg-white p-6"
-        >
-          <h2
-            id="acciones"
-            className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted"
-          >
-            Acciones
-          </h2>
-
-          {/* La reseña de una consulta que ya se hizo (ENG-80). */}
-          {isPatient && (appointment.status === 'COMPLETADO' || pendiente) && (
-            <AppointmentReview
-              appointmentId={appointment.id}
-              professionalName={
-                appointment.professional
-                  ? `${appointment.professional.firstName} ${appointment.professional.lastName}`
-                  : 'el profesional'
-              }
+        <div className="grid gap-4">
+          {/* El comprobante del pago, solo para el paciente (ENG-199). */}
+          {isPatient && payment.data?.receipt && (
+            <PaymentReceipt
+              titulo="Pago"
+              receipt={payment.data.receipt}
+              confirmedAt={payment.data.confirmedAt}
             />
           )}
+          <section
+            aria-labelledby="acciones"
+            className="grid gap-3 rounded-[16px] border border-line bg-white p-6"
+          >
+            <h2
+              id="acciones"
+              className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted"
+            >
+              Acciones
+            </h2>
 
-          {reschedulable && !reprogramacionCerrada && (
-            <Link
-              to={`/profesionales/${professionalId}/turnos?reprogramar=${appointment.id}`}
-              className="inline-flex items-center justify-center rounded-[10px] border border-line-strong bg-white px-4 py-2.5 text-sm font-bold text-brand-deep transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              Reprogramar
-            </Link>
-          )}
-          {reschedulable && reprogramacionCerrada && policy && (
-            <p className="self-center text-sm text-muted">
-              Con menos de {policy.hoursFullRefund} horas ya no se puede reprogramar.
-            </p>
-          )}
-          {cancellable && (
-            <button
-              type="button"
-              onClick={() => setToCancel(appointment)}
-              className="inline-flex items-center justify-center rounded-[10px] border border-line-strong bg-white px-4 py-2.5 text-sm font-bold text-danger transition-colors hover:border-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              Cancelar el turno
-            </button>
-          )}
-          {isPatient && !isActive(appointment) && professionalId && (
-            <Link
-              to={`/profesionales/${professionalId}/turnos`}
-              className="inline-flex items-center justify-center rounded-[10px] bg-brand-deep px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-            >
-              Volver a reservar con {appointment.professional?.firstName}
-            </Link>
-          )}
-          {noShowable && (
-            <button
-              type="button"
-              onClick={() => setToNoShow(appointment)}
-              className="inline-flex items-center justify-center rounded-[10px] border border-line-strong bg-white px-4 py-2.5 text-sm font-bold text-danger transition-colors hover:border-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              Marcar como no asistió
-            </button>
-          )}
-          {!isPatient && person && (
-            <Link
-              to={`/pacientes/${person.id}/historia-clinica`}
-              className="inline-flex items-center justify-center rounded-[10px] border border-line-strong bg-white px-4 py-2.5 text-sm font-bold text-brand-deep transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-            >
-              Historia clínica
-            </Link>
-          )}
-          {!reschedulable &&
-            !cancellable &&
-            !(isPatient && !isActive(appointment)) &&
-            isPatient && (
-              <p className="text-sm text-muted">No hay acciones disponibles para este turno.</p>
+            {/* La reseña de una consulta que ya se hizo (ENG-80). */}
+            {isPatient && (appointment.status === 'COMPLETADO' || pendiente) && (
+              <AppointmentReview
+                appointmentId={appointment.id}
+                professionalName={
+                  appointment.professional
+                    ? `${appointment.professional.firstName} ${appointment.professional.lastName}`
+                    : 'el profesional'
+                }
+              />
             )}
 
-          {isPatient && cancellable && (
-            <div className="border-t border-line-soft pt-3">
-              <PolicyNotice policy={policy} />
-              {appointment.rescheduledAt && (
-                <p className="mt-2 text-xs text-muted-soft">Este turno ya se reprogramó una vez.</p>
+            {reschedulable && !reprogramacionCerrada && (
+              <Link
+                to={`/profesionales/${professionalId}/turnos?reprogramar=${appointment.id}`}
+                className="inline-flex items-center justify-center rounded-[10px] border border-line-strong bg-white px-4 py-2.5 text-sm font-bold text-brand-deep transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                Reprogramar
+              </Link>
+            )}
+            {reschedulable && reprogramacionCerrada && policy && (
+              <p className="self-center text-sm text-muted">
+                Con menos de {policy.hoursFullRefund} horas ya no se puede reprogramar.
+              </p>
+            )}
+            {cancellable && (
+              <button
+                type="button"
+                onClick={() => setToCancel(appointment)}
+                className="inline-flex items-center justify-center rounded-[10px] border border-line-strong bg-white px-4 py-2.5 text-sm font-bold text-danger transition-colors hover:border-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                Cancelar el turno
+              </button>
+            )}
+            {isPatient && !isActive(appointment) && professionalId && (
+              <Link
+                to={`/profesionales/${professionalId}/turnos`}
+                className="inline-flex items-center justify-center rounded-[10px] bg-brand-deep px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+              >
+                Volver a reservar con {appointment.professional?.firstName}
+              </Link>
+            )}
+            {noShowable && (
+              <button
+                type="button"
+                onClick={() => setToNoShow(appointment)}
+                className="inline-flex items-center justify-center rounded-[10px] border border-line-strong bg-white px-4 py-2.5 text-sm font-bold text-danger transition-colors hover:border-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                Marcar como no asistió
+              </button>
+            )}
+            {!isPatient && person && (
+              <Link
+                to={`/pacientes/${person.id}/historia-clinica`}
+                className="inline-flex items-center justify-center rounded-[10px] border border-line-strong bg-white px-4 py-2.5 text-sm font-bold text-brand-deep transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+              >
+                Historia clínica
+              </Link>
+            )}
+            {!reschedulable &&
+              !cancellable &&
+              !(isPatient && !isActive(appointment)) &&
+              isPatient && (
+                <p className="text-sm text-muted">No hay acciones disponibles para este turno.</p>
               )}
-            </div>
-          )}
-        </section>
+
+            {isPatient && cancellable && (
+              <div className="border-t border-line-soft pt-3">
+                <PolicyNotice policy={policy} />
+                {appointment.rescheduledAt && (
+                  <p className="mt-2 text-xs text-muted-soft">
+                    Este turno ya se reprogramó una vez.
+                  </p>
+                )}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
 
       <CancelAppointmentDialog
