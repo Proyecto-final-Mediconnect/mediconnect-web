@@ -6,7 +6,6 @@ import {
   patientTasks,
   professionalTasks,
   recentCounterparts,
-  upcomingCount,
   withinNextWeek,
 } from './dashboard';
 import type { Appointment } from '../../appointments/types/appointment';
@@ -83,10 +82,6 @@ describe('contadores', () => {
     turno({ id: 'd', scheduledAt: '2026-08-01T12:00:00Z', status: 'COMPLETADO' }),
   ];
 
-  it('cuenta los vigentes futuros', () => {
-    expect(upcomingCount(turnos, AHORA)).toBe(2);
-  });
-
   it('cuenta los completados', () => {
     expect(completedCount(turnos)).toBe(1);
   });
@@ -116,7 +111,10 @@ describe('patientTasks', () => {
 });
 
 describe('professionalTasks', () => {
-  const agenda = { rules: [{ weekday: 2, startTime: '09:00', endTime: '13:00', slotDurationMinutes: 30 }], blocks: [] };
+  const agenda = {
+    rules: [{ weekday: 2, startTime: '09:00', endTime: '13:00', slotDurationMinutes: 30 }],
+    blocks: [],
+  };
 
   it('un perfil completo y validado no tiene pendientes', () => {
     expect(professionalTasks(PERFIL_PRO, agenda)).toEqual([]);
@@ -156,11 +154,7 @@ describe('professionalTasks', () => {
       agenda,
     );
 
-    expect(tareas.map((t) => t.severity)).toEqual([
-      'blocker',
-      'warning',
-      'warning',
-    ]);
+    expect(tareas.map((t) => t.severity)).toEqual(['blocker', 'warning', 'warning']);
   });
 
   it('mientras la agenda no cargó no la reporta como vacía', () => {
