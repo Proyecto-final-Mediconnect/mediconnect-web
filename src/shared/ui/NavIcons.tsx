@@ -159,3 +159,14 @@ export function IconResenas(p: IconProps) {
     </Svg>
   );
 }
+
+/** Pacientes: dos personas, la lista de pacientes del profesional (ENG-197). */
+export function IconPacientes(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <circle cx="9" cy="8" r="3.5" />
+      <path d="M2.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5" />
+      <path d="M15.5 4.6a3.5 3.5 0 0 1 0 6.8M17.5 13.8c2.3.8 4 3 4 5.7" />
+    </Svg>
+  );
+}

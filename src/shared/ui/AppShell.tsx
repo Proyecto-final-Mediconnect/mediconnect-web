@@ -16,6 +16,7 @@ import {
   IconMensajes,
   IconMediPass,
   IconModeracion,
+  IconPacientes,
   IconPanel,
   IconPerfil,
   IconResenas,
@@ -104,6 +105,7 @@ const NAV_PROFESIONAL: NavItem[][] = [
     { to: '/profesional', label: 'Panel', end: true, Icon: IconPanel },
     { to: '/profesional/agenda', label: 'Mi agenda', Icon: IconAgenda },
     { to: '/mis-turnos', label: 'Mis consultas', Icon: IconTurnos },
+    { to: '/profesional/pacientes', label: 'Mis pacientes', Icon: IconPacientes },
     { to: '/mensajes', label: 'Mensajes', Icon: IconMensajes },
   ],
   [
