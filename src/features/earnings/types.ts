@@ -23,4 +23,15 @@ export interface EarningsView {
   rows: EarningRow[];
   pagina: number;
   hayMas: boolean;
+  /** Los pacientes con cobros en el período, sin filtrar. */
+  pacientes: string[];
+}
+
+export type EarningsOrder = 'RECIENTES' | 'ANTIGUOS' | 'MAYOR_MONTO';
+
+/** Recortan la tabla, los totales y el CSV por igual. */
+export interface EarningsFilters {
+  estado?: EarningState;
+  paciente?: string;
+  orden?: EarningsOrder;
 }

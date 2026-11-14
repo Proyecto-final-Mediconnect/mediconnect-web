@@ -51,7 +51,10 @@ const COBROS = {
   ],
   pagina: 1,
   hayMas: false,
+  pacientes: ['Julián Sosa', 'Marina Quiroga'],
 };
+
+const pedidos = () => vi.mocked(globalThis.fetch).mock.calls.map(([u]) => String(u));
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -95,7 +98,7 @@ describe('ProfessionalEarningsPage (ENG-194)', () => {
   it('muestra los totales del mes y los cobros por turno, con el reembolso parcial', async () => {
     renderPage(() => json(COBROS));
 
-    expect(await screen.findByText('Julián Sosa')).toBeVisible();
+    expect(await screen.findByRole('cell', { name: 'Julián Sosa' })).toBeVisible();
     expect(screen.getByText('Reembolsado 50 %')).toBeVisible();
     expect(screen.getByText('Cobrado', { selector: 'span' })).toBeVisible();
     expect(screen.getByText(/27\.000/)).toBeVisible();
@@ -106,11 +109,11 @@ describe('ProfessionalEarningsPage (ENG-194)', () => {
   it('cambiar de mes pide el período nuevo', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderPage(() => json(COBROS));
-    await screen.findByText('Julián Sosa');
+    await screen.findByRole('cell', { name: 'Julián Sosa' });
 
     await user.click(screen.getByRole('button', { name: 'Mes anterior' }));
 
-    expect(await screen.findByText('octubre de 2026')).toBeVisible();
+    expect(await screen.findByText('Octubre de 2026')).toBeVisible();
     const fetches = vi.mocked(globalThis.fetch).mock.calls.map(([u]) => String(u));
     expect(fetches.some((u) => u.includes('from=2026-10-01&to=2026-10-31'))).toBe(true);
     // No se puede ir a un mes que todavía no empezó.
@@ -129,6 +132,56 @@ describe('ProfessionalEarningsPage (ENG-194)', () => {
 
     expect(await screen.findByText('No tuviste cobros en noviembre de 2026')).toBeVisible();
     expect(screen.getByRole('button', { name: 'Descargar CSV' })).toBeDisabled();
+  });
+
+  it('filtra por estado y por paciente, y el CSV usa los mismos filtros', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderPage(() => json(COBROS));
+    await screen.findByRole('cell', { name: 'Julián Sosa' });
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Estado' }), 'REEMBOLSO_PARCIAL');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Paciente' }), 'Julián Sosa');
+
+    await vi.waitFor(() =>
+      expect(
+        pedidos().some(
+          (u) => u.includes('estado=REEMBOLSO_PARCIAL') && u.includes('paciente=Juli%C3%A1n+Sosa'),
+        ),
+      ).toBe(true),
+    );
+    expect(screen.getByRole('button', { name: 'Limpiar filtros' })).toBeVisible();
+  });
+
+  it('elige otros períodos: este año y un rango a mano', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderPage(() => json(COBROS));
+    await screen.findByRole('cell', { name: 'Julián Sosa' });
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Período' }), 'ANIO');
+    await vi.waitFor(() =>
+      expect(pedidos().some((u) => u.includes('from=2026-01-01&to=2026-11-20'))).toBe(true),
+    );
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Período' }), 'RANGO');
+    expect(screen.getByText('Elegí las dos fechas.')).toBeVisible();
+  });
+
+  it('con filtros y sin resultados lo dice así', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderPage((url) =>
+      url.includes('estado=')
+        ? json({
+            ...COBROS,
+            rows: [],
+            totals: { cobrado: 0, reembolsado: 0, neto: 0, pendiente: 0, turnos: 0 },
+          })
+        : json(COBROS),
+    );
+    await screen.findByRole('cell', { name: 'Julián Sosa' });
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Estado' }), 'REEMBOLSADO');
+
+    expect(await screen.findByText('Ningún cobro coincide con los filtros')).toBeVisible();
   });
 
   it('si falla, muestra el error y deja reintentar', async () => {
