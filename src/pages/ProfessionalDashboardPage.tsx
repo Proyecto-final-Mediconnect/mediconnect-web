@@ -29,6 +29,9 @@ import { DashboardLayout } from './DashboardLayout';
 const fullName = (p: AppointmentParty) => `${p.firstName} ${p.lastName}`;
 const clinicalRecordOf = (p: AppointmentParty) => `/pacientes/${p.id}/historia-clinica`;
 
+/** Cuántos turnos de la semana se listan: el resto queda en "Mis consultas". */
+const PROXIMOS_VISIBLES = 5;
+
 /**
  * Panel del profesional (ENG-44, rediseñado con la misma estructura que el del
  * paciente).
@@ -39,7 +42,7 @@ const clinicalRecordOf = (p: AppointmentParty) => `/pacientes/${p.id}/historia-c
  *
  * Después, lo que se mira todos los días: la próxima consulta (con la historia
  * clínica a un clic, que es lo que se abre antes de atender), la semana y los
- * pacientes recientes. Debajo, "Mi actividad" (ENG-196): consultas, tasas de
+ * pacientes recientes. Antes de esas listas, "Mi actividad" (ENG-196): consultas, tasas de
  * cancelación y ausentismo, calificación y pacientes del período, con datos del
  * backend. Reemplaza a la vieja tarjeta "Tu semana", que contaba en el navegador
  * lo mismo que ya muestra la lista de los próximos siete días y un "Publicados"
@@ -116,6 +119,10 @@ export function ProfessionalDashboardPage() {
               )}
             </DashboardSection>
 
+            {/* Arriba de las listas: con una semana cargada, la lista de turnos
+                empujaba la actividad fuera de la pantalla. */}
+            <ActivitySection />
+
             <div className="grid items-start gap-8 2xl:grid-cols-2">
               {estaSemana.length > 0 && (
                 <DashboardSection
@@ -130,7 +137,7 @@ export function ProfessionalDashboardPage() {
                   }
                 >
                   <ul className="divide-y divide-line-soft overflow-hidden rounded-[14px] border border-line bg-white">
-                    {estaSemana.map((turno) => {
+                    {estaSemana.slice(0, PROXIMOS_VISIBLES).map((turno) => {
                       const paciente = counterpartOf(turno, user?.id ?? null);
                       return (
                         <li key={turno.id}>
@@ -158,6 +165,17 @@ export function ProfessionalDashboardPage() {
                       );
                     })}
                   </ul>
+                  {estaSemana.length > PROXIMOS_VISIBLES && (
+                    <p className="text-sm text-muted">
+                      Y {estaSemana.length - PROXIMOS_VISIBLES} más esta semana.{' '}
+                      <Link
+                        to="/mis-turnos"
+                        className="font-semibold text-brand-hover hover:underline"
+                      >
+                        Ver todos
+                      </Link>
+                    </p>
+                  )}
                 </DashboardSection>
               )}
 
@@ -199,8 +217,6 @@ export function ProfessionalDashboardPage() {
                 </DashboardSection>
               )}
             </div>
-
-            <ActivitySection />
           </div>
 
           <aside className="grid gap-8 lg:sticky lg:top-24">
