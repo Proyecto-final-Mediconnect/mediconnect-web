@@ -9,6 +9,7 @@ import { SideDrawer } from '../../../shared/ui/SideDrawer';
 import { readEntryFields } from '../lib/clinicalEntry';
 import {
   agruparPorMes,
+  ordenarRecientesPrimero,
   diaLocal,
   FILTROS_VACIOS,
   nombreDe,
@@ -33,8 +34,9 @@ import { RecordFilters } from './RecordFilters';
  * el paciente la suya y el profesional con turno la de su paciente, incluidas
  * las entradas firmadas por otros profesionales.
  *
- * El orden es del más reciente al más viejo, al revés de como viene del backend:
- * la cadena se construye hacia adelante, pero quien abre una HC busca lo último.
+ * El orden es del más reciente al más viejo, por la fecha de cada registro (la misma
+ * con la que se agrupa por mes): la cadena se construye hacia adelante, pero quien abre
+ * una HC busca lo último.
  */
 
 type ClinicalRecordProps = {
@@ -262,13 +264,13 @@ export function ClinicalRecord({
                 </div>
               ) : imprimiendo ? (
                 <div className="grid gap-4">
-                  {[...visibles].reverse().map((entry) => (
+                  {ordenarRecientesPrimero(visibles).map((entry) => (
                     <div key={entry.id}>{detalle(entry, 'card')}</div>
                   ))}
                 </div>
               ) : (
                 <div className="grid gap-7">
-                  {agruparPorMes([...visibles].reverse()).map(({ mes, entradas }) => (
+                  {agruparPorMes(ordenarRecientesPrimero(visibles)).map(({ mes, entradas }) => (
                     <section key={mes} aria-labelledby={`mes-${mes}`} className="grid gap-3">
                       <h3
                         id={`mes-${mes}`}

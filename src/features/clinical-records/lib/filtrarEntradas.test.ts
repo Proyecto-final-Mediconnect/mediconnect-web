@@ -5,6 +5,8 @@ import {
   idsEnCorreccion,
   nombreDe,
   opcionesDe,
+  agruparPorMes,
+  ordenarRecientesPrimero,
   type FiltrosHC,
 } from './filtrarEntradas';
 import type { ClinicalEntry } from '../types/clinicalRecord';
@@ -46,18 +48,18 @@ describe('filtrarEntradas', () => {
       entrada(),
       entrada({ id: 'e2', professional: { firstName: 'Martín', lastName: 'Olivares' } }),
     ];
-    expect(filtrarEntradas(todas, con({ profesional: 'Martín Olivares' })).map((e) => e.id)).toEqual(
-      ['e2'],
-    );
+    expect(
+      filtrarEntradas(todas, con({ profesional: 'Martín Olivares' })).map((e) => e.id),
+    ).toEqual(['e2']);
   });
 
   describe('rango de fechas', () => {
     it('incluye los extremos', () => {
       const todas = [entrada({ createdAt: '2026-08-20T13:00:00.000Z' })];
 
-      expect(filtrarEntradas(todas, con({ desde: '2026-08-20', hasta: '2026-08-20' }))).toHaveLength(
-        1,
-      );
+      expect(
+        filtrarEntradas(todas, con({ desde: '2026-08-20', hasta: '2026-08-20' })),
+      ).toHaveLength(1);
     });
 
     it('deja afuera lo anterior y lo posterior', () => {
@@ -160,5 +162,42 @@ describe('busqueda', () => {
     ];
     expect(filtrarEntradas(todas, con({ busqueda: 'rios ana' })).map((e) => e.id)).toEqual(['e1']);
     expect(filtrarEntradas(todas, con({ busqueda: 'no-existe' }))).toHaveLength(0);
+  });
+});
+
+describe('orden y agrupación por mes', () => {
+  // Cadena: #1 de noviembre, #2 de octubre (cargado después, con fecha anterior) y
+  // #3 una corrección de noviembre. Invertir la cadena daba nov, oct, nov.
+  const cadena = [
+    entrada({ id: 'a', sequenceNumber: 1, createdAt: '2026-11-05T15:00:00.000Z' }),
+    entrada({ id: 'b', sequenceNumber: 2, createdAt: '2026-10-20T15:00:00.000Z' }),
+    entrada({
+      id: 'c',
+      sequenceNumber: 3,
+      correctsEntryId: 'a',
+      createdAt: '2026-11-12T15:00:00.000Z',
+    }),
+  ];
+
+  it('ordena por fecha, del más reciente al más viejo, sin mutar la entrada', () => {
+    const ids = ordenarRecientesPrimero(cadena).map((e) => e.id);
+
+    expect(ids).toEqual(['c', 'a', 'b']);
+    expect(cadena.map((e) => e.id)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('con la misma fecha desempata por posición en la cadena', () => {
+    const iguales = [
+      entrada({ id: 'x', sequenceNumber: 1 }),
+      entrada({ id: 'y', sequenceNumber: 2 }),
+    ];
+
+    expect(ordenarRecientesPrimero(iguales).map((e) => e.id)).toEqual(['y', 'x']);
+  });
+
+  it('agrupa cada mes una sola vez', () => {
+    const meses = agruparPorMes(ordenarRecientesPrimero(cadena)).map((g) => g.mes);
+
+    expect(meses).toEqual(['2026-11', '2026-10']);
   });
 });
