@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
+import { Logo } from '../../../shared/ui/Logo';
 import { LegalAcceptanceGate } from '../../legal/components/LegalAcceptanceGate';
 import { useSession } from '../hooks/useSession';
 import { dashboardPathFor, type UserRole } from '../types/session';
@@ -16,21 +17,37 @@ type RequireAuthProps = {
   skipLegal?: boolean;
 };
 
+/** Tras este tiempo se avisa que el servidor está arrancando (Render en frío tarda hasta ~60 s). */
+const AVISO_SERVIDOR_MS = 8000;
+
+/** Pantalla de carga de la sesión: logo sobre el fondo de la app, no un texto suelto. */
+function SessionLoading() {
+  const [lento, setLento] = useState(false);
+
+  useEffect(() => {
+    const id = setTimeout(() => setLento(true), AVISO_SERVIDOR_MS);
+    return () => clearTimeout(id);
+  }, []);
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex min-h-svh flex-col items-center justify-center gap-4 bg-surface px-4 text-center"
+    >
+      <Logo variant="lockup" className="h-12 animate-pulse" alt="MediConnect" />
+      <p className="text-sm text-muted">
+        {lento ? 'Despertando el servidor… puede tardar un minuto.' : 'Cargando…'}
+      </p>
+    </div>
+  );
+}
+
 export function RequireAuth({ children, allow, skipLegal = false }: RequireAuthProps) {
   const { user, isLoading } = useSession();
   const location = useLocation();
 
-  if (isLoading) {
-    return (
-      <div
-        role="status"
-        aria-live="polite"
-        className="flex min-h-svh items-center justify-center text-muted"
-      >
-        Cargando…
-      </div>
-    );
-  }
+  if (isLoading) return <SessionLoading />;
 
   if (!user) {
     // Guardamos a dónde quería ir para volver ahí después de loguearse.
