@@ -285,9 +285,13 @@ describe('PatientClinicalRecordPage', () => {
       await userEvent.click(screen.getByRole('button', { name: /guardar la corrección/i }));
 
       expect(await screen.findByText('Dolor cervical')).toBeInTheDocument();
-      // La original sigue ahí, con su texto intacto y la etiqueta.
-      expect(screen.getAllByText('Dolor lumbar de 3 días').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Corregida').length).toBeGreaterThan(0);
+      // La línea de tiempo muestra la vigente; la original sigue accesible, con su
+      // texto intacto, plegada dentro de la corrección.
+      await desplegarRegistros();
+      await userEvent.click(await screen.findByText('Ver versión original'));
+      expect(screen.getByRole('region', { name: 'Versión original' })).toHaveTextContent(
+        'Dolor lumbar de 3 días',
+      );
     });
 
     it('la entrada ya corregida deja de ofrecer el botón', async () => {
@@ -296,9 +300,12 @@ describe('PatientClinicalRecordPage', () => {
       await userEvent.click(botonCorregir());
       await userEvent.type(screen.getByLabelText(/qué estás corrigiendo/i), 'Error de tipeo');
       await userEvent.click(screen.getByRole('button', { name: /guardar la corrección/i }));
-      await screen.findAllByText('Corregida');
+      await waitFor(() =>
+        expect(screen.queryByLabelText(/qué estás corrigiendo/i)).not.toBeInTheDocument(),
+      );
       // La corrección entra como una fila nueva, cerrada.
       await desplegarRegistros();
+      await screen.findByText('Ver versión original');
 
       // Queda uno solo: el de la corrección, que todavía nadie corrigió.
       expect(screen.getAllByRole('button', { name: /corregir esta entrada/i })).toHaveLength(1);
