@@ -12,7 +12,7 @@ const RESUMEN = {
   to: '2026-11-20',
   currency: 'ARS',
   consultas: { realizadas: 3, profesionales: 2 },
-  pagos: { pagado: 54000, reembolsado: 9000, neto: 45000 },
+  pagos: { pagado: 54000, reembolsado: 9000, neto: 45000, turnos: 3, porVenir: 2 },
   accesos: { medipass: 1, historiaClinica: 4, total: 5 },
 };
 
@@ -54,6 +54,9 @@ describe('PatientSummaryTiles (ENG-198)', () => {
     expect(consultas).toHaveTextContent('3');
     expect(consultas).toHaveAttribute('href', '/mis-turnos');
     expect(screen.getByRole('link', { name: /pagaste/i })).toHaveTextContent(/54\.000/);
+    expect(screen.getByRole('link', { name: /pagaste/i })).toHaveTextContent(
+      'Por 3 turnos · 2 todavía por venir',
+    );
     expect(screen.getByRole('link', { name: /te reembolsaron/i })).toHaveTextContent(/9\.000/);
     const accesos = screen.getByRole('link', { name: /accesos a tu información/i });
     expect(accesos).toHaveTextContent('1 al MediPass · 4 a tu historia');
@@ -76,7 +79,7 @@ describe('PatientSummaryTiles (ENG-198)', () => {
       json({
         ...RESUMEN,
         consultas: { realizadas: 0, profesionales: 0 },
-        pagos: { pagado: 0, reembolsado: 0, neto: 0 },
+        pagos: { pagado: 0, reembolsado: 0, neto: 0, turnos: 0, porVenir: 0 },
         accesos: { medipass: 0, historiaClinica: 0, total: 0 },
       }),
     );

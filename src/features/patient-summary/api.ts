@@ -7,7 +7,8 @@ export interface PatientSummary {
   to: string;
   currency: string;
   consultas: { realizadas: number; profesionales: number };
-  pagos: { pagado: number; reembolsado: number; neto: number };
+  /** `porVenir`: turnos pagados que todavía no pasaron (se paga al reservar). */
+  pagos: { pagado: number; reembolsado: number; neto: number; turnos: number; porVenir: number };
   accesos: { medipass: number; historiaClinica: number; total: number };
 }
 

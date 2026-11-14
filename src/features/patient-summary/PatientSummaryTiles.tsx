@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatPrice } from '../appointments/lib/weeks';
-import { getMySummary } from './api';
+import { getMySummary, type PatientSummary } from './api';
 import { PERIOD_LABELS, periodRange, type SummaryPeriod } from './period';
 
 /**
@@ -98,7 +98,7 @@ export function PatientSummaryTiles() {
             to="/mis-turnos"
             valor={formatPrice(datos.pagos.pagado, datos.currency)}
             etiqueta="Pagaste"
-            detalle={`Neto ${formatPrice(datos.pagos.neto, datos.currency)}`}
+            detalle={detallePagos(datos.pagos)}
           />
           <Tile
             to="/mis-turnos"
@@ -142,4 +142,14 @@ function Tile({
       <span className="mt-0.5 block text-xs text-muted">{detalle}</span>
     </Link>
   );
+}
+
+/**
+ * Se paga al reservar: lo pagado incluye turnos que todavía no pasaron, así que
+ * se aclara cuántos son para que cierre con "consultas realizadas".
+ */
+function detallePagos({ turnos, porVenir }: PatientSummary['pagos']): string {
+  const base = turnos === 1 ? 'Por 1 turno' : `Por ${turnos} turnos`;
+  if (porVenir === 0) return base;
+  return `${base} · ${porVenir === 1 ? '1 todavía por venir' : `${porVenir} todavía por venir`}`;
 }
