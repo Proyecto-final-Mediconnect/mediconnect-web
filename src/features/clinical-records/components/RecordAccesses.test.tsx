@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { MemoryRouter } from 'react-router-dom';
 import { RecordAccesses } from './RecordAccesses';
 import type { ClinicalRecordAccessPage } from '../types/clinicalRecord';
 
@@ -22,7 +23,7 @@ function json(body: unknown): Response {
   });
 }
 
-function renderAccesses(paginas: Record<number, ClinicalRecordAccessPage>) {
+function renderAccesses(paginas: Record<number, ClinicalRecordAccessPage>, ruta = '/') {
   const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
     const pagina = Number(new URL(String(input)).searchParams.get('pagina') ?? '1');
     return Promise.resolve(json(paginas[pagina]));
@@ -30,7 +31,9 @@ function renderAccesses(paginas: Record<number, ClinicalRecordAccessPage>) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   render(
     <QueryClientProvider client={client}>
-      <RecordAccesses />
+      <MemoryRouter initialEntries={[ruta]}>
+        <RecordAccesses />
+      </MemoryRouter>
     </QueryClientProvider>,
   );
   return fetchMock;
@@ -88,5 +91,24 @@ describe('RecordAccesses (ENG-165)', () => {
 
     expect(await screen.findByText('Martín Olivares')).toBeInTheDocument();
     expect(screen.getByText('Página 2')).toBeInTheDocument();
+  });
+
+  it('con #accesos en la URL se abre sola y scrollea hasta la sección', async () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    renderAccesses(
+      { 1: { accesos: [ANA], pagina: 1, hayMas: false } },
+      '/mi-historia-clinica#accesos',
+    );
+
+    expect(await screen.findByText('Ana García')).toBeVisible();
+    expect(scroll).toHaveBeenCalled();
+    delete (Element.prototype as Partial<Element>).scrollIntoView;
+  });
+
+  it('sin el hash sigue cerrada', () => {
+    const fetchMock = renderAccesses({ 1: { accesos: [ANA], pagina: 1, hayMas: false } });
+
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
