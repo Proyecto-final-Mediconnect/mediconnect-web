@@ -218,8 +218,8 @@ describe('EmergencyViewPage con datos incompletos', () => {
     completar('Dra. Laura Pérez');
 
     expect(await screen.findByText('Paciente Nuevo')).toBeVisible();
-    expect(screen.getByText('No known allergies')).toBeVisible();
-    expect(screen.getByText('Not recorded')).toBeVisible();
+    expect(screen.getByText('Sin alergias conocidas')).toBeVisible();
+    expect(screen.getByText('Sin registrar')).toBeVisible();
     expect(screen.queryByText(/undefined/)).not.toBeInTheDocument();
   });
 });

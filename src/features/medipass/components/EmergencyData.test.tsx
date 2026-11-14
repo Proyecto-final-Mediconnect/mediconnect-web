@@ -158,13 +158,13 @@ describe('EmergencyData', () => {
     ]);
   });
 
-  it('la vista previa muestra la ficha en inglés que lee el médico', async () => {
+  it('la vista previa muestra la ficha en español que lee el médico', async () => {
     renderData();
 
     await userEvent.click(await screen.findByRole('button', { name: /ver como lo ve un médico/i }));
 
     const panel = await screen.findByRole('dialog', { name: 'Lo que ve un médico' });
-    expect(await within(panel).findByText('Allergies')).toBeVisible();
+    expect(await within(panel).findByText('Alergias')).toBeVisible();
   });
 
   it('sin saber qué se muestra, la vista previa no inventa la ficha completa', async () => {
@@ -176,7 +176,7 @@ describe('EmergencyData', () => {
     expect(await within(panel).findByRole('alert')).toHaveTextContent(
       /no pudimos cargar qué se muestra/i,
     );
-    expect(within(panel).queryByText('Allergies')).not.toBeInTheDocument();
+    expect(within(panel).queryByText('Alergias')).not.toBeInTheDocument();
   });
 
   it('el panel arranca del perfil recién pedido, no del que quedó en caché', async () => {
@@ -197,11 +197,11 @@ describe('EmergencyData', () => {
 });
 
 describe('ficha recortada (ENG-149)', () => {
-  it('un bloque oculto dice "not shared", nunca "no known allergies"', () => {
+  it('un bloque oculto dice "no compartido", nunca "sin alergias conocidas"', () => {
     render(<VitalBlockCard vital={recortarPorScope(VITAL, { ...TODO, alergias: false })} />);
 
-    expect(screen.getByText('Not shared by the patient')).toBeInTheDocument();
-    expect(screen.queryByText('No known allergies')).not.toBeInTheDocument();
+    expect(screen.getByText('No compartido por el paciente')).toBeInTheDocument();
+    expect(screen.queryByText('Sin alergias conocidas')).not.toBeInTheDocument();
     expect(screen.queryByText(/Penicilina/)).not.toBeInTheDocument();
   });
 });

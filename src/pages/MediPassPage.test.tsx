@@ -99,7 +99,7 @@ describe('MediPassPage (ENG-135)', () => {
     expect(await screen.findByRole('heading', { name: 'Tus datos de emergencia' })).toBeVisible();
     await userEvent.click(screen.getByRole('button', { name: /ver como lo ve un médico/i }));
     expect(await screen.findByText(MOCK_VITAL_BLOCK.nombre)).toBeVisible();
-    expect(screen.getByText('Allergies')).toBeVisible();
+    expect(screen.getByText('Penicilina — anafilaxia')).toBeVisible();
   });
 
   it('muestra quién está accediendo ahora (ENG-74)', async () => {

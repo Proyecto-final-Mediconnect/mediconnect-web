@@ -326,7 +326,7 @@ function AccesoAbierto({
         footer={
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-white/10 px-6 py-4 sm:px-7">
             <p role="timer" className="text-[12px] text-on-night-soft">
-              Access expires in{' '}
+              El acceso vence en{' '}
               <span className="font-bold tabular-nums text-brand-bright">
                 {cuentaRegresiva(restante)}
               </span>
@@ -342,8 +342,8 @@ function AccesoAbierto({
         }
       />
       <p className="text-center text-[12px] leading-[1.6] text-on-night-soft">
-        This access is logged and limited to the vital block. Full clinical notes require the
-        patient&rsquo;s explicit authorization.
+        Este acceso queda registrado y se limita al bloque vital. Las notas clínicas completas
+        requieren la autorización explícita del paciente.
       </p>
     </div>
   );
