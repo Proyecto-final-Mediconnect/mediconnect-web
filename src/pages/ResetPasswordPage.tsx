@@ -47,7 +47,8 @@ export function ResetPasswordPage() {
             Este enlace no sirve
           </h2>
           <p className="mt-2.5 text-sm leading-[1.7] text-ink">
-            Le falta información. Abrí de nuevo el enlace tal cual llegó al mail, o pedí uno nuevo.
+            Le falta información. Abrí de nuevo el enlace tal cual llegó por email, o pedí uno
+            nuevo.
           </p>
           <Link
             to="/recuperar-contrasena"

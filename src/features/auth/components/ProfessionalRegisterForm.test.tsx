@@ -75,6 +75,6 @@ describe('ProfessionalRegisterForm', () => {
     await fillValidForm(user);
     await user.click(screen.getByRole('button', { name: /crear cuenta profesional/i }));
 
-    expect(await screen.findByText('Revisá tu correo')).toBeInTheDocument();
+    expect(await screen.findByText('Revisá tu email')).toBeInTheDocument();
   });
 });
