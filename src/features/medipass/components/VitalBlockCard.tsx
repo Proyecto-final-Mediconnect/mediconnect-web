@@ -67,7 +67,7 @@ export function VitalBlockCard({
           ) : (
             alergias.map((a) => (
               <p key={a.que} className="text-[15px] font-bold text-danger">
-                {a.que} — {a.gravedad}
+                {a.gravedad ? `${a.que} — ${a.gravedad}` : a.que}
               </p>
             ))
           )}
