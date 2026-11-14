@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { usePageTitle } from '../shared/hooks/usePageTitle';
 import { AppShell } from '../shared/ui/AppShell';
 
 type DashboardLayoutProps = {
@@ -35,6 +36,8 @@ export function DashboardLayout({
   action,
   children,
 }: DashboardLayoutProps) {
+  usePageTitle(barTitle);
+
   return (
     <AppShell title={barTitle} displayTitle={!greeting}>
       {(greeting || subtitle || action) && (
