@@ -365,6 +365,9 @@ function PanelRevision({
   // vigente del profesional: no se vuelve a cobrar.
   const total = rescheduling ? rescheduling.price : price;
   const pagado = rescheduling?.status === 'CONFIRMADO';
+  // Recién reservado ya no hay horario elegido, pero el resumen sigue mostrando
+  // el turno que quedó (ENG-199: antes volvía a "—").
+  const turno = selected ?? booked;
 
   return (
     <aside className="overflow-hidden rounded-[14px] border border-line bg-white lg:sticky lg:top-24">
@@ -381,12 +384,10 @@ function PanelRevision({
             {formatDate(rescheduling.date)} · {rescheduling.startTime}
           </Fila>
         )}
-        <Fila titulo="Duración">
-          {selected ? `${selected.durationMinutes} min` : 'Elegí un horario'}
-        </Fila>
-        <Fila titulo="Fecha">{selected ? formatDate(selected.date) : '—'}</Fila>
+        <Fila titulo="Duración">{turno ? `${turno.durationMinutes} min` : 'Elegí un horario'}</Fila>
+        <Fila titulo="Fecha">{turno ? formatDate(turno.date) : '—'}</Fila>
         <Fila titulo="Hora">
-          {selected ? <span className="font-bold text-brand-deep">{selected.startTime}</span> : '—'}
+          {turno ? <span className="font-bold text-brand-deep">{turno.startTime}</span> : '—'}
         </Fila>
       </dl>
 

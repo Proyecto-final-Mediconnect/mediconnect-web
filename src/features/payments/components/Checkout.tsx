@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { counterpartOf, formatLongDate } from '../../appointments/lib/myAppointments';
 import { formatPrice } from '../../appointments/lib/weeks';
@@ -6,12 +6,16 @@ import type { Appointment } from '../../appointments/types/appointment';
 import { useSession } from '../../auth/hooks/useSession';
 import { useStartCheckout } from '../hooks/usePayment';
 import { amountLinesFor, PAYMENT_METHODS, payabilityOf } from '../lib/checkout';
+import { abrirPestanaDePago, marcarPagoEnPestana } from '../lib/checkoutTab';
+import { PaymentWaiting } from './PaymentWaiting';
 
 /**
  * Checkout de un turno (ENG-63).
  *
  * "Pagar" pide al backend el link de Checkout Pro (`POST
- * /appointments/:id/payment`) y manda al paciente a MercadoPago. **MediConnect no
+ * /appointments/:id/payment`) y abre MercadoPago **en otra pestaña** (ENG-199):
+ * esta se queda esperando la confirmación (`PaymentWaiting`). Si el navegador
+ * bloquea la pestaña nueva, se paga en esta, como antes. **MediConnect no
  * pide datos de tarjeta** (ADR-013): se cargan del lado de MercadoPago, que es lo
  * que deja a MediConnect fuera del alcance de PCI. Por eso acá no hay ni va a
  * haber campos de tarjeta, solo el resumen y el botón que lleva afuera.
@@ -35,21 +39,40 @@ function irA(url: string) {
   window.location.assign(url);
 }
 
+function reabrir(url: string) {
+  window.open(url, '_blank');
+}
+
 export function Checkout({
   appointment,
-  aviso,
+  aviso: avisoInicial,
   redirigir = irA,
+  abrirPestana = abrirPestanaDePago,
 }: {
   appointment: Appointment;
   aviso?: CheckoutNotice;
   /** Inyectable para los tests, que no pueden navegar fuera de jsdom. */
   redirigir?: (url: string) => void;
+  /** Inyectable para los tests: abre la pestaña de MercadoPago. */
+  abrirPestana?: () => Window | null;
 }) {
   const { user } = useSession();
   const checkout = useStartCheckout();
+  // El link de la pestaña de MercadoPago abierta: con él, se espera el pago.
+  const [esperando, setEsperando] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<CheckoutNotice | undefined>(avisoInicial);
   // Con el link en mano el navegador ya se está yendo: el botón no vuelve a
   // habilitarse, para que no se pida otro checkout en el medio.
-  const yendo = checkout.isPending || checkout.isSuccess;
+  const yendo = checkout.isPending || (checkout.isSuccess && esperando === null);
+
+  const noSalio = useCallback(
+    (motivo: CheckoutNotice) => {
+      setEsperando(null);
+      setAviso(motivo);
+      checkout.reset();
+    },
+    [checkout],
+  );
 
   // Salvo que el paciente vuelva con "atrás". Chrome y Safari restauran la
   // página del bfcache con el estado de React tal cual, así que el botón se
@@ -65,7 +88,21 @@ export function Checkout({
   }, [checkout]);
 
   function pagar() {
-    checkout.mutate(appointment.id, { onSuccess: (link) => redirigir(link.checkoutUrl) });
+    // En el mismo click, o el navegador la bloquea como popup.
+    const pestana = abrirPestana();
+    setAviso(undefined);
+    checkout.mutate(appointment.id, {
+      onSuccess: (link) => {
+        if (pestana && !pestana.closed) {
+          marcarPagoEnPestana(appointment.id);
+          pestana.location.href = link.checkoutUrl;
+          setEsperando(link.checkoutUrl);
+        } else {
+          redirigir(link.checkoutUrl);
+        }
+      },
+      onError: () => pestana?.close(),
+    });
   }
 
   const profesional = counterpartOf(appointment, user?.id ?? null);
@@ -95,6 +132,21 @@ export function Checkout({
     );
   }
 
+  if (esperando) {
+    return (
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_330px]">
+        <PaymentWaiting
+          appointment={appointment}
+          checkoutUrl={esperando}
+          onReabrir={reabrir}
+          onPagarAca={redirigir}
+          onNoSalio={noSalio}
+        />
+        <ResumenDelTurno appointment={appointment} profesional={profesional} />
+      </div>
+    );
+  }
+
   return (
     <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_330px]">
       <div className="grid gap-5">
@@ -116,8 +168,8 @@ export function Checkout({
               Con MercadoPago
             </p>
             <p className="mt-2.5 max-w-[520px] text-sm leading-[1.7] text-muted">
-              Te llevamos al checkout de MercadoPago para completar el pago y volvés acá con el
-              turno confirmado.{' '}
+              Abrimos MercadoPago en otra pestaña para que completes el pago; esta se queda
+              esperando y te muestra la confirmación apenas se acredita.{' '}
               <strong className="font-bold text-brand-deep">
                 Los datos de tu tarjeta no pasan por MediConnect
               </strong>
@@ -223,7 +275,7 @@ export function Checkout({
             className="w-full rounded-[10px] bg-brand py-[15px] text-[15px] font-bold text-ink-deep transition-colors hover:bg-brand-hover hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {yendo
-              ? 'Te llevamos a MercadoPago…'
+              ? 'Abriendo MercadoPago…'
               : aviso || checkout.isError
                 ? 'Reintentar el pago'
                 : `Pagar ${formatPrice(appointment.price, appointment.currency)}`}
@@ -245,6 +297,39 @@ export function Checkout({
         </div>
       </aside>
     </div>
+  );
+}
+
+/** El turno que se está pagando, al costado de la espera. */
+function ResumenDelTurno({
+  appointment,
+  profesional,
+}: {
+  appointment: Appointment;
+  profesional: ReturnType<typeof counterpartOf>;
+}) {
+  return (
+    <aside className="overflow-hidden rounded-[14px] border border-line bg-white lg:sticky lg:top-24">
+      <header className="border-b border-line-soft px-[22px] py-[18px]">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+          Qué estás pagando
+        </h2>
+      </header>
+      <dl className="grid gap-[11px] px-[22px] py-[18px] text-sm font-medium text-ink">
+        <Fila titulo="Profesional">
+          {profesional ? `${profesional.firstName} ${profesional.lastName}` : 'No disponible'}
+        </Fila>
+        <Fila titulo="Fecha">{formatLongDate(appointment.date)}</Fila>
+        <Fila titulo="Hora">
+          <span className="font-bold text-brand-deep">{appointment.startTime}</span>
+        </Fila>
+        <Fila titulo="Total">
+          <span className="font-bold text-brand-deep">
+            {formatPrice(appointment.price, appointment.currency)}
+          </span>
+        </Fila>
+      </dl>
+    </aside>
   );
 }
 
