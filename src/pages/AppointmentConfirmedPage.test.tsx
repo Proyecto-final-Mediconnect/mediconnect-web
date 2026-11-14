@@ -81,7 +81,7 @@ describe('AppointmentConfirmedPage (ENG-199)', () => {
     expect(screen.getByRole('heading', { name: /tu turno está confirmado/i })).toBeVisible();
     const comprobante = await screen.findByRole('region', { name: /comprobante/i });
     expect(comprobante).toHaveTextContent('Dinero en cuenta de MercadoPago');
-    expect(comprobante).toHaveTextContent('N.º 189539998660');
+    expect(comprobante).toHaveTextContent('N.º de operación de MercadoPago: 189539998660');
     expect(screen.getByRole('link', { name: 'Ver mi turno' })).toHaveAttribute(
       'href',
       '/turnos/a1',

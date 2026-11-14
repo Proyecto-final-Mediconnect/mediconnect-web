@@ -46,12 +46,10 @@ export function PaymentReceipt({
         </Fila>
         <Fila titulo="Medio">{paymentMethodLabel(receipt.method)}</Fila>
         {fecha && <Fila titulo="Fecha">{fecha}</Fila>}
-        {receipt.operationId && (
-          <Fila titulo="Operación">
-            <NumeroDeOperacion numero={receipt.operationId} />
-          </Fila>
-        )}
       </dl>
+      {/* Al pie y en gris: no compite con el importe, pero está para un reclamo y
+          coincide con el "Operación #…" del comprobante de MercadoPago. */}
+      {receipt.operationId && <NumeroDeOperacion numero={receipt.operationId} />}
     </section>
   );
 }
@@ -70,8 +68,10 @@ function NumeroDeOperacion({ numero }: { numero: string }) {
   }
 
   return (
-    <span className="inline-flex items-center gap-2">
-      <span className="tabular-nums">N.º {numero}</span>
+    <p className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line-soft px-[22px] py-3 text-xs text-muted-soft">
+      <span>
+        N.º de operación de MercadoPago: <span className="tabular-nums">{numero}</span>
+      </span>
       <button
         type="button"
         onClick={() => void copiar()}
@@ -80,7 +80,7 @@ function NumeroDeOperacion({ numero }: { numero: string }) {
       >
         {copiado ? 'Copiado' : 'Copiar'}
       </button>
-    </span>
+    </p>
   );
 }
 

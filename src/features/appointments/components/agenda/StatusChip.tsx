@@ -34,21 +34,3 @@ export function StatusChip({ status, onDark = false }: { status: string; onDark?
     </span>
   );
 }
-
-/**
- * "Pagado" al lado de "Confirmado" en los turnos del paciente (ENG-199). Un turno
- * confirmado siempre se pagó —es lo que lo confirma (ENG-64)—, pero decirlo
- * explícito le saca la duda a quien acaba de pagar.
- */
-export function PaidChip({ onDark = false }: { onDark?: boolean }) {
-  return (
-    <span
-      className={`inline-flex flex-none items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-        onDark ? 'bg-brand/20 text-brand-bright' : 'bg-brand/10 text-brand-hover'
-      }`}
-    >
-      <span aria-hidden="true">✓</span>
-      Pagado
-    </span>
-  );
-}
