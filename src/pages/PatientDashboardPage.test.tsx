@@ -39,7 +39,7 @@ describe('Panel del paciente', () => {
   it('al paciente, el turno sin pagar le ofrece pagarlo', async () => {
     renderWithRouter(<PatientDashboardPage />);
 
-    expect(await screen.findByRole('link', { name: 'Pagar la consulta' })).toHaveAttribute(
+    expect(await screen.findByRole('link', { name: 'Pagar el turno' })).toHaveAttribute(
       'href',
       `/turnos/${UPCOMING.id}/pago`,
     );

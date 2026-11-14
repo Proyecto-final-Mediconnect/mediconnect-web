@@ -140,7 +140,7 @@ describe('ProfessionalPublicProfilePage', () => {
     renderPage();
 
     expect(
-      await screen.findByText(/El plazo y el reembolso los define cada profesional/),
+      await screen.findByText(/El plazo y la devolución los define cada profesional/),
     ).toBeInTheDocument();
   });
 

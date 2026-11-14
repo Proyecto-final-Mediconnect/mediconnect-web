@@ -2,6 +2,8 @@ import { useState, type FormEvent } from 'react';
 import { useCreateBlock, useDeleteBlock } from '../hooks/useSchedule';
 import { todayLocal } from '../lib/generateSlots';
 import { createBlockSchema, type ScheduleBlock } from '../types/schedule';
+import { TimeSelect } from '../../../shared/ui/TimeSelect';
+import { formatDate } from '../../appointments/lib/weeks';
 
 interface ScheduleBlocksProps {
   blocks: ScheduleBlock[];
@@ -88,8 +90,8 @@ export function ScheduleBlocks({ blocks }: ScheduleBlocksProps) {
         <div className="grid grid-cols-2 gap-3">
           <label className="text-[13px]">
             <span className="mb-1 block font-semibold text-muted">Desde</span>
-            <input
-              type="time"
+            <TimeSelect
+              emptyLabel="—"
               value={form.startTime}
               onChange={(e) => setForm({ ...form, startTime: e.target.value })}
               className={CAMPO}
@@ -98,8 +100,8 @@ export function ScheduleBlocks({ blocks }: ScheduleBlocksProps) {
 
           <label className="text-[13px]">
             <span className="mb-1 block font-semibold text-muted">Hasta</span>
-            <input
-              type="time"
+            <TimeSelect
+              emptyLabel="—"
               value={form.endTime}
               onChange={(e) => setForm({ ...form, endTime: e.target.value })}
               className={CAMPO}
@@ -149,7 +151,9 @@ export function ScheduleBlocks({ blocks }: ScheduleBlocksProps) {
               className="flex items-center justify-between gap-3 px-5 py-3 text-[13px]"
             >
               <span className="min-w-0 text-ink">
-                <strong className="font-bold text-brand-deep">{block.blockDate}</strong>{' '}
+                <strong className="font-bold text-brand-deep">
+                  {formatDate(block.blockDate)}
+                </strong>{' '}
                 {block.startTime && block.endTime
                   ? `de ${block.startTime} a ${block.endTime}`
                   : 'día completo'}
@@ -171,7 +175,7 @@ export function ScheduleBlocks({ blocks }: ScheduleBlocksProps) {
                 disabled={
                   deleteBlock.isPending && deleteBlock.variables === block.id
                 }
-                aria-label={`Quitar el bloqueo del ${block.blockDate}`}
+                aria-label={`Quitar el bloqueo del ${formatDate(block.blockDate)}`}
               >
                 Quitar
               </button>

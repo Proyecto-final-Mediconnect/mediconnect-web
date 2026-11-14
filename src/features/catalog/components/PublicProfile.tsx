@@ -127,9 +127,9 @@ function ProfileBody({
     <div>
       <Link
         to={basePath}
-        className="text-xs font-semibold tracking-[0.08em] text-muted transition-colors hover:text-brand-deep"
+        className="text-xs font-semibold uppercase tracking-[0.08em] text-muted transition-colors hover:text-brand-deep"
       >
-        ← BUSCAR PROFESIONALES
+        ← Buscar profesionales
       </Link>
 
       <h1 className="font-display mt-3.5 text-[32px] leading-[1.1] text-brand-deep lg:text-[40px]">
@@ -187,8 +187,8 @@ function Cabecera({
               texto le hacen recorrer lo mismo dos veces a un lector de pantalla,
               y no aportan un nivel de estructura nuevo. */}
           <p className="text-[22px] font-bold text-brand-deep">{fullName}</p>
-          <span className="rounded-[5px] bg-surface-teal px-2.5 py-[5px] text-[10px] font-bold tracking-[0.08em] text-brand-hover">
-            MATRÍCULA VERIFICADA
+          <span className="rounded-[5px] bg-surface-teal px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.08em] text-brand-hover">
+            Matrícula verificada
           </span>
         </div>
 
@@ -307,7 +307,7 @@ function PanelReserva({
   return (
     <aside className="overflow-hidden rounded-[14px] border border-brand/40 bg-white lg:sticky lg:top-24">
       <div className="border-b border-line-soft px-[22px] py-5">
-        <h2 className="text-[17px] font-bold text-brand-deep">Reservar consulta</h2>
+        <h2 className="text-[17px] font-bold text-brand-deep">Sacar un turno</h2>
 
         <ol className="mt-[18px] flex justify-between">
           {PASOS.map((paso, i) => {
