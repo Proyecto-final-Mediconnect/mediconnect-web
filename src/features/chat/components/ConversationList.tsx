@@ -118,7 +118,7 @@ export function ConversationList({ inbox, selectedId, myId, onNewChat }: Props) 
                     </span>
                     <span className="flex items-center justify-between gap-2">
                       <span
-                        className={`min-w-0 truncate text-[13px] ${unread ? 'font-semibold text-ink' : 'text-[#475569]'}`}
+                        className={`min-w-0 truncate text-[13px] ${unread ? 'font-semibold text-ink' : 'text-muted'}`}
                       >
                         {last
                           ? `${last.autorId === myId ? 'Vos: ' : ''}${messagePreview(last)}`

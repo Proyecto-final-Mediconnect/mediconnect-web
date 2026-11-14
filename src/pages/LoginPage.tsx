@@ -10,7 +10,7 @@ export function LoginPage() {
   return (
     <AuthLayout
       eyebrow="Ingresar"
-      title="Entrá a tu cuenta"
+      title="Ingresar"
       subtitle="La misma cuenta sirve para pacientes y profesionales."
       footer={
         <p>

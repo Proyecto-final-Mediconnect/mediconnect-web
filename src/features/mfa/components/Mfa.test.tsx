@@ -66,7 +66,7 @@ describe('Ingreso con verificación en dos pasos', () => {
     const user = userEvent.setup();
     await user.type(screen.getByLabelText('Email'), 'ana@test.com');
     await user.type(screen.getByLabelText('Contraseña'), 'Password1');
-    await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+    await user.click(screen.getByRole('button', { name: 'Ingresar' }));
     return user;
   }
 
@@ -198,7 +198,7 @@ describe('Errores de las rutas de código (ENG-88)', () => {
     const user = userEvent.setup();
     await user.type(screen.getByLabelText('Email'), 'ana@test.com');
     await user.type(screen.getByLabelText('Contraseña'), 'Password1');
-    await user.click(screen.getByRole('button', { name: 'Iniciar sesión' }));
+    await user.click(screen.getByRole('button', { name: 'Ingresar' }));
     await user.type(await screen.findByLabelText('Código'), '000000');
     await user.click(screen.getByRole('button', { name: 'Verificar e ingresar' }));
 
