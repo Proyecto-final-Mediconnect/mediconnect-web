@@ -22,6 +22,8 @@ const PACIENTES = {
       patientId: 'pac-1',
       firstName: 'Julián',
       lastName: 'Sosa',
+      age: 32,
+      firstConsultation: { at: '2026-08-30T13:00:00Z', date: '2026-08-30', startTime: '10:00' },
       lastConsultation: { at: '2026-11-12T13:00:00Z', date: '2026-11-12', startTime: '10:00' },
       nextAppointment: { at: '2026-11-20T14:00:00Z', date: '2026-11-20', startTime: '11:00' },
       consultations: 3,
@@ -30,6 +32,8 @@ const PACIENTES = {
       patientId: 'pac-2',
       firstName: 'Marina',
       lastName: 'Quiroga',
+      age: null,
+      firstConsultation: null,
       lastConsultation: null,
       nextAppointment: { at: '2026-12-01T12:30:00Z', date: '2026-12-01', startTime: '09:30' },
       consultations: 0,
@@ -102,7 +106,9 @@ describe('ProfessionalPatientsPage (ENG-197)', () => {
     const otra = screen.getByText('Marina Quiroga').closest('tr') as HTMLElement;
     expect(within(otra).getByText('Todavía no')).toBeVisible();
     expect(screen.getByText('2 pacientes')).toBeVisible();
-    expect(pedidos()[0]).toMatch(/\/professionals\/me\/patients\?pagina=1$/);
+    expect(pedidos()[0]).toMatch(
+      /\/professionals\/me\/patients\?pagina=1&orden=ULTIMA_CONSULTA&dir=desc$/,
+    );
   });
 
   it('buscar manda q al backend', async () => {
@@ -123,7 +129,7 @@ describe('ProfessionalPatientsPage (ENG-197)', () => {
     renderPage(() => json(VACIO));
 
     expect(await screen.findByText('Todavía no atendiste pacientes')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Exportar CSV' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Exportar a Excel' })).toBeDisabled();
   });
 
   it('si la búsqueda no encuentra a nadie, ofrece limpiarla', async () => {
@@ -134,7 +140,7 @@ describe('ProfessionalPatientsPage (ENG-197)', () => {
     await user.type(screen.getByRole('searchbox', { name: /buscar paciente/i }), 'zz');
 
     expect(await screen.findByText('Ningún paciente coincide con «zz»')).toBeVisible();
-    await user.click(screen.getByRole('button', { name: 'Limpiar búsqueda' }));
+    await user.click(screen.getAllByRole('button', { name: 'Limpiar filtros' }).at(-1)!);
     expect(await screen.findByText('Julián Sosa')).toBeVisible();
     expect(screen.getByRole('searchbox', { name: /buscar paciente/i })).toHaveValue('');
   });
@@ -152,24 +158,78 @@ describe('ProfessionalPatientsPage (ENG-197)', () => {
     expect(await screen.findByText('Julián Sosa')).toBeVisible();
   });
 
-  it('exportar baja el CSV con la misma búsqueda', async () => {
+  it('tocar un encabezado ordena por esa columna, y de nuevo al revés', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderPage(() => json(PACIENTES));
+    await screen.findByText('Julián Sosa');
+
+    await user.click(screen.getByRole('button', { name: /Consultas/ }));
+    await waitFor(() =>
+      expect(pedidos().some((u) => u.includes('orden=CONSULTAS&dir=desc'))).toBe(true),
+    );
+    expect(screen.getByRole('columnheader', { name: /Consultas/ })).toHaveAttribute(
+      'aria-sort',
+      'descending',
+    );
+
+    await user.click(screen.getByRole('button', { name: /Consultas/ }));
+    await waitFor(() =>
+      expect(pedidos().some((u) => u.includes('orden=CONSULTAS&dir=asc'))).toBe(true),
+    );
+  });
+
+  it('filtra por próximo turno y por última consulta', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderPage(() => json(PACIENTES));
+    await screen.findByText('Julián Sosa');
+
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Próximo turno' }),
+      'SIN_PROXIMO',
+    );
+    await user.selectOptions(
+      screen.getByRole('combobox', { name: 'Última consulta' }),
+      'MAS_DE_6M',
+    );
+
+    await waitFor(() =>
+      expect(
+        pedidos().some((u) => u.includes('proximo=SIN_PROXIMO') && u.includes('ultima=MAS_DE_6M')),
+      ).toBe(true),
+    );
+    expect(screen.getByRole('button', { name: 'Limpiar filtros' })).toBeVisible();
+  });
+
+  it('muestra la edad y desde cuándo es paciente', async () => {
+    renderPage(() => json(PACIENTES));
+    expect(await screen.findByText('32 años')).toBeVisible();
+    expect(screen.getByText('30 de agosto')).toBeVisible();
+  });
+
+  it('exportar baja el Excel con los mismos filtros y orden', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     const crear = vi.fn(() => 'blob:csv');
     Object.assign(URL, { createObjectURL: crear, revokeObjectURL: vi.fn() });
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     renderPage((url) =>
       url.includes('/export')
-        ? new Response('﻿Paciente;Última consulta;Próximo turno;Consultas\r\n', {
-            headers: { 'Content-Type': 'text/csv; charset=utf-8' },
+        ? new Response(new Uint8Array([0x50, 0x4b]), {
+            headers: {
+              'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            },
           })
         : json(PACIENTES),
     );
     await screen.findByText('Julián Sosa');
 
-    await user.click(screen.getByRole('button', { name: 'Exportar CSV' }));
+    await user.click(screen.getByRole('button', { name: 'Exportar a Excel' }));
 
     await waitFor(() => expect(click).toHaveBeenCalled());
-    expect(pedidos().some((u) => u.endsWith('/professionals/me/patients/export'))).toBe(true);
+    expect(
+      pedidos().some((u) =>
+        u.endsWith('/professionals/me/patients/export?orden=ULTIMA_CONSULTA&dir=desc'),
+      ),
+    ).toBe(true);
     expect(crear).toHaveBeenCalled();
   });
 });

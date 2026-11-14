@@ -13,6 +13,10 @@ export interface MyPatientRow {
   patientId: string;
   firstName: string;
   lastName: string;
+  /** Años cumplidos; `null` si no cargó la fecha de nacimiento. */
+  age: number | null;
+  /** Primera consulta completada con este profesional: "paciente desde". */
+  firstConsultation: AppointmentMoment | null;
   /** Último turno completado con este profesional. */
   lastConsultation: AppointmentMoment | null;
   /** Próximo turno confirmado o sin pagar que todavía no pasó. */
@@ -27,4 +31,23 @@ export interface MyPatientsView {
   hayMas: boolean;
   /** Pacientes que cumplen la búsqueda, en todas las páginas. */
   total: number;
+}
+
+/** Columna por la que se ordena. */
+export type MyPatientsOrder =
+  | 'ULTIMA_CONSULTA'
+  | 'PROXIMO_TURNO'
+  | 'CONSULTAS'
+  | 'PACIENTE_DESDE'
+  | 'NOMBRE';
+
+export type SortDir = 'asc' | 'desc';
+
+/** Búsqueda, filtros y orden: recortan la tabla y el Excel por igual. */
+export interface MyPatientsFilters {
+  q: string;
+  orden: MyPatientsOrder;
+  dir: SortDir;
+  proximo?: 'CON_PROXIMO' | 'SIN_PROXIMO';
+  ultima?: '30D' | '90D' | 'MAS_DE_6M' | 'NUNCA';
 }
