@@ -31,6 +31,8 @@ type WaitingRoomProps = {
   counterpartName: string;
   /** "Profesional" o "Paciente", según quién esté mirando. */
   counterpartLabel: string;
+  /** Quién espera: los consejos de la columna son distintos para cada uno. */
+  viewer: 'PACIENTE' | 'PROFESIONAL';
 };
 
 /** Debajo de esto se muestra una cuenta regresiva viva; por encima, texto. Una
@@ -43,7 +45,9 @@ export function WaitingRoom({
   now,
   counterpartName,
   counterpartLabel,
+  viewer,
 }: WaitingRoomProps) {
+  const pacienteId = appointment.patient?.id ?? null;
   const falta = opensAt.getTime() - now.getTime();
   const cerca = falta < CUENTA_REGRESIVA_MS;
 
@@ -70,7 +74,7 @@ export function WaitingRoom({
         ) : (
           <>
             <h2 className="font-display mt-3 text-[30px] leading-[1.1] text-white lg:text-[38px]">
-              Tu consulta es el {formatLongDate(appointment.date)} a las {appointment.startTime}.
+              Tu turno es el {formatLongDate(appointment.date)} a las {appointment.startTime}.
             </h2>
             <p className="mt-3 text-[15px] text-on-night">
               La sala se abre {timeUntilOpen(opensAt, now)}, {JOIN_OPENS_MINUTES_BEFORE} minutos
@@ -105,7 +109,9 @@ export function WaitingRoom({
 
         {/* Los tres son los que arruinan una consulta cuando se descubren tarde:
             el permiso de cámara se pide recién al entrar, y ahí ya hay alguien
-            del otro lado esperando. */}
+            del otro lado esperando. Al profesional no le sirven los del
+            paciente ("vas a hablar de tu salud"): lo suyo es llegar con la
+            historia clínica leída. */}
         <ul className="divide-y divide-line-soft">
           <Consejo titulo="Probá la cámara y el micrófono">
             El navegador te los va a pedir. Si ya se los negaste alguna vez, habilitalos desde el
@@ -114,12 +120,39 @@ export function WaitingRoom({
               <DeviceCheck />
             </div>
           </Consejo>
-          <Consejo titulo="Buscá un lugar tranquilo">
-            Vas a hablar de tu salud. Con auriculares se escucha mejor y no te escucha nadie más.
-          </Consejo>
-          <Consejo titulo="Tené a mano lo que quieras mostrar">
-            Estudios, recetas o la caja del remedio que estás tomando.
-          </Consejo>
+          {viewer === 'PROFESIONAL' ? (
+            <>
+              <Consejo titulo="Repasá la historia clínica">
+                Las últimas entradas, las alergias y la medicación de {counterpartName}.
+                {pacienteId && (
+                  <div className="mt-3">
+                    <Link
+                      to={`/pacientes/${pacienteId}/historia-clinica`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[13px] font-semibold text-brand-hover hover:underline"
+                    >
+                      Abrir la historia clínica
+                    </Link>
+                  </div>
+                )}
+              </Consejo>
+              <Consejo titulo="Al terminar, cargá la evolución">
+                Cuando finalices la consulta se abre el formulario para dejarla en la historia
+                clínica.
+              </Consejo>
+            </>
+          ) : (
+            <>
+              <Consejo titulo="Buscá un lugar tranquilo">
+                Vas a hablar de tu salud. Con auriculares se escucha mejor y no te escucha nadie
+                más.
+              </Consejo>
+              <Consejo titulo="Tené a mano lo que quieras mostrar">
+                Estudios, recetas o la caja del remedio que estás tomando.
+              </Consejo>
+            </>
+          )}
         </ul>
       </aside>
     </div>

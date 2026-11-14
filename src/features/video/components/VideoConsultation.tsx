@@ -108,6 +108,7 @@ export function VideoConsultation({ appointmentId }: VideoConsultationProps) {
         now={now}
         counterpartName={nombreContraparte}
         counterpartLabel={esPaciente ? 'Profesional' : 'Paciente'}
+        viewer={esPaciente ? 'PACIENTE' : 'PROFESIONAL'}
       />
     );
   }

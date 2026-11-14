@@ -153,6 +153,7 @@ export function VideoConsultationPreviewPage() {
               now={now}
               counterpartName={counterpartName}
               counterpartLabel={role === 'PROFESIONAL' ? 'Paciente' : 'Profesional'}
+              viewer={role}
             />
 
             {/* En la pantalla real no hay ningún botón acá: la sala se abre sola
