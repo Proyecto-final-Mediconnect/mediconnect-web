@@ -100,7 +100,7 @@ export function MyAppointments() {
                 to="/buscar"
                 className="inline-flex items-center gap-1.5 rounded-full bg-brand-deep px-4 py-2 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
               >
-                <span aria-hidden="true">+</span> Nuevo turno
+                <span aria-hidden="true">+</span> Sacar un turno
               </Link>
             )}
           </div>
@@ -414,7 +414,7 @@ function UpcomingCard({
           <button
             type="button"
             onClick={() => onCancel(appointment)}
-            aria-label={`Cancelar el turno con ${name}`}
+            aria-label={`Cancelar turno con ${name}`}
             className="text-sm font-semibold text-muted underline-offset-2 hover:text-danger hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           >
             Cancelar

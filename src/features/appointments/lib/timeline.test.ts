@@ -26,7 +26,7 @@ describe('appointmentTimeline (ENG-178)', () => {
     const pasos = titulos(BASE);
     expect(pasos).toHaveLength(4);
     expect(pasos[0]).toBe('Reservaste el turno');
-    expect(pasos[1]).toMatch(/^Pagaste \$\s15\.000 con MercadoPago$/);
+    expect(pasos[1]).toMatch(/^Pagaste \$15\.000 con MercadoPago$/);
     expect(pasos.slice(2)).toEqual(['Quedó confirmado', 'Consulta']);
   });
 
@@ -94,9 +94,9 @@ describe('appointmentTimeline (ENG-178)', () => {
         { ...CANCELADO, refundState: { amount: 7500, status: 'PROCESADO' } },
         PAGO_APROBADO,
       );
-      expect(pasos[1]).toMatch(/^Pagaste \$\s15\.000/);
+      expect(pasos[1]).toMatch(/^Pagaste \$15\.000/);
       expect(pasos[2]).toBe('Se canceló el turno');
-      expect(pasos[3]).toMatch(/^Te devolvimos \$\s7\.500$/);
+      expect(pasos[3]).toMatch(/^Te devolvimos \$7\.500$/);
     });
 
     it('uno pendiente se ve en curso, sin decir que no se devolvió nada', () => {
@@ -105,7 +105,7 @@ describe('appointmentTimeline (ENG-178)', () => {
         PAGO_APROBADO,
         NOW,
       ).slice(-1);
-      expect(paso.title).toMatch(/^Reembolso de \$\s15\.000 en curso$/);
+      expect(paso.title).toMatch(/^Reembolso de \$15\.000 en curso$/);
       expect(paso.tone).toBe('current');
     });
 
@@ -128,7 +128,7 @@ describe('appointmentTimeline (ENG-178)', () => {
         { ...PAGO_APROBADO, status: 'REEMBOLSADO' },
       );
       expect(pasos).not.toContain('Te devolvimos el pago');
-      expect(pasos.at(-1)).toMatch(/^Te devolvimos \$\s15\.000$/);
+      expect(pasos.at(-1)).toMatch(/^Te devolvimos \$15\.000$/);
     });
 
     it('un liberado con reembolso lo muestra después de liberar el horario', () => {
@@ -137,7 +137,7 @@ describe('appointmentTimeline (ENG-178)', () => {
         { ...PAGO_APROBADO, appointmentStatus: 'LIBERADO' },
       );
       expect(pasos.at(-2)).toBe('Se liberó el horario porque no se pagó a tiempo');
-      expect(pasos.at(-1)).toMatch(/^Te devolvimos \$\s15\.000$/);
+      expect(pasos.at(-1)).toMatch(/^Te devolvimos \$15\.000$/);
     });
 
     // El backend no le manda el reembolso al profesional; si algún día llegara,

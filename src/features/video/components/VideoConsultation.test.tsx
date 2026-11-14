@@ -499,6 +499,37 @@ describe('VideoConsultation', () => {
       vi.useRealTimers();
     });
 
+    it('al paciente le da consejos de paciente', async () => {
+      reloj('2026-08-20T12:30:00Z');
+      turnos = [TURNO];
+
+      renderComponent();
+
+      expect(await screen.findByText('Buscá un lugar tranquilo')).toBeInTheDocument();
+      expect(screen.queryByText('Repasá la historia clínica')).not.toBeInTheDocument();
+    });
+
+    it('al profesional no le habla de "tu salud": le ofrece la historia clínica del paciente', async () => {
+      reloj('2026-08-20T12:30:00Z');
+      turnos = [
+        {
+          ...TURNO,
+          professional: { id: SESSION.id, firstName: 'Ana', lastName: 'Gómez' },
+          patient: { id: 'pac-1', firstName: 'Ernesto', lastName: 'Bianchi' },
+        },
+      ];
+
+      renderComponent();
+
+      expect(await screen.findByText('Repasá la historia clínica')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Abrir la historia clínica' })).toHaveAttribute(
+        'href',
+        '/pacientes/pac-1/historia-clinica',
+      );
+      expect(screen.queryByText('Buscá un lugar tranquilo')).not.toBeInTheDocument();
+      expect(screen.queryByText(/estás tomando/)).not.toBeInTheDocument();
+    });
+
     it('llegar temprano NO pide la sala: espera en vez de dar error', async () => {
       // Antes la pantalla llamaba al endpoint apenas se montaba y el backend
       // contestaba 409. Crear salas en Daily se factura por minuto.
@@ -528,7 +559,7 @@ describe('VideoConsultation', () => {
 
       renderComponent();
 
-      expect(await screen.findByText(/tu consulta es el/i)).toBeVisible();
+      expect(await screen.findByText(/tu turno es el/i)).toBeVisible();
       expect(screen.queryByRole('timer')).not.toBeInTheDocument();
     });
 

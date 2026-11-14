@@ -11,6 +11,7 @@ import {
 } from '../types/schedule';
 import { ScheduleBlocks } from './ScheduleBlocks';
 import { SchedulePreview } from './SchedulePreview';
+import { TimeSelect } from '../../../shared/ui/TimeSelect';
 
 /** Franja que se agrega al activar un día: jornada de mañana típica. */
 const DEFAULT_RULE = {
@@ -254,8 +255,7 @@ export function WeeklyScheduleForm() {
                         >
                           <label className="text-[13px]">
                             <span className="mb-1 block font-semibold text-muted">Desde</span>
-                            <input
-                              type="time"
+                            <TimeSelect
                               value={rule.startTime}
                               onChange={(e) =>
                                 updateRule(rule.uid, { startTime: e.target.value })
@@ -267,8 +267,7 @@ export function WeeklyScheduleForm() {
 
                           <label className="text-[13px]">
                             <span className="mb-1 block font-semibold text-muted">Hasta</span>
-                            <input
-                              type="time"
+                            <TimeSelect
                               value={rule.endTime}
                               onChange={(e) => updateRule(rule.uid, { endTime: e.target.value })}
                               className="rounded-[8px] border border-line-strong bg-white px-3 py-2 font-semibold text-brand-deep focus:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"

@@ -103,7 +103,7 @@ const NAV_PROFESIONAL: NavItem[][] = [
   [
     { to: '/profesional', label: 'Panel', end: true, Icon: IconPanel },
     { to: '/profesional/agenda', label: 'Mi agenda', Icon: IconAgenda },
-    { to: '/mis-turnos', label: 'Mis consultas', Icon: IconTurnos },
+    { to: '/mis-turnos', label: 'Mis turnos', Icon: IconTurnos },
     { to: '/mensajes', label: 'Mensajes', Icon: IconMensajes },
   ],
   [

@@ -99,7 +99,7 @@ describe('AppShell', () => {
     await screen.findByText('Valeria Ocampo');
 
     expect(menu().getByRole('link', { name: 'Mi agenda' })).toBeVisible();
-    expect(menu().getByRole('link', { name: 'Mis consultas' })).toBeVisible();
+    expect(menu().getByRole('link', { name: 'Mis turnos' })).toBeVisible();
     // "Buscar profesionales" es del recorrido del paciente: un profesional no
     // reserva turnos con otros desde su panel.
     expect(menu().queryByRole('link', { name: 'Buscar profesionales' })).not.toBeInTheDocument();

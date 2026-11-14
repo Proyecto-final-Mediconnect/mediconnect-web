@@ -8,7 +8,7 @@ export function AppointmentDetailPage() {
   if (!appointmentId) return <Navigate to="/mis-turnos" replace />;
 
   return (
-    <DashboardLayout barTitle="Tu turno">
+    <DashboardLayout barTitle="Detalle del turno">
       <AppointmentDetail appointmentId={appointmentId} />
     </DashboardLayout>
   );

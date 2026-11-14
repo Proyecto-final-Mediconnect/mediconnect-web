@@ -1,4 +1,5 @@
 import type { Specialty } from '../types/professionalProfile';
+import { formatMoney } from '../../../shared/lib/formatMoney';
 
 type ProfilePreviewProps = {
   firstName: string;
@@ -9,30 +10,6 @@ type ProfilePreviewProps = {
   consultationPrice: number | null;
   currency: string;
 };
-
-/**
- * `professionals.currency` es `CHAR(3) NOT NULL DEFAULT 'ARS'`, así que en la
- * práctica siempre llega un código válido. Pero `Intl.NumberFormat` tira `RangeError`
- * con cualquier código que no sea ISO 4217, y el fallback tiene que seguir siendo
- * legible: sin la guarda, un currency raro terminaba imprimiéndose crudo al lado del
- * número (ej. `"XX 15000"`).
- */
-function formatPrice(amount: number, currency: string): string {
-  try {
-    return new Intl.NumberFormat('es-AR', {
-      style: 'currency',
-      currency,
-      maximumFractionDigits: 0,
-    }).format(amount);
-  } catch {
-    const amountText = new Intl.NumberFormat('es-AR', {
-      maximumFractionDigits: 0,
-    }).format(amount);
-    return /^[A-Za-z]{3}$/.test(currency)
-      ? `${currency.toUpperCase()} ${amountText}`
-      : `$ ${amountText}`;
-  }
-}
 
 /** Tarjeta que muestra el perfil tal como lo verá un paciente en el catálogo. */
 export function ProfilePreview({
@@ -45,14 +22,11 @@ export function ProfilePreview({
   currency,
 }: ProfilePreviewProps) {
   const fullName = `${firstName} ${lastName}`.trim() || 'Tu nombre';
-  const initials =
-    `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || '👤';
+  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() || '👤';
 
   return (
     <div className="rounded-[14px] border border-line bg-white p-6 shadow-sm">
-      <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">
-        Vista previa
-      </p>
+      <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-muted">Vista previa</p>
 
       <div className="flex items-center gap-4">
         {photoUrl ? (
@@ -70,7 +44,7 @@ export function ProfilePreview({
           <h3 className="text-lg font-semibold text-ink">{fullName}</h3>
           {consultationPrice !== null && (
             <p className="text-sm font-medium text-brand">
-              {formatPrice(consultationPrice, currency)}
+              {formatMoney(consultationPrice, currency)}
               <span className="text-muted"> · por consulta</span>
             </p>
           )}

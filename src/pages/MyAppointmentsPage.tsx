@@ -10,7 +10,7 @@ export function MyAppointmentsPage() {
   return (
     <DashboardLayout
       barTitle="Mis turnos"
-      subtitle="Tus consultas agendadas y las que ya pasaron."
+      subtitle="Tus turnos agendados y los que ya pasaron."
     >
       <MyAppointments />
     </DashboardLayout>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { formatMonth, monthGrid, monthsInWindow } from '../lib/weeks';
+import { formatDate, formatMonth, monthGrid, monthsInWindow } from '../lib/weeks';
 
 /**
  * Calendario de mes completo, para elegir un día de un vistazo.
@@ -102,7 +102,7 @@ export function MonthCalendar({
 
       <p className="mt-3 text-[11px] leading-snug text-muted">
         Los días en verde tienen horarios libres. Se puede reservar hasta el{' '}
-        {ultimo.split('-').reverse().join('/')}.
+        {formatDate(ultimo)}.
       </p>
     </div>
   );

@@ -250,7 +250,7 @@ export function ProfessionalDashboardPage() {
               to="/mis-turnos"
               className="grid gap-1 rounded-[14px] bg-brand-deep p-5 text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
             >
-              <span className="text-[15px] font-bold">Mis consultas</span>
+              <span className="text-[15px] font-bold">Mis turnos</span>
               <span className="text-sm text-on-night">
                 Todos los turnos que reservaron tus pacientes. →
               </span>

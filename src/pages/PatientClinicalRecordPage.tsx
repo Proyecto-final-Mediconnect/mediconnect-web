@@ -17,7 +17,7 @@ const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f
 /**
  * Historia clínica de un paciente, desde el profesional (ENG-58, ENG-60).
  *
- * Se llega desde "Mis consultas", que es lo que satisface el "durante y después
+ * Se llega desde "Mis turnos", que es lo que satisface el "durante y después
  * de la consulta" del criterio: durante, el profesional la abre en otra pestaña
  * mientras está en la videoconsulta; después, entra por el mismo lugar.
  *

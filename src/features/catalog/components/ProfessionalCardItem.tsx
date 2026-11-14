@@ -67,8 +67,8 @@ export function ProfessionalCardItem({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2.5">
             <h3 className="text-[19px] font-bold text-brand-deep">{fullName}</h3>
-            <span className="rounded-[5px] bg-surface-teal px-2.5 py-[5px] text-[10px] font-bold tracking-[0.08em] text-brand-hover">
-              MATRÍCULA VERIFICADA
+            <span className="rounded-[5px] bg-surface-teal px-2.5 py-[5px] text-[10px] font-bold uppercase tracking-[0.08em] text-brand-hover">
+              Matrícula verificada
             </span>
           </div>
 
