@@ -22,7 +22,7 @@ import { AgendaToolbar } from './agenda/AgendaToolbar';
 import { CancelAppointmentDialog } from './agenda/CancelAppointmentDialog';
 import { DateBadge } from './agenda/DateBadge';
 import { RefundOutcomeBanner } from './agenda/RefundOutcomeBanner';
-import { StatusChip } from './agenda/StatusChip';
+import { PaidChip, StatusChip } from './agenda/StatusChip';
 
 /**
  * Mis turnos (ENG-55, rediseñada en ENG-178 como en la app).
@@ -333,7 +333,10 @@ function NextAppointment({ appointment, userId, now, wide, onSelect, onCancel }:
         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-brand-bright">
           Próximo turno
         </p>
-        <StatusChip status={appointment.status} onDark />
+        <span className="flex flex-wrap gap-2">
+          {pagado(appointment, userId) && <PaidChip onDark />}
+          <StatusChip status={appointment.status} onDark />
+        </span>
       </div>
       <p className="font-display mt-3 text-[26px] leading-[1.2]">
         {formatLongDate(appointment.date)} · {appointment.startTime}
@@ -407,7 +410,10 @@ function UpcomingCard({
           </span>
         </span>
       </OpenLink>
-      <StatusChip status={appointment.status} />
+      <span className="flex flex-wrap gap-2">
+        {pagado(appointment, userId) && <PaidChip />}
+        <StatusChip status={appointment.status} />
+      </span>
       <div className="flex items-center gap-3">
         <PrimaryAction appointment={appointment} userId={userId} now={now} />
         {canCancel(appointment, userId, now) && (
@@ -478,3 +484,8 @@ const REFUND_TONE = {
   pending: 'text-muted',
   bad: 'text-danger',
 } as const;
+
+/** El paciente ve "Pagado" en sus turnos confirmados (ENG-199). */
+function pagado(appointment: Appointment, userId: string | null): boolean {
+  return appointment.status === 'CONFIRMADO' && appointment.patient?.id === userId;
+}
