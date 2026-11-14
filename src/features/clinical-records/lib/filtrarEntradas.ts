@@ -158,6 +158,22 @@ export function hayFiltros(filtros: FiltrosHC): boolean {
 }
 
 /**
+ * Las entradas del más reciente al más viejo, por la MISMA fecha con la que se
+ * muestran y se agrupan (`createdAt`). Invertir el orden de la cadena no alcanza:
+ * `sequenceNumber` y `createdAt` no siempre coinciden (por ejemplo, un registro
+ * cargado después con fecha anterior), y agrupar con una fecha y ordenar con otra
+ * deja meses repetidos. Ante la misma fecha, desempata la posición en la cadena.
+ * No modifica el arreglo recibido.
+ */
+export function ordenarRecientesPrimero(entries: ClinicalEntry[]): ClinicalEntry[] {
+  return [...entries].sort(
+    (a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() ||
+      b.sequenceNumber - a.sequenceNumber,
+  );
+}
+
+/**
  * Las entradas agrupadas por mes (`YYYY-MM`, en la hora local), en el orden en
  * que llegan. La historia se lee por meses, como se recuerda: "en agosto me
  * vio la cardióloga".
