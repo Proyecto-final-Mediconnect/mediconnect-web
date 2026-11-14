@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { act, cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
@@ -218,5 +218,44 @@ describe('RequireAuth (ENG-44)', () => {
 
       expect(await screen.findByText('PRIVACIDAD')).toBeInTheDocument();
     });
+  });
+});
+
+describe('RequireAuth · carga de la sesión', () => {
+  afterEach(() => {
+    cleanup();
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it('muestra el logo mientras carga y avisa que el servidor despierta pasados ~8 s', async () => {
+    vi.useFakeTimers();
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise(() => {})); // servidor dormido
+
+    render(
+      <QueryClientProvider client={new QueryClient()}>
+        <MemoryRouter initialEntries={['/privado']}>
+          <Routes>
+            <Route
+              path="/privado"
+              element={
+                <RequireAuth>
+                  <div>CONTENIDO PRIVADO</div>
+                </RequireAuth>
+              }
+            />
+          </Routes>
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    expect(screen.getByRole('img', { name: 'MediConnect' })).toBeInTheDocument();
+    expect(screen.getByText('Cargando…')).toBeInTheDocument();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(8000);
+    });
+
+    expect(screen.getByText(/Despertando el servidor/)).toBeInTheDocument();
   });
 });
