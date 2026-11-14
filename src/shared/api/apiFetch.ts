@@ -1,4 +1,24 @@
+import { apiError } from './apiError';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
+
+/** Mensaje cuando el request ni siquiera llegó al servidor (sin red, servidor dormido). */
+export const NETWORK_ERROR_MESSAGE =
+  'No pudimos conectarnos. Revisá tu conexión e intentá de nuevo.';
+
+/**
+ * `fetch` que convierte SOLO el fallo de red (el `TypeError` de fetch) en un
+ * `ApiError` con status 0. Los `AbortError` (cancelaciones) y las respuestas
+ * HTTP (4xx/5xx) pasan sin tocar.
+ */
+async function fetchOrNetworkError(url: string, options: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, options);
+  } catch (error) {
+    if (error instanceof TypeError) throw apiError(0, NETWORK_ERROR_MESSAGE);
+    throw error;
+  }
+}
 
 /** Refresh en curso, para que N requests que fallan a la vez disparen una sola
  *  renovación en lugar de una por request (y no se pisen rotando el token). */
@@ -78,9 +98,9 @@ export async function apiFetch(
   const url = `${API_BASE_URL}${path}`;
   const options: RequestInit = { ...init, credentials: 'include' };
 
-  let response = await fetch(url, options);
+  let response = await fetchOrNetworkError(url, options);
   if (refreshOn401 && response.status === 401 && (await refreshSession())) {
-    response = await fetch(url, options);
+    response = await fetchOrNetworkError(url, options);
   }
 
   await notifyIfLegalNotAccepted(response);
