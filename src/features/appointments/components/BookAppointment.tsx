@@ -288,7 +288,8 @@ export function BookAppointment({ professionalId, rescheduleId }: BookAppointmen
           rangeLabel={rangeLabel}
           activeDate={activeDate}
           onOpenDate={setDiaAbierto}
-          // El horizonte arranca hoy, en hora argentina: ver `horizonRange`.
+          // El horizonte arranca hoy en hora argentina, calculada al abrir la
+          // pantalla (no se actualiza si queda abierta pasada la medianoche).
           today={fechas[0]}
           jumper={
             <DateJumper

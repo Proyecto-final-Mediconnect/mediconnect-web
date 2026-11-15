@@ -1,5 +1,5 @@
 import { formatMoney } from '../../../shared/lib/formatMoney';
-import { addDays, todayLocal, weekdayOf } from '../../schedule/lib/generateSlots';
+import { addDays, weekdayOf } from '../../schedule/lib/generateSlots';
 
 /**
  * Ventana de fechas de la pantalla de reserva (ENG-54).
@@ -65,8 +65,19 @@ export interface DateRange {
  * publicado. El test `'el horizonte son dos meses…'` fija los números de este
  * lado para que la desincronización se note acá y no con un 400 en producción.
  */
-export function horizonRange(today = todayLocal()): DateRange {
+export function horizonRange(today = todayAR()): DateRange {
   return { from: today, to: addDays(today, BOOKING_HORIZON_DAYS - 1) };
+}
+
+/**
+ * Hoy en el calendario argentino, `YYYY-MM-DD`, aunque el navegador esté en otro
+ * huso: es el "hoy" que usa el backend para armar el horizonte. Se calcula al
+ * llamarla; `BookAppointment` la usa una vez al abrir la pantalla.
+ */
+export function todayAR(now = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+  }).format(now);
 }
 
 /** Recorta la página `page` de la lista completa de días. */

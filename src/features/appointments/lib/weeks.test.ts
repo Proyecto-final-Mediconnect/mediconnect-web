@@ -12,6 +12,7 @@ import {
   formatRange,
   formatShortDate,
   horizonRange,
+  todayAR,
   indexOfDate,
   monthsInWindow,
   pageOfIndex,
@@ -177,5 +178,13 @@ describe('formato', () => {
     expect(formatted).toContain('15');
     expect(formatted).toContain('000');
     expect(formatted).not.toContain(',00');
+  });
+});
+
+describe('todayAR', () => {
+  it('da el día argentino aunque en UTC ya sea el siguiente', () => {
+    // 01:00 UTC del 18 = 22:00 del 17 en Argentina.
+    expect(todayAR(new Date('2026-08-18T01:00:00Z'))).toBe('2026-08-17');
+    expect(todayAR(new Date('2026-08-18T04:00:00Z'))).toBe('2026-08-18');
   });
 });

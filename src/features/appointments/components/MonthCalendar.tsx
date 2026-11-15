@@ -94,8 +94,9 @@ export function MonthCalendar({
               // Fuera del horizonte publicado no hay nada que ofrecer: el mes
               // asoma días que el backend todavía no publicó.
               fueraDeRango={date < primero || date > ultimo}
-              // La ventana arranca hoy (la arma el backend en hora argentina), así
-              // que el primer día publicado es "hoy" sin depender del reloj local.
+              // La ventana arranca hoy en hora argentina (ver `horizonRange`), así
+              // que el primer día de `dates` es "hoy" sin depender del huso del
+              // navegador.
               hoy={date === primero}
               activo={date === activeDate}
               onPick={onPick}

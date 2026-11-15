@@ -233,7 +233,8 @@ function DayCard({
       }`}
     >
       <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] opacity-70">
-        {isToday ? 'Hoy' : WEEKDAY_NAMES[day.weekday].slice(0, 3)}
+        {WEEKDAY_NAMES[day.weekday].slice(0, 3)}
+        {isToday && <span aria-hidden="true"> ·</span>}
       </span>
       <span className="font-display mt-1 block text-[22px] leading-none tabular-nums sm:text-[26px]">
         {dayNumber}
