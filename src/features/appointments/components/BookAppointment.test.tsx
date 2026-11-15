@@ -145,6 +145,36 @@ describe('BookAppointment', () => {
     expect(screen.getByText(/15\.?000/)).toBeInTheDocument();
   });
 
+  it('ordena los horarios del día por hora aunque lleguen desordenados', async () => {
+    mockApi({
+      availability: () =>
+        jsonResponse({
+          ...AVAILABILITY,
+          days: [
+            { ...MONDAY_DAY, slots: [...MONDAY_DAY.slots].reverse() },
+            ...AVAILABILITY.days.slice(1),
+          ],
+        }),
+    });
+    renderBooking();
+
+    await screen.findByText('Ana Médica');
+    const horarios = screen
+      .getAllByRole('button', { name: /del 17 de agosto —/ })
+      .map((boton) => boton.textContent);
+    expect(horarios).toEqual(['09:00', '09:30', '10:00', '10:30']);
+  });
+
+  it('marca el primer día de la ventana como hoy', async () => {
+    mockApi();
+    renderBooking();
+
+    expect(await screen.findByRole('button', { name: /^lunes 17 de agosto/i })).toHaveAttribute(
+      'aria-current',
+      'date',
+    );
+  });
+
   it('muestra los horarios no disponibles en vez de esconderlos', async () => {
     // El criterio de aceptación pide que disponibles, ocupados y bloqueados se
     // distingan visualmente: si se omitieran, no habría nada que distinguir.

@@ -34,6 +34,8 @@ type WeeklyAvailabilityCalendarProps = {
   onOpenDate: (date: string) => void;
   /** Controles para saltar de mes o de fecha, que el padre inyecta. */
   jumper?: React.ReactNode;
+  /** `YYYY-MM-DD` de hoy, para marcar su tarjeta. */
+  today?: string;
   onPreviousWeek: () => void;
   onNextWeek: () => void;
   canGoBack: boolean;
@@ -70,6 +72,7 @@ export function WeeklyAvailabilityCalendar({
   activeDate,
   onOpenDate,
   jumper,
+  today,
   onPreviousWeek,
   onNextWeek,
   canGoBack,
@@ -77,11 +80,19 @@ export function WeeklyAvailabilityCalendar({
 }: WeeklyAvailabilityCalendarProps) {
   const withSlots = days.filter((day) => day.slots.length > 0);
   const activeDay = days.find((day) => day.date === activeDate) ?? null;
+  // Ordenados por hora: el backend los arma de varios bloques de agenda y nada
+  // garantiza que lleguen en orden, y un 08:30 después de un 14:00 desorienta.
+  const activeSlots = activeDay
+    ? [...activeDay.slots].sort((a, b) => a.startTime.localeCompare(b.startTime))
+    : [];
 
   return (
-    <section className="rounded-[14px] border border-line bg-white p-6 lg:p-7">
+    <section className="rounded-[14px] border border-line bg-white p-4 sm:p-6 lg:p-7">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft pb-[18px]">
-        <h2 className="font-display text-[22px] text-brand-deep" aria-live="polite">
+        <h2
+          className="font-display text-[18px] leading-tight text-brand-deep sm:text-[22px]"
+          aria-live="polite"
+        >
           {rangeLabel}
         </h2>
 
@@ -103,12 +114,15 @@ export function WeeklyAvailabilityCalendar({
         </p>
       ) : (
         <>
-          <ul className="mt-[22px] grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-7">
+          {/* Cuatro columnas en celular y siete desde `sm`: con dos, la semana
+              ocupaba cuatro filas y el último día quedaba solo en la suya. */}
+          <ul className="mt-5 grid grid-cols-4 gap-2 sm:mt-[22px] sm:grid-cols-7 sm:gap-2.5">
             {days.map((day) => (
               <li key={day.date}>
                 <DayCard
                   day={day}
                   isActive={day.date === activeDate}
+                  isToday={day.date === today}
                   onOpen={() => onOpenDate(day.date)}
                 />
               </li>
@@ -126,18 +140,19 @@ export function WeeklyAvailabilityCalendar({
                 <p className="mt-3 text-sm text-muted">No atiende este día.</p>
               )}
 
-              {activeDay.slots.length === 0 ? (
+              {activeSlots.length === 0 ? (
                 <p className="mt-3 text-sm text-muted">Sin horarios publicados para este día.</p>
               ) : (
-                <ul className="mt-3.5 flex flex-wrap gap-2.5">
-                  {activeDay.slots.map((slot) => (
+                // Grilla y no fila flexible: todos los horarios miden lo mismo y
+                // quedan encolumnados, en vez de una tira que corta donde caiga.
+                <ul className="mt-3.5 grid grid-cols-3 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(88px,1fr))] sm:gap-2.5">
+                  {activeSlots.map((slot) => (
                     <li key={slot.startTime}>
                       <SlotButton
                         date={activeDay.date}
                         slot={slot}
                         isSelected={
-                          selected?.date === activeDay.date &&
-                          selected.startTime === slot.startTime
+                          selected?.date === activeDay.date && selected.startTime === slot.startTime
                         }
                         onSelect={onSelect}
                       />
@@ -188,36 +203,43 @@ function ArrowButton({
 function DayCard({
   day,
   isActive,
+  isToday,
   onOpen,
 }: {
   day: AvailabilityDay;
   isActive: boolean;
+  isToday: boolean;
   onOpen: () => void;
 }) {
   const libres = freeCount(day);
-  const [, , dayNumber] = day.date.split('-');
+  // Sin el cero adelante: "5", no "05", como en el resto de la pantalla.
+  const dayNumber = Number(day.date.slice(8));
 
   return (
     <button
       type="button"
       onClick={onOpen}
       aria-pressed={isActive}
+      aria-current={isToday ? 'date' : undefined}
       aria-label={`${WEEKDAY_NAMES[day.weekday]} ${formatDate(day.date)} — ${
         libres === 0 ? 'sin horarios libres' : `${libres} horarios libres`
       }`}
-      className={`w-full rounded-[10px] border px-2 py-3 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 ${
+      className={`h-full w-full rounded-[10px] border px-1 py-2.5 text-center transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 sm:px-2 sm:py-3 ${
         isActive
           ? 'border-brand-deep bg-brand-deep text-white'
           : libres > 0
-            ? 'border-line bg-white text-brand-deep hover:border-brand'
-            : 'border-line bg-surface text-muted-soft'
+            ? `bg-white text-brand-deep hover:border-brand ${isToday ? 'border-brand' : 'border-line'}`
+            : `bg-surface text-muted-soft ${isToday ? 'border-brand/50' : 'border-line'}`
       }`}
     >
-      <span className="block text-[10px] font-semibold uppercase tracking-[0.12em] opacity-70">
+      <span className="block text-[10px] font-semibold uppercase tracking-[0.1em] opacity-70">
         {WEEKDAY_NAMES[day.weekday].slice(0, 3)}
+        {isToday && <span aria-hidden="true"> ·</span>}
       </span>
-      <span className="font-display mt-1 block text-[26px] leading-none">{dayNumber}</span>
-      <span className="mt-1.5 block text-[9px] font-semibold uppercase tracking-[0.06em] opacity-70">
+      <span className="font-display mt-1 block text-[22px] leading-none tabular-nums sm:text-[26px]">
+        {dayNumber}
+      </span>
+      <span className="mt-1.5 block truncate text-[9px] font-semibold uppercase tracking-[0.04em] opacity-70">
         {libres === 0 ? 'sin lugar' : `${libres} libre${libres === 1 ? '' : 's'}`}
       </span>
     </button>
@@ -244,7 +266,7 @@ function SlotButton({
       onClick={() => onSelect(date, slot)}
       aria-pressed={isAvailable ? isSelected : undefined}
       aria-label={`${slot.startTime} del ${formatDate(date)} — ${STATUS_LABELS[slot.status]}`}
-      className={`rounded-[8px] border px-3.5 py-2.5 text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed ${
+      className={`w-full rounded-[8px] border px-2 py-2.5 text-center text-[13px] font-semibold tabular-nums transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed ${
         isSelected ? 'border-brand-deep bg-brand-deep text-white' : STATUS_STYLES[slot.status]
       }`}
     >
@@ -255,7 +277,7 @@ function SlotButton({
 
 function Legend() {
   return (
-    <ul className="mt-4 flex flex-wrap gap-4 text-xs text-muted">
+    <ul className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted">
       {(['AVAILABLE', 'BOOKED', 'BLOCKED', 'PAST'] as const).map((status) => (
         <li key={status} className="flex items-center gap-1.5">
           <span

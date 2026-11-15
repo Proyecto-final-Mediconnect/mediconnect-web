@@ -128,5 +128,19 @@ describe('ProfessionalCardItem', () => {
       expect(screen.getAllByText('Cardiología')).toHaveLength(1);
       expect(screen.getByText('Clínica Médica')).toBeVisible();
     });
+
+    it('no repite una especialidad que llega duplicada', () => {
+      renderCard({
+        specialties: [
+          { id: 'spec-1', name: 'Cardiología' },
+          { id: 'spec-2', name: 'Clínica Médica' },
+          { id: 'spec-2', name: 'Clínica Médica' },
+          { id: 'spec-3', name: 'cardiologia' },
+        ],
+      });
+
+      expect(screen.getAllByText(/cardiolog/i)).toHaveLength(1);
+      expect(screen.getAllByText('Clínica Médica')).toHaveLength(1);
+    });
   });
 });

@@ -1,5 +1,5 @@
 import { formatMoney } from '../../../shared/lib/formatMoney';
-import { addDays, todayLocal, weekdayOf } from '../../schedule/lib/generateSlots';
+import { addDays, weekdayOf } from '../../schedule/lib/generateSlots';
 
 /**
  * Ventana de fechas de la pantalla de reserva (ENG-54).
@@ -65,8 +65,19 @@ export interface DateRange {
  * publicado. El test `'el horizonte son dos meses…'` fija los números de este
  * lado para que la desincronización se note acá y no con un 400 en producción.
  */
-export function horizonRange(today = todayLocal()): DateRange {
+export function horizonRange(today = todayAR()): DateRange {
   return { from: today, to: addDays(today, BOOKING_HORIZON_DAYS - 1) };
+}
+
+/**
+ * Hoy en el calendario argentino, `YYYY-MM-DD`, aunque el navegador esté en otro
+ * huso: es el "hoy" que usa el backend para armar el horizonte. Se calcula al
+ * llamarla; `BookAppointment` la usa una vez al abrir la pantalla.
+ */
+export function todayAR(now = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+  }).format(now);
 }
 
 /** Recorta la página `page` de la lista completa de días. */
@@ -79,15 +90,6 @@ export function pageOfIndex(index: number): number {
   return Math.floor(index / PAGE_DAYS);
 }
 
-/**
- * Índice del primer día con al menos un horario reservable, o `-1` si no hay
- * ninguno en todo el horizonte.
- *
- * Mira `AVAILABLE` y no "que tenga horarios": un día lleno de turnos ocupados
- * tiene horarios y no sirve para reservar. Abrir uno así era el otro síntoma
- * reportado —"me muestra días sin turnos disponibles"—, y pasaba tanto con los
- * días pasados como con los que ya están completos.
- */
 /**
  * Meses que toca la ventana, en orden, con el índice del primer día de cada uno.
  *
@@ -149,9 +151,16 @@ export function indexOfDate(dates: string[], date: string): number {
   return dates.indexOf(date);
 }
 
-export function firstAvailableIndex(
-  days: { slots: { status: string }[] }[],
-): number {
+/**
+ * Índice del primer día con al menos un horario reservable, o `-1` si no hay
+ * ninguno en todo el horizonte.
+ *
+ * Mira `AVAILABLE` y no "que tenga horarios": un día lleno de turnos ocupados
+ * tiene horarios y no sirve para reservar. Abrir uno así era el otro síntoma
+ * reportado —"me muestra días sin turnos disponibles"—, y pasaba tanto con los
+ * días pasados como con los que ya están completos.
+ */
+export function firstAvailableIndex(days: { slots: { status: string }[] }[]): number {
   return days.findIndex((day) => day.slots.some((s) => s.status === 'AVAILABLE'));
 }
 
@@ -174,6 +183,19 @@ const MONTHS = [
 export function formatDate(date: string): string {
   const [, month, day] = date.split('-').map(Number);
   return `${day} de ${MONTHS[month - 1]}`;
+}
+
+/**
+ * Rótulo del rango visible. Si los dos extremos caen en el mismo mes no lo
+ * repite: "Del 15 al 21 de noviembre" se lee de un vistazo y entra en una línea
+ * en el celular; "Del 15 de noviembre al 21 de noviembre", no.
+ */
+export function formatRange(from: string, to: string): string {
+  if (from === to) return `El ${formatDate(from)}`;
+  if (from.slice(0, 7) === to.slice(0, 7)) {
+    return `Del ${Number(from.slice(8))} al ${formatDate(to)}`;
+  }
+  return `Del ${formatDate(from)} al ${formatDate(to)}`;
 }
 
 /** `2026-09-02` → `2/9`, para los encabezados angostos de la grilla. */

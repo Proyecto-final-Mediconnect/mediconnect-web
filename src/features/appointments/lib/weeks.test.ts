@@ -9,8 +9,10 @@ import {
   formatDate,
   formatMonth,
   formatPrice,
+  formatRange,
   formatShortDate,
   horizonRange,
+  todayAR,
   indexOfDate,
   monthsInWindow,
   pageOfIndex,
@@ -31,8 +33,7 @@ describe('horizonRange', () => {
 
   it('cubre exactamente el horizonte que publica el backend', () => {
     const { from, to } = horizonRange('2026-08-19');
-    const dias =
-      (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000 + 1;
+    const dias = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000 + 1;
 
     expect(dias).toBe(BOOKING_HORIZON_DAYS);
   });
@@ -73,9 +74,7 @@ describe('daysOfPage', () => {
 
 describe('monthsInWindow', () => {
   it('agrupa los días por mes y guarda dónde arranca cada uno', () => {
-    expect(
-      monthsInWindow(['2026-08-30', '2026-08-31', '2026-09-01', '2026-09-02']),
-    ).toEqual([
+    expect(monthsInWindow(['2026-08-30', '2026-08-31', '2026-09-01', '2026-09-02'])).toEqual([
       { key: '2026-08', index: 0 },
       { key: '2026-09', index: 2 },
     ]);
@@ -161,6 +160,12 @@ describe('formato', () => {
     expect(formatDate('2026-01-31')).toBe('31 de enero');
   });
 
+  it('no repite el mes en el rótulo del rango si los dos extremos caen en el mismo', () => {
+    expect(formatRange('2026-11-15', '2026-11-21')).toBe('Del 15 al 21 de noviembre');
+    expect(formatRange('2026-11-28', '2026-12-04')).toBe('Del 28 de noviembre al 4 de diciembre');
+    expect(formatRange('2027-01-13', '2027-01-13')).toBe('El 13 de enero');
+  });
+
   it('acorta la fecha para los encabezados de la grilla', () => {
     expect(formatShortDate('2026-09-02')).toBe('2/9');
   });
@@ -173,5 +178,13 @@ describe('formato', () => {
     expect(formatted).toContain('15');
     expect(formatted).toContain('000');
     expect(formatted).not.toContain(',00');
+  });
+});
+
+describe('todayAR', () => {
+  it('da el día argentino aunque en UTC ya sea el siguiente', () => {
+    // 01:00 UTC del 18 = 22:00 del 17 en Argentina.
+    expect(todayAR(new Date('2026-08-18T01:00:00Z'))).toBe('2026-08-17');
+    expect(todayAR(new Date('2026-08-18T04:00:00Z'))).toBe('2026-08-18');
   });
 });
