@@ -5,6 +5,7 @@ import { useClinicalRecord } from '../hooks/useClinicalRecord';
 import { DateBadge } from '../../appointments/components/agenda/DateBadge';
 import { formatMonthYear } from '../../appointments/lib/agenda';
 import { useMediaQuery, WIDE_QUERY } from '../../../shared/hooks/useMediaQuery';
+import { Logo } from '../../../shared/ui/Logo';
 import { SideDrawer } from '../../../shared/ui/SideDrawer';
 import { readEntryFields } from '../lib/clinicalEntry';
 import {
@@ -397,13 +398,31 @@ function EncabezadoImpreso({
 }) {
   return (
     <div className="hidden print:mb-6 print:block">
-      <h1 className="text-[22px] font-bold text-brand-deep">Historia clínica</h1>
-      {scopeNote && <p className="mt-1.5 text-[12px] leading-[1.6] text-muted">{scopeNote}</p>}
-      <p className="mt-1.5 text-[12px] text-muted">
-        Impresa el {new Date().toLocaleDateString('es-AR')} ·{' '}
-        {visibles === total
-          ? `${total} entradas`
-          : `${visibles} de ${total} entradas (hay filtros aplicados)`}
+      <div className="flex items-end justify-between gap-6 border-b-2 border-brand-deep pb-4">
+        <div>
+          <Logo variant="lockup" className="h-7" alt="MediConnect" />
+          <h1 className="font-display mt-4 text-[30px] leading-[1.1] text-brand-deep">
+            Historia clínica
+          </h1>
+        </div>
+        <p className="text-right text-[11px] leading-[1.6] text-muted">
+          Impresa el{' '}
+          {new Date().toLocaleDateString('es-AR', {
+            day: 'numeric',
+            month: 'long',
+            year: 'numeric',
+            timeZone: 'America/Argentina/Buenos_Aires',
+          })}
+          <br />
+          {visibles === total
+            ? `${total} registros`
+            : `${visibles} de ${total} registros (hay filtros aplicados)`}
+        </p>
+      </div>
+      {scopeNote && <p className="mt-3 text-[12px] leading-[1.6] text-muted">{scopeNote}</p>}
+      <p className="mt-3 rounded-[8px] bg-surface px-3.5 py-2.5 text-[11px] leading-[1.6] text-muted">
+        Cada registro queda sellado en una cadena de verificación (hash SHA-256) y no se puede
+        modificar ni borrar: una corrección es un registro nuevo vinculado al original.
       </p>
     </div>
   );
