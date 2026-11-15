@@ -117,7 +117,7 @@ export function LiveConsultation({
                   className="size-4 animate-spin rounded-full border-2 border-white/40 border-t-white motion-reduce:animate-none"
                 />
               )}
-              {complete.isPending ? 'Cerrando la consulta…' : 'Finalizar y ver el resumen'}
+              {complete.isPending ? 'Cerrando la consulta…' : 'Finalizar'}
             </button>
           ) : (
             <button
@@ -148,7 +148,8 @@ export function LiveConsultation({
       >
         <p>
           Todavía no es la hora de fin del turno. Si finalizás, el turno queda completado y ya no se
-          puede volver a entrar a la sala.
+          puede volver a entrar a la sala. Después vas a poder cargar la evolución en la historia
+          clínica.
         </p>
       </ConfirmDialog>
 

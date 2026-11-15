@@ -11,7 +11,7 @@ const BOTON =
  * historia clínica del paciente. Es el formulario de ENG-58 asociado a la
  * consulta, así que la entrada entra a la cadena de hash como cualquier otra.
  *
- * "Lo cargo después" vuelve a "Mis turnos" sin crear nada. Reemplaza al resumen
+ * "Cancelar" vuelve a "Mis turnos" sin crear nada. Reemplaza al resumen
  * con IA, que no tiene backend.
  */
 export function ConsultationEvolution({
@@ -61,7 +61,7 @@ export function ConsultationEvolution({
         <ClinicalEntryForm
           patientId={patientId}
           consultationId={consultationId}
-          cancelLabel="Lo cargo después"
+          cancelLabel="Cancelar"
           onSaved={() => setGuardada(true)}
           onCancel={() => salir(() => void navigate('/mis-turnos'))}
           onDirtyChange={setConCambios}
@@ -100,7 +100,10 @@ export function ConsultationEvolution({
           accion?.();
         }}
       >
-        <p>Lo que escribiste no se guarda en la historia clínica.</p>
+        <p>
+          Lo que escribiste se va a perder y no queda en la historia clínica. Podés cargar la
+          evolución más tarde desde la historia clínica del paciente.
+        </p>
       </ConfirmDialog>
     </section>
   );

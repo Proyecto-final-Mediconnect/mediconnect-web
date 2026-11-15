@@ -50,7 +50,7 @@ function renderComponent() {
 /** Toca "Finalizar" y confirma: antes de la hora de fin del turno se pide
  *  confirmación (review de #75), y estos tests corren en ese caso. */
 async function finalizar(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+  await user.click(screen.getByRole('button', { name: /^finalizar$/i }));
   await user.click(await screen.findByRole('button', { name: 'Sí, finalizar' }));
 }
 
@@ -196,9 +196,7 @@ describe('VideoConsultation', () => {
     await screen.findByTitle(/Videoconsulta con Ana Gómez/);
 
     expect(screen.queryByText(/info de la paciente/i)).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: /finalizar y ver el resumen/i }),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^finalizar$/i })).not.toBeInTheDocument();
   });
 
   it('al salir, el paciente ve la pantalla de cierre con la reseña (ENG-190)', async () => {
@@ -383,7 +381,7 @@ describe('VideoConsultation', () => {
       await finalizar(user);
 
       await user.type(await screen.findByLabelText(/motivo de consulta/i), 'Control');
-      await user.click(screen.getByRole('button', { name: 'Lo cargo después' }));
+      await user.click(screen.getByRole('button', { name: 'Cancelar' }));
 
       expect(
         await screen.findByRole('heading', { name: '¿Salir sin guardar la evolución?' }),
@@ -409,13 +407,13 @@ describe('VideoConsultation', () => {
       expect(lecturas()).toBe(antes);
     });
 
-    it('"Lo cargo después" no crea ninguna entrada', async () => {
+    it('"Cancelar" no crea ninguna entrada', async () => {
       const user = userEvent.setup();
       renderComponent();
       await screen.findByTitle(/Videoconsulta con Ana Gómez/);
       await finalizar(user);
 
-      await user.click(await screen.findByRole('button', { name: 'Lo cargo después' }));
+      await user.click(await screen.findByRole('button', { name: 'Cancelar' }));
 
       expect(alta).not.toHaveBeenCalled();
     });
@@ -444,7 +442,7 @@ describe('VideoConsultation', () => {
       renderComponent();
       await screen.findByTitle(/Videoconsulta con Ana Gómez/);
 
-      await user.click(screen.getByRole('button', { name: /finalizar y ver el resumen/i }));
+      await user.click(screen.getByRole('button', { name: /^finalizar$/i }));
       await user.click(await screen.findByRole('button', { name: 'Seguir en la consulta' }));
 
       expect(screen.getByTitle(/Videoconsulta con Ana Gómez/)).toBeInTheDocument();
