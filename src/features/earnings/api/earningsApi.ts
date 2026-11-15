@@ -23,13 +23,13 @@ export async function getMyEarnings(
   return (await response.json()) as EarningsView;
 }
 
-/** El CSV de lo que se ve en la tabla (mismo período y filtros), para descargar. */
-export async function downloadEarningsCsv(
+/** El Excel de lo que se ve en la tabla (mismo período y filtros), con los totales. */
+export async function downloadEarningsXlsx(
   from: string,
   to: string,
   filtros: EarningsFilters = {},
 ): Promise<Blob> {
   const response = await apiFetch(`/professionals/me/earnings/export?${query(from, to, filtros)}`);
-  if (!response.ok) throw await toApiError(response, 'No pudimos generar el CSV.');
+  if (!response.ok) throw await toApiError(response, 'No pudimos generar el Excel.');
   return response.blob();
 }

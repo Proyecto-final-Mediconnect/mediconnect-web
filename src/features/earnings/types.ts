@@ -29,7 +29,7 @@ export interface EarningsView {
 
 export type EarningsOrder = 'RECIENTES' | 'ANTIGUOS' | 'MAYOR_MONTO';
 
-/** Recortan la tabla, los totales y el CSV por igual. */
+/** Recortan la tabla, los totales y el Excel por igual. */
 export interface EarningsFilters {
   estado?: EarningState;
   paciente?: string;
