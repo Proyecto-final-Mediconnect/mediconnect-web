@@ -1,10 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useNow } from '../../../shared/hooks/useNow';
+import { IconHistoria, IconTurnos } from '../../../shared/ui/NavIcons';
 import { useSession } from '../../auth/hooks/useSession';
-import { PolicyNotice } from '../../cancellation-policy/components/PolicyNotice';
-import { MAX_REFUND_PERCENT, refundPercentFor } from '../../cancellation-policy/lib/policy';
+import {
+  describePolicy,
+  MAX_REFUND_PERCENT,
+  refundPercentFor,
+} from '../../cancellation-policy/lib/policy';
 import { usePublicProfile } from '../../catalog/hooks/usePublicProfile';
 import { getPaymentStatus } from '../../payments/api/paymentsApi';
 import { PaymentReceipt } from '../../payments/components/PaymentReceipt';
@@ -134,6 +138,20 @@ export function AppointmentDetail({
     policy !== undefined &&
     refundPercentFor(policy, new Date(appointment.scheduledAt), now) < MAX_REFUND_PERCENT;
   const professionalId = appointment.professional?.id;
+  const rebookable = isPatient && !isActive(appointment) && Boolean(professionalId);
+  const hayAcciones =
+    rebookable || Boolean(reschedulable) || cancellable || noShowable || (!isPatient && !!person);
+  // Lo que importa al cancelar es cuánto vuelve hoy; solo si ya se pagó.
+  const pctHoy =
+    appointment.status === 'CONFIRMADO' && policy
+      ? refundPercentFor(policy, new Date(appointment.scheduledAt), now)
+      : null;
+  const devolucionAhora =
+    pctHoy === null
+      ? null
+      : pctHoy === 0
+        ? 'Si cancelás ahora, no hay devolución.'
+        : `Si cancelás ahora, te devolvemos el ${pctHoy} %.`;
 
   return (
     <div className={`grid ${panel ? 'gap-4' : 'gap-6'}`}>
@@ -245,90 +263,103 @@ export function AppointmentDetail({
               confirmedAt={payment.data.confirmedAt}
             />
           )}
+          {/* La reseña de una consulta que ya se hizo (ENG-80): va aparte,
+              no es una acción sobre el turno. */}
+          {isPatient && (appointment.status === 'COMPLETADO' || pendiente) && (
+            <AppointmentReview
+              appointmentId={appointment.id}
+              professionalName={
+                appointment.professional
+                  ? `${appointment.professional.firstName} ${appointment.professional.lastName}`
+                  : 'el profesional'
+              }
+            />
+          )}
+
           <section
             aria-labelledby="acciones"
-            className="grid gap-3 rounded-[16px] border border-line bg-white p-6"
+            className="overflow-hidden rounded-[16px] border border-line bg-white"
           >
             <h2
               id="acciones"
-              className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted"
+              className="px-6 pb-2 pt-5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted"
             >
               Acciones
             </h2>
 
-            {/* La reseña de una consulta que ya se hizo (ENG-80). */}
-            {isPatient && (appointment.status === 'COMPLETADO' || pendiente) && (
-              <AppointmentReview
-                appointmentId={appointment.id}
-                professionalName={
-                  appointment.professional
-                    ? `${appointment.professional.firstName} ${appointment.professional.lastName}`
-                    : 'el profesional'
-                }
-              />
-            )}
-
-            {reschedulable && !reprogramacionCerrada && (
-              <Link
-                to={`/profesionales/${professionalId}/turnos?reprogramar=${appointment.id}`}
-                className="inline-flex items-center justify-center rounded-[10px] border border-line-strong bg-white px-4 py-2.5 text-sm font-bold text-brand-deep transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-              >
-                Reprogramar
-              </Link>
-            )}
-            {reschedulable && reprogramacionCerrada && policy && (
-              <p className="self-center text-sm text-muted">
-                Con menos de {policy.hoursFullRefund} horas ya no se puede reprogramar.
+            {hayAcciones ? (
+              <ul className="divide-y divide-line-soft border-t border-line-soft">
+                {rebookable && (
+                  <Accion
+                    icon={<IconTurnos />}
+                    titulo={`Volver a reservar con ${appointment.professional?.firstName}`}
+                    detalle="Elegí otro día y horario."
+                    to={`/profesionales/${professionalId}/turnos`}
+                  />
+                )}
+                {reschedulable && !reprogramacionCerrada && (
+                  <Accion
+                    icon={<IconTurnos />}
+                    titulo="Reprogramar"
+                    detalle="Pasalo a otro horario. Se puede una sola vez."
+                    to={`/profesionales/${professionalId}/turnos?reprogramar=${appointment.id}`}
+                  />
+                )}
+                {reschedulable && reprogramacionCerrada && policy && (
+                  <li className="flex items-center gap-3 px-6 py-3.5">
+                    <Burbuja>
+                      <IconTurnos />
+                    </Burbuja>
+                    <p className="text-[13px] leading-normal text-muted">
+                      Con menos de {policy.hoursFullRefund} horas ya no se puede reprogramar.
+                    </p>
+                  </li>
+                )}
+                {cancellable && (
+                  <Accion
+                    icon={<IconCruz />}
+                    titulo="Cancelar turno"
+                    detalle={devolucionAhora ?? 'El horario queda libre para otro paciente.'}
+                    onClick={() => setToCancel(appointment)}
+                    danger
+                  />
+                )}
+                {!isPatient && person && (
+                  <Accion
+                    icon={<IconHistoria />}
+                    titulo="Historia clínica"
+                    detalle={`La de ${person.firstName}, para ver y cargar.`}
+                    to={`/pacientes/${person.id}/historia-clinica`}
+                  />
+                )}
+                {noShowable && (
+                  <Accion
+                    icon={<IconCruz />}
+                    titulo="Marcar como no asistió"
+                    detalle={`Si ${person?.firstName ?? 'el paciente'} no se conectó a la consulta.`}
+                    onClick={() => setToNoShow(appointment)}
+                    danger
+                  />
+                )}
+              </ul>
+            ) : (
+              <p className="px-6 pb-5 text-sm text-muted">
+                No hay acciones disponibles para este turno.
               </p>
             )}
-            {cancellable && (
-              <button
-                type="button"
-                onClick={() => setToCancel(appointment)}
-                className="inline-flex items-center justify-center rounded-[10px] border border-line-strong bg-white px-4 py-2.5 text-sm font-bold text-danger transition-colors hover:border-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-              >
-                Cancelar turno
-              </button>
-            )}
-            {isPatient && !isActive(appointment) && professionalId && (
-              <Link
-                to={`/profesionales/${professionalId}/turnos`}
-                className="inline-flex items-center justify-center rounded-[10px] bg-brand-deep px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-              >
-                Volver a reservar con {appointment.professional?.firstName}
-              </Link>
-            )}
-            {noShowable && (
-              <button
-                type="button"
-                onClick={() => setToNoShow(appointment)}
-                className="inline-flex items-center justify-center rounded-[10px] border border-line-strong bg-white px-4 py-2.5 text-sm font-bold text-danger transition-colors hover:border-danger focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-              >
-                Marcar como no asistió
-              </button>
-            )}
-            {!isPatient && person && (
-              <Link
-                to={`/pacientes/${person.id}/historia-clinica`}
-                className="inline-flex items-center justify-center rounded-[10px] border border-line-strong bg-white px-4 py-2.5 text-sm font-bold text-brand-deep transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
-              >
-                Historia clínica
-              </Link>
-            )}
-            {!reschedulable &&
-              !cancellable &&
-              !(isPatient && !isActive(appointment)) &&
-              isPatient && (
-                <p className="text-sm text-muted">No hay acciones disponibles para este turno.</p>
-              )}
 
             {isPatient && cancellable && (
-              <div className="border-t border-line-soft pt-3">
-                <PolicyNotice policy={policy} />
+              <div className="grid gap-1.5 border-t border-line-soft bg-surface px-6 py-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted">
+                  Política de cancelación
+                </p>
+                <p className="text-xs leading-[1.6] text-muted">
+                  {policy
+                    ? describePolicy(policy)
+                    : 'El plazo y la devolución los define cada profesional.'}
+                </p>
                 {appointment.rescheduledAt && (
-                  <p className="mt-2 text-xs text-muted-soft">
-                    Este turno ya se reprogramó una vez.
-                  </p>
+                  <p className="text-xs text-muted-soft">Este turno ya se reprogramó una vez.</p>
                 )}
               </div>
             )}
@@ -344,6 +375,103 @@ export function AppointmentDetail({
       />
       <NoShowDialog appointment={toNoShow} onClose={() => setToNoShow(null)} />
     </div>
+  );
+}
+
+/** El círculo de color que lleva el ícono de cada acción. */
+function Burbuja({ danger = false, children }: { danger?: boolean; children: React.ReactNode }) {
+  return (
+    <span
+      aria-hidden="true"
+      className={`flex size-9 flex-none items-center justify-center rounded-full ${
+        danger ? 'bg-danger/10 text-danger' : 'bg-surface-teal text-brand-hover'
+      }`}
+    >
+      {children}
+    </span>
+  );
+}
+
+/**
+ * Una acción sobre el turno: una fila entera que se toca, con lo que hace
+ * debajo del título. El nombre accesible es solo el título; el detalle se lee
+ * como descripción.
+ */
+function Accion({
+  icon,
+  titulo,
+  detalle,
+  to,
+  onClick,
+  danger = false,
+}: {
+  icon: React.ReactNode;
+  titulo: string;
+  detalle: string;
+  to?: string;
+  onClick?: () => void;
+  danger?: boolean;
+}) {
+  const detalleId = useId();
+  const clase = `group flex w-full items-center gap-3 px-6 py-3.5 text-left transition-colors focus:outline-none focus-visible:bg-surface ${
+    danger ? 'hover:bg-danger/5' : 'hover:bg-surface'
+  }`;
+  const contenido = (
+    <>
+      <Burbuja danger={danger}>{icon}</Burbuja>
+      <span className="grid min-w-0 flex-1 gap-0.5">
+        <span className={`text-sm font-bold ${danger ? 'text-danger' : 'text-brand-deep'}`}>
+          {titulo}
+        </span>
+        <span id={detalleId} className="text-[13px] leading-normal text-muted">
+          {detalle}
+        </span>
+      </span>
+      <span
+        aria-hidden="true"
+        className="flex-none text-muted transition-transform group-hover:translate-x-0.5"
+      >
+        ›
+      </span>
+    </>
+  );
+  return (
+    <li>
+      {to ? (
+        <Link to={to} aria-label={titulo} aria-describedby={detalleId} className={clase}>
+          {contenido}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          onClick={onClick}
+          aria-label={titulo}
+          aria-describedby={detalleId}
+          className={clase}
+        >
+          {contenido}
+        </button>
+      )}
+    </li>
+  );
+}
+
+/** Cancelar o marcar que no vino: un círculo con la cruz. */
+function IconCruz() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="h-[18px] w-[18px] flex-none"
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="m9 9 6 6M15 9l-6 6" />
+    </svg>
   );
 }
 

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useNow } from '../../../shared/hooks/useNow';
 import { useMarkNotificationRead, useMyNotifications } from '../hooks/useNotifications';
 import { relativeTime } from '../lib/relativeTime';
+import { NotificationIcon } from './NotificationIcon';
 
 /**
  * La campanita de avisos del shell privado (ENG-69).
@@ -109,23 +110,39 @@ export function NotificationsBell() {
                         }
                       }}
                       aria-label={`${unreadItem ? 'Sin leer: ' : ''}${n.title}. ${n.body}`}
-                      className={`grid w-full gap-1 px-5 py-3.5 text-left transition-colors hover:bg-surface focus:outline-none focus-visible:bg-surface ${
+                      className={`flex w-full items-start gap-3 px-4 py-3.5 text-left transition-colors hover:bg-surface focus:outline-none focus-visible:bg-surface ${
                         unreadItem ? 'bg-surface-teal/40' : ''
                       }`}
                     >
-                      <span className="flex items-start justify-between gap-3">
-                        <span className="text-[14px] font-bold text-brand-deep">{n.title}</span>
-                        {unreadItem && (
-                          <span
-                            aria-hidden="true"
-                            className="mt-1.5 h-2 w-2 flex-none rounded-full bg-brand"
-                          />
-                        )}
+                      <span
+                        aria-hidden="true"
+                        className={`flex size-8 flex-none items-center justify-center rounded-full ${
+                          unreadItem
+                            ? 'bg-brand-hover text-white'
+                            : 'bg-surface-teal text-brand-hover'
+                        }`}
+                      >
+                        <NotificationIcon type={n.type} className="h-4! w-4!" />
                       </span>
-                      <span className="text-[13px] leading-[1.5] text-ink">{n.body}</span>
-                      <span className="text-[12px] text-muted">
-                        {relativeTime(now, n.createdAt)}
+                      <span className="grid min-w-0 flex-1 gap-0.5">
+                        <span className="flex items-baseline gap-2">
+                          <span className="min-w-0 flex-1 truncate text-[14px] font-bold text-brand-deep">
+                            {n.title}
+                          </span>
+                          <span className="flex-none text-[12px] text-muted">
+                            {relativeTime(now, n.createdAt)}
+                          </span>
+                        </span>
+                        <span className="line-clamp-3 text-[13px] leading-[1.5] text-ink">
+                          {n.body}
+                        </span>
                       </span>
+                      {unreadItem && (
+                        <span
+                          aria-hidden="true"
+                          className="mt-1.5 h-2 w-2 flex-none rounded-full bg-brand"
+                        />
+                      )}
                     </button>
                   </li>
                 );
