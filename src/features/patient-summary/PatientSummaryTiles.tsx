@@ -1,9 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { formatPrice } from '../appointments/lib/weeks';
 import { getMySummary, type PatientSummary } from './api';
 import { PERIOD_LABELS, periodRange, type SummaryPeriod } from './period';
+import { PatientSummaryReport } from './PatientSummaryReport';
+import { SESSION_QUERY_KEY } from '../auth/hooks/useSession';
+import { displayNameOf, type SessionUser } from '../auth/types/session';
+import { ExportPdfButton } from '../../shared/ui/PrintableReport';
+import { usePrintReport } from '../../shared/lib/printReport';
 
 /**
  * El resumen del inicio del paciente (ENG-198): consultas, lo que pagó, lo que
@@ -24,6 +29,9 @@ export function PatientSummaryTiles() {
     datos.consultas.realizadas === 0 &&
     datos.pagos.pagado === 0 &&
     datos.accesos.total === 0;
+  const { imprimiendo, imprimir } = usePrintReport();
+  // De la caché: el inicio ya cargó la sesión y no hace falta otro pedido.
+  const usuario = useQueryClient().getQueryData<SessionUser | null>(SESSION_QUERY_KEY);
 
   return (
     <section aria-labelledby="tu-resumen" className="grid gap-3">
@@ -34,24 +42,38 @@ export function PatientSummaryTiles() {
         >
           Tu resumen
         </h2>
-        <div role="group" aria-label="Período" className="inline-flex gap-1">
-          {(Object.keys(PERIOD_LABELS) as SummaryPeriod[]).map((p) => (
-            <button
-              key={p}
-              type="button"
-              aria-pressed={periodo === p}
-              onClick={() => setPeriodo(p)}
-              className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
-                periodo === p
-                  ? 'bg-brand-deep text-white'
-                  : 'border border-line bg-white text-muted hover:border-brand'
-              }`}
-            >
-              {PERIOD_LABELS[p]}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div role="group" aria-label="Período" className="inline-flex gap-1">
+            {(Object.keys(PERIOD_LABELS) as SummaryPeriod[]).map((p) => (
+              <button
+                key={p}
+                type="button"
+                aria-pressed={periodo === p}
+                onClick={() => setPeriodo(p)}
+                className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+                  periodo === p
+                    ? 'bg-brand-deep text-white'
+                    : 'border border-line bg-white text-muted hover:border-brand'
+                }`}
+              >
+                {PERIOD_LABELS[p]}
+              </button>
+            ))}
+          </div>
+          <ExportPdfButton
+            onClick={imprimir}
+            disabled={!datos || resumen.isFetching || !!sinActividad}
+          />
         </div>
       </div>
+
+      {imprimiendo && datos && (
+        <PatientSummaryReport
+          datos={datos}
+          periodo={PERIOD_LABELS[periodo]}
+          persona={usuario ? displayNameOf(usuario) : undefined}
+        />
+      )}
 
       {resumen.isPending ? (
         <div

@@ -146,6 +146,29 @@ body {
   }
 }
 
+/* Reportes en PDF: "Mi actividad" y "Tu resumen" (ver `PrintableReport`). Igual
+ * que la tarjeta: la hoja es un portal en `body` y, mientras está montada, es lo
+ * único que se imprime. Usa su propia página con márgenes en cero para que el
+ * navegador no agregue la URL ni la fecha arriba y abajo; el margen lo pone la
+ * hoja. */
+@page reporte {
+  size: A4;
+  margin: 0;
+}
+
+@media print {
+  body:has(.hoja-reporte) > *:not(.hoja-reporte) {
+    display: none !important;
+  }
+
+  .hoja-reporte {
+    page: reporte;
+    padding: 16mm 15mm 14mm;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
+
 /* Panel lateral (SideDrawer, ENG-178). */
 @keyframes drawer-in {
   from {
