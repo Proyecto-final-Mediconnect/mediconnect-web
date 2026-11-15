@@ -181,7 +181,13 @@ export function subscribeToInbox(onChange: () => void): () => void {
     const channel = supabase
       .channel('inbox')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, onChange)
-      .subscribe();
+      // Al (re)unirse se refresca: los INSERT de mientras el socket estuvo caído no llegan.
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') onChange();
+        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn(`[chat] bandeja en vivo: ${status}`);
+        }
+      });
     stop = () => void supabase.removeChannel(channel);
   });
 

@@ -329,7 +329,10 @@ describe('realtime', () => {
           handler = cb;
           return channel;
         }),
-        subscribe: vi.fn(() => channel),
+        subscribe: vi.fn((cb?: (status: string) => void) => {
+          cb?.('SUBSCRIBED');
+          return channel;
+        }),
       };
       return {
         channel: vi.fn(() => channel),
@@ -349,8 +352,10 @@ describe('realtime', () => {
       { event: 'INSERT', schema: 'public', table: 'messages' },
       expect.any(Function),
     );
-    handler?.();
+    // Al quedar unida (o reunida tras una caída) refresca por lo que se perdió en el medio.
     expect(onChange).toHaveBeenCalledTimes(1);
+    handler?.();
+    expect(onChange).toHaveBeenCalledTimes(2);
   });
 
   it('sin variables de Supabase no hay indicador de escribiendo', async () => {

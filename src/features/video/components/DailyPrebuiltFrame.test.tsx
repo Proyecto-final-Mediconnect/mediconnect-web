@@ -77,7 +77,7 @@ describe('DailyPrebuiltFrame', () => {
 
     unmount();
 
-    expect(daily.destroy).toHaveBeenCalled();
+    await waitFor(() => expect(daily.destroy).toHaveBeenCalled());
   });
 
   it('si no se puede entrar, lo dice en vez de dejar un recuadro negro', async () => {
@@ -86,5 +86,62 @@ describe('DailyPrebuiltFrame', () => {
     render(<DailyPrebuiltFrame roomUrl={ROOM_URL} title="Sala de prueba" />);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/No pudimos abrir la sala/);
+  });
+
+  it('volver a montar enseguida espera el destroy anterior y no muestra un error falso', async () => {
+    let terminar!: () => void;
+    daily.destroy.mockReturnValueOnce(new Promise<void>((r) => (terminar = r)));
+    const primero = render(<DailyPrebuiltFrame roomUrl={ROOM_URL} title="Sala" />);
+    await waitFor(() => expect(daily.join).toHaveBeenCalledTimes(1));
+    primero.unmount();
+
+    // La instancia vieja todavía se está destruyendo y su segundo destroy rechaza.
+    daily.getCallInstance.mockReturnValue({ destroy: vi.fn().mockRejectedValue(new Error('ya')) });
+    render(<DailyPrebuiltFrame roomUrl={ROOM_URL} title="Sala" />);
+    await Promise.resolve();
+    expect(daily.createFrame).toHaveBeenCalledTimes(1); // espera al destroy en curso
+
+    terminar();
+    await waitFor(() => expect(daily.join).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('desmontar antes de que cargue daily-js no arma ninguna llamada', async () => {
+    const { unmount } = render(<DailyPrebuiltFrame roomUrl={ROOM_URL} title="Sala" />);
+    unmount();
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(daily.createFrame).not.toHaveBeenCalled();
+  });
+
+  it('cambiar el title no recrea la llamada, solo actualiza el iframe', async () => {
+    const iframe = document.createElement('iframe');
+    daily.iframe.mockReturnValue(iframe);
+    const { rerender } = render(<DailyPrebuiltFrame roomUrl={ROOM_URL} title="Sala" />);
+    await waitFor(() => expect(daily.join).toHaveBeenCalled());
+
+    rerender(<DailyPrebuiltFrame roomUrl={ROOM_URL} title="Consulta con Ana" />);
+
+    expect(iframe.getAttribute('title')).toBe('Consulta con Ana');
+    expect(daily.createFrame).toHaveBeenCalledTimes(1);
+    expect(daily.destroy).not.toHaveBeenCalled();
+  });
+
+  it('tras un error, una roomUrl nueva vuelve a intentar y saca el aviso', async () => {
+    daily.join.mockRejectedValueOnce(new Error('boom'));
+    const { rerender } = render(<DailyPrebuiltFrame roomUrl={ROOM_URL} title="Sala" />);
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+
+    rerender(<DailyPrebuiltFrame roomUrl={`${ROOM_URL}2`} title="Sala" />);
+
+    await waitFor(() => expect(daily.join).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+  });
+
+  it('una URL mal formada falla antes de armar el frame', async () => {
+    render(<DailyPrebuiltFrame roomUrl="no es una url" title="Sala" />);
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(daily.createFrame).not.toHaveBeenCalled();
   });
 });
