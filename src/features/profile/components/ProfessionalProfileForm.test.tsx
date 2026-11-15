@@ -177,6 +177,35 @@ describe('ProfessionalProfileForm', () => {
       expect(patches).toHaveLength(0);
     });
 
+    it('guardar solo la bio no manda education', async () => {
+      const user = userEvent.setup();
+      renderForm();
+      await screen.findByDisplayValue('Medicina');
+
+      const bio = screen.getByLabelText(/Biografía/);
+      await user.type(bio, ' extra');
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+      await screen.findByRole('status');
+
+      expect(lastPatchBody()).not.toHaveProperty('education');
+    });
+
+    it('asocia el error al input de la fila afectada', async () => {
+      const user = userEvent.setup();
+      renderForm();
+      await screen.findByDisplayValue('Medicina');
+
+      await user.click(screen.getByRole('button', { name: '+ Agregar título' }));
+      await user.type(screen.getAllByLabelText('Título')[1], 'Posgrado');
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+      const alerta = await screen.findByText('Título 2: Falta la institución');
+      const input = screen.getAllByLabelText('Institución')[1];
+      expect(input).toHaveAttribute('aria-invalid', 'true');
+      expect(input).toHaveAttribute('aria-describedby', alerta.id);
+      expect(screen.getAllByLabelText('Institución')[0]).not.toHaveAttribute('aria-invalid');
+    });
+
     it('un año futuro se rechaza antes de mandar', async () => {
       const user = userEvent.setup();
       renderForm();

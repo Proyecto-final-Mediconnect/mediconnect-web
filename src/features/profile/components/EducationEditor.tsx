@@ -14,11 +14,20 @@ export function EducationEditor({
   rows,
   onChange,
   error,
+  errorRow,
 }: {
   rows: EducationDraft[];
   onChange: (rows: EducationDraft[]) => void;
   error?: string;
+  /** Fila con el problema, para marcar sus inputs como inválidos. */
+  errorRow?: number;
 }) {
+  const errorId = 'education-error';
+  const invalid = (index: number) =>
+    error && errorRow === index
+      ? ({ 'aria-invalid': true, 'aria-describedby': errorId } as const)
+      : {};
+
   function update(uid: string, patch: Partial<EducationDraft>) {
     onChange(rows.map((row) => (row.uid === uid ? { ...row, ...patch } : row)));
   }
@@ -47,6 +56,7 @@ export function EducationEditor({
               placeholder="Medicina"
               maxLength={150}
               className={CAMPO}
+              {...invalid(index)}
             />
           </label>
           <label className="text-[13px]">
@@ -57,6 +67,7 @@ export function EducationEditor({
               placeholder="Universidad Nacional de Córdoba"
               maxLength={150}
               className={CAMPO}
+              {...invalid(index)}
             />
           </label>
           <label className="text-[13px]">
@@ -68,6 +79,7 @@ export function EducationEditor({
               maxLength={4}
               placeholder="2015"
               className={CAMPO}
+              {...invalid(index)}
             />
           </label>
           <button
@@ -82,7 +94,7 @@ export function EducationEditor({
       ))}
 
       {error && (
-        <p role="alert" className="text-[13px] text-danger">
+        <p id={errorId} role="alert" className="text-[13px] text-danger">
           {error}
         </p>
       )}

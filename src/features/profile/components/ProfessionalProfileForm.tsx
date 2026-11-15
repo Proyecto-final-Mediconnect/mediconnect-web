@@ -58,6 +58,7 @@ export function ProfessionalProfileForm() {
   const [price, setPrice] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [education, setEducation] = useState<EducationDraft[]>([]);
+  const [educationErrorRow, setEducationErrorRow] = useState<number | undefined>();
   const [errors, setErrors] = useState<FieldErrors>({});
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -169,6 +170,7 @@ export function ProfessionalProfileForm() {
 
     if (!parsed.success) {
       const fieldErrors: FieldErrors = {};
+      let errorRow: number | undefined;
       for (const issue of parsed.error.issues) {
         const field = issue.path[0] as keyof FieldErrors;
         // En la formación se dice en qué título está el problema.
@@ -176,14 +178,28 @@ export function ProfessionalProfileForm() {
           field === 'education' && typeof issue.path[1] === 'number'
             ? `Título ${issue.path[1] + 1}: ${issue.message}`
             : issue.message;
-        if (field && !fieldErrors[field]) fieldErrors[field] = message;
+        if (field && !fieldErrors[field]) {
+          fieldErrors[field] = message;
+          if (field === 'education' && typeof issue.path[1] === 'number') {
+            errorRow = issue.path[1];
+          }
+        }
       }
+      setEducationErrorRow(errorRow);
       setErrors(fieldErrors);
       return;
     }
 
     setErrors({});
-    updateProfile.mutate(parsed.data, {
+    setEducationErrorRow(undefined);
+    // `education` es opcional en el esquema: solo viaja si el profesional la
+    // tocó, así guardar la bio o el precio no depende de que el backend ya la
+    // acepte ni pisa la formación con `[]`.
+    const payload =
+      educationKey(education) !== original.education
+        ? parsed.data
+        : { ...parsed.data, education: undefined };
+    updateProfile.mutate(payload, {
       onSuccess: () => {
         setSaved(true);
         // El nuevo punto de comparación es lo que había en el formulario al
@@ -329,7 +345,9 @@ export function ProfessionalProfileForm() {
           titulo="Formación"
           detalle="Tus títulos, residencias y posgrados. Se muestran en tu perfil público, del más reciente al más viejo."
         >
-          <EducationEditor rows={education} onChange={setEducation} error={errors.education} />
+          <EducationEditor rows={education} onChange={setEducation} error={errors.education}
+            errorRow={educationErrorRow}
+          />
         </Seccion>
 
         <Seccion
