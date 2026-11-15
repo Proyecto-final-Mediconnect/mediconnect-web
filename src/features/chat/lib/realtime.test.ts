@@ -46,7 +46,7 @@ beforeEach(() => {
       channel: vi.fn(fakeChannel),
       removeChannel: vi.fn(),
       removeAllChannels: vi.fn(),
-      realtime: { disconnect: vi.fn() },
+      realtime: { disconnect: vi.fn(), setAuth: vi.fn().mockResolvedValue(undefined) },
     };
   });
   getRealtimeToken.mockReset();
@@ -179,7 +179,11 @@ describe('realtime', () => {
       key: 'k',
     });
 
-    const signals = subscribeToChatSignals('c-1', { onTyping: vi.fn(), onRead: vi.fn() });
+    const signals = subscribeToChatSignals('c-1', {
+      onTyping: vi.fn(),
+      onRead: vi.fn(),
+      onMessage: vi.fn(),
+    });
     await settled();
 
     const client = supabase.createClient.mock.results[0]!.value;
@@ -225,7 +229,11 @@ describe('realtime', () => {
     });
     const { subscribeToChatSignals } = await load({ url: 'https://x.supabase.co', key: 'k' });
 
-    const signals = subscribeToChatSignals('c-1', { onTyping: vi.fn(), onRead: vi.fn() });
+    const signals = subscribeToChatSignals('c-1', {
+      onTyping: vi.fn(),
+      onRead: vi.fn(),
+      onMessage: vi.fn(),
+    });
     await settled();
     const channel = supabase.createClient.mock.results[0]!.value.channel.mock.results[0]!.value;
 
@@ -239,11 +247,121 @@ describe('realtime', () => {
     expect(channel.send).toHaveBeenCalledWith({ type: 'broadcast', event: 'leido', payload: {} });
   });
 
+  it('"mandé un mensaje" va por el canal privado y el otro lo recibe', async () => {
+    let onBroadcast: Record<string, () => void> = {};
+    supabase.createClient.mockImplementation((_u, _k, options) => {
+      supabase.accessToken = options.accessToken;
+      const channel = {
+        on: vi.fn((_t: string, filter: { event: string }, cb: () => void) => {
+          onBroadcast[filter.event] = cb;
+          return channel;
+        }),
+        send: vi.fn(),
+        subscribe: vi.fn((cb: (status: string) => void) => {
+          cb('SUBSCRIBED');
+          return channel;
+        }),
+      };
+      return {
+        channel: vi.fn(() => channel),
+        removeChannel: vi.fn(),
+        realtime: { setAuth: vi.fn().mockResolvedValue(undefined) },
+      };
+    });
+    const { subscribeToChatSignals } = await load({ url: 'https://x.supabase.co', key: 'k' });
+    const onMessage = vi.fn();
+
+    const signals = subscribeToChatSignals('c-1', {
+      onTyping: vi.fn(),
+      onRead: vi.fn(),
+      onMessage,
+    });
+    await settled();
+    const channel = supabase.createClient.mock.results[0]!.value.channel.mock.results[0]!.value;
+
+    signals.notifyMessage();
+    expect(channel.send).toHaveBeenCalledWith({
+      type: 'broadcast',
+      event: 'mensaje',
+      payload: {},
+    });
+
+    onBroadcast['mensaje']!();
+    expect(onMessage).toHaveBeenCalledTimes(1);
+    onBroadcast = {};
+  });
+
+  it('deja el token puesto en el socket antes de unirse al canal', async () => {
+    const order: string[] = [];
+    supabase.createClient.mockImplementation((_u, _k, options) => {
+      supabase.accessToken = options.accessToken;
+      const channel = {
+        on: vi.fn(() => channel),
+        subscribe: vi.fn(() => {
+          order.push('subscribe');
+          return channel;
+        }),
+      };
+      return {
+        channel: vi.fn(() => channel),
+        removeChannel: vi.fn(),
+        realtime: {
+          setAuth: vi.fn(async () => {
+            order.push('setAuth');
+          }),
+        },
+      };
+    });
+    const { subscribeToConversation } = await load({ url: 'https://x.supabase.co', key: 'k' });
+
+    subscribeToConversation('c-1', vi.fn(), vi.fn());
+    await settled();
+
+    expect(order).toEqual(['setAuth', 'subscribe']);
+  });
+
+  it('la bandeja escucha los mensajes de todas mis conversaciones, sin filtro', async () => {
+    let handler: (() => void) | undefined;
+    supabase.createClient.mockImplementation((_u, _k, options) => {
+      supabase.accessToken = options.accessToken;
+      const channel = {
+        on: vi.fn((_t: string, _f: object, cb: () => void) => {
+          handler = cb;
+          return channel;
+        }),
+        subscribe: vi.fn(() => channel),
+      };
+      return {
+        channel: vi.fn(() => channel),
+        removeChannel: vi.fn(),
+        realtime: { setAuth: vi.fn().mockResolvedValue(undefined) },
+      };
+    });
+    const { subscribeToInbox } = await load({ url: 'https://x.supabase.co', key: 'k' });
+    const onChange = vi.fn();
+
+    subscribeToInbox(onChange);
+    await settled();
+    const channel = supabase.createClient.mock.results[0]!.value.channel.mock.results[0]!.value;
+
+    expect(channel.on).toHaveBeenCalledWith(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'messages' },
+      expect.any(Function),
+    );
+    handler?.();
+    expect(onChange).toHaveBeenCalledTimes(1);
+  });
+
   it('sin variables de Supabase no hay indicador de escribiendo', async () => {
     const { subscribeToChatSignals } = await load({});
 
     expect(() =>
-      subscribeToChatSignals('c-1', { onTyping: vi.fn(), onRead: vi.fn() }).notifyTyping(),
+      subscribeToChatSignals('c-1', {
+        onTyping: vi.fn(),
+        onRead: vi.fn(),
+        onMessage: vi.fn(),
+      }).notifyTyping(),
     ).not.toThrow();
     expect(supabase.createClient).not.toHaveBeenCalled();
   });

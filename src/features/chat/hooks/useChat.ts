@@ -21,6 +21,7 @@ import { mergeMessages } from '../lib/messages';
 import {
   subscribeToConversation,
   subscribeToChatSignals,
+  subscribeToInbox,
   type ChatSignals,
   type RealtimeStatus,
 } from '../lib/realtime';
@@ -35,7 +36,7 @@ const NOTIFICATIONS_KEY = ['notifications', 'me'] as const;
 /** Sin Realtime, cada cuánto se buscan mensajes nuevos de la conversación abierta. */
 export const POLL_INTERVAL_MS = 5_000;
 /** Con Realtime, igual se reconcilia de vez en cuando: el stream puede perder un evento. */
-const LIVE_RECONCILE_MS = 60_000;
+const LIVE_RECONCILE_MS = 15_000;
 
 const retryUnlessClientError = (failureCount: number, error: Error) =>
   !isClientError(error) && failureCount < 1;
@@ -45,7 +46,7 @@ export function useConversations() {
   return useQuery({
     queryKey: CHAT_INBOX_KEY,
     queryFn: getMyConversations,
-    refetchInterval: 30_000,
+    refetchInterval: 15_000,
     refetchOnWindowFocus: true,
     retry: retryUnlessClientError,
   });
@@ -170,6 +171,23 @@ export function useConversationRealtime(conversationId: string | undefined): Rea
   return status;
 }
 
+/**
+ * La bandeja en vivo: un mensaje nuevo mío, de cualquier conversación (incluida
+ * una que todavía no existía para mí), actualiza la lista y los no leídos sin
+ * recargar. Se usa una sola vez, en la pantalla de la bandeja.
+ */
+export function useInboxRealtime() {
+  const queryClient = useQueryClient();
+  useEffect(
+    () =>
+      subscribeToInbox(() => {
+        void queryClient.invalidateQueries({ queryKey: CHAT_INBOX_KEY });
+        void queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_KEY });
+      }),
+    [queryClient],
+  );
+}
+
 /** Cuánto sigue la burbuja de "escribiendo" sin un aviso nuevo. Un poco más que el espaciado de los avisos. */
 export const TYPING_VISIBLE_MS = 4_000;
 
@@ -195,6 +213,11 @@ export function useChatSignals(conversationId: string) {
         timer = setTimeout(() => setOthersTyping(false), TYPING_VISIBLE_MS);
       },
       onRead: () => reconcileLatest(queryClient, conversationId),
+      // El otro mandó un mensaje: se pide al backend, sin esperar a Postgres Changes.
+      onMessage: () => {
+        reconcileLatest(queryClient, conversationId);
+        void queryClient.invalidateQueries({ queryKey: CHAT_INBOX_KEY });
+      },
     });
     return () => {
       clearTimeout(timer);
@@ -205,9 +228,10 @@ export function useChatSignals(conversationId: string) {
 
   const notifyTyping = useCallback(() => signals.current?.notifyTyping(), []);
   const notifyRead = useCallback(() => signals.current?.notifyRead(), []);
+  const notifyMessage = useCallback(() => signals.current?.notifyMessage(), []);
   const clearTyping = useCallback(() => setOthersTyping(false), []);
 
-  return { othersTyping, notifyTyping, notifyRead, clearTyping };
+  return { othersTyping, notifyTyping, notifyRead, notifyMessage, clearTyping };
 }
 
 export function useSendMessage(conversationId: string) {

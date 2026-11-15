@@ -1,17 +1,20 @@
+import { useEffect, useRef, useState } from 'react';
+import { splitRoomUrl } from '../lib/splitRoomUrl';
+
 /**
- * Embed de Daily Prebuilt en un `<iframe>` (ENG-51).
+ * Embed de Daily Prebuilt con `@daily-co/daily-js`.
  *
- * Prebuilt es una app web completa servida por Daily: no hace falta ningún SDK
- * para embeberla, alcanza con apuntar un iframe a la URL de la sala. Por eso el
- * spike no agrega `@daily-co/daily-js` — que sí haría falta si se quisiera una
- * UI propia o control programático de la llamada, y es una decisión que le
- * corresponde a ENG-56, no al spike.
+ * El spike (ENG-51) lo resolvía con un `<iframe src>` plano, sin SDK. Eso no
+ * deja esconder el botón **"Leave"** de la propia UI de Daily: es de dentro del
+ * iframe y solo se apaga con la opción `showLeaveButton: false` de
+ * `createFrame`. Salir de la llamada pasa a ser el botón "Terminar consulta" /
+ * "Salir" de MediConnect, que además cierra el turno como corresponde.
  *
- * El atributo `allow` es lo único no obvio y lo único que puede romper el embed:
- * un iframe cross-origin NO hereda los permisos de cámara y micrófono de la
- * página que lo contiene. Sin `allow="camera; microphone"`, Prebuilt carga
- * perfecto y después falla al pedir los dispositivos, con un error que parece de
- * Daily y es de Permissions Policy.
+ * `createFrame` arma el mismo iframe de Prebuilt, con los permisos de cámara y
+ * micrófono ya delegados (`allow`), así que el embed no cambia por lo demás.
+ *
+ * `daily-js` se importa recién al abrir una sala: es una dependencia pesada y
+ * el resto de la web no la usa.
  */
 
 type DailyPrebuiltFrameProps = {
@@ -21,23 +24,58 @@ type DailyPrebuiltFrameProps = {
   title: string;
 };
 
-/**
- * Permisos delegados al iframe:
- * - `camera` / `microphone`: sin esto no hay videollamada.
- * - `autoplay`: para que el audio remoto arranque sin un click extra.
- * - `display-capture`: compartir pantalla.
- * - `fullscreen`: el botón de pantalla completa del Prebuilt.
- * - `clipboard-write`: el botón "copiar link" de la propia UI de Daily.
- */
-const IFRAME_ALLOW = 'camera; microphone; autoplay; display-capture; fullscreen; clipboard-write';
-
 export function DailyPrebuiltFrame({ roomUrl, title }: DailyPrebuiltFrameProps) {
+  const container = useRef<HTMLDivElement>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    const parent = container.current;
+    if (!parent) return;
+    let cancelled = false;
+    let destroy = () => {};
+
+    void import('@daily-co/daily-js')
+      .then(async ({ default: Daily }) => {
+        if (cancelled) return;
+        // Daily admite una sola instancia por página: si quedó una de un
+        // montaje anterior (StrictMode, o volver a la sala), se descarta.
+        await Daily.getCallInstance()?.destroy();
+        if (cancelled) return;
+
+        const frame = Daily.createFrame(parent, {
+          showLeaveButton: false,
+          showFullscreenButton: true,
+          iframeStyle: { width: '100%', height: '100%', border: '0', borderRadius: '14px' },
+        });
+        destroy = () => void frame.destroy();
+        // Lo que anuncian los lectores de pantalla: `createFrame` no tiene opción para el `title`.
+        frame.iframe()?.setAttribute('title', title);
+
+        const { url, token } = splitRoomUrl(roomUrl);
+        await frame.join({ url, token });
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+
+    return () => {
+      cancelled = true;
+      destroy();
+    };
+  }, [roomUrl, title]);
+
+  if (failed) {
+    return (
+      <p role="alert" className="rounded-[14px] border border-line p-6 text-sm text-muted">
+        No pudimos abrir la sala. Recargá la página e intentá de nuevo.
+      </p>
+    );
+  }
+
   return (
-    <iframe
-      title={title}
-      src={roomUrl}
-      allow={IFRAME_ALLOW}
-      className="h-[70vh] min-h-[420px] w-full rounded-[14px] border border-line bg-black"
+    <div
+      ref={container}
+      className="h-[70vh] min-h-[420px] w-full overflow-hidden rounded-[14px] border border-line bg-black"
     />
   );
 }

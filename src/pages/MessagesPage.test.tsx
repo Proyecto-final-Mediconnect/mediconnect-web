@@ -37,12 +37,14 @@ vi.mock('../features/chat/lib/realtime', () => ({
       realtime.push = null;
     };
   },
+  subscribeToInbox: () => () => {},
   subscribeToChatSignals: (_id: string, handlers: { onTyping: () => void; onRead: () => void }) => {
     realtime.typing = handlers.onTyping;
     realtime.read = handlers.onRead;
     return {
       notifyTyping: realtime.notify,
       notifyRead: realtime.notifyRead,
+      notifyMessage: () => {},
       stop: () => {
         realtime.typing = null;
         realtime.read = null;

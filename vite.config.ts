@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -43,6 +44,10 @@ export default defineConfig({
       : []),
   ],
   test: {
+    // El SDK real arma un iframe contra daily.co: en jsdom no sirve.
+    alias: {
+      '@daily-co/daily-js': fileURLToPath(new URL('./src/test/daily-js-stub.ts', import.meta.url)),
+    },
     // `.env` no se versiona, así que en CI `VITE_API_BASE_URL` no existe y el
     // httpClient armaba URLs `undefined/...`. El base de los tests no apunta a
     // ningún servidor real (fetch está mockeado); solo tiene que ser una URL
