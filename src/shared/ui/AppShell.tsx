@@ -2,7 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useMyAppointments } from '../../features/appointments/hooks/useAppointments';
 import { useLogout, useSession } from '../../features/auth/hooks/useSession';
-import { displayNameOf, initialsOf, ROLE_LABEL } from '../../features/auth/types/session';
+import { displayNameOf, initialsOf, isKnownRole, roleLabelOf } from '../../features/auth/types/session';
 import { nextAppointment } from '../../features/dashboard/lib/dashboard';
 import { NotificationsBell } from '../../features/notifications/components/NotificationsBell';
 import { firstJoinable } from '../../features/video/lib/joinWindow';
@@ -219,12 +219,15 @@ export function AppShell({ title, displayTitle = false, children }: AppShellProp
 
   // Mapa explícito por rol. Mientras la sesión no cargó se cae al de paciente,
   // que es el rol más común; el guard de la ruta es RequireAuth, no esto.
-  const grupos = NAV_POR_ROL[user?.role ?? ''] ?? NAV_PACIENTE;
+  // Un rol desconocido (MODERADOR residual en la base) no hereda el menú de
+  // paciente: queda sin secciones (RequireAuth ya lo frena antes).
+  const grupos: NavItem[][] =
+    user && !isKnownRole(user.role) ? [] : (NAV_POR_ROL[user?.role ?? ''] ?? NAV_PACIENTE);
   // Los mismos helpers que usa la barra pública: el nombre y las iniciales de
   // una persona no deberían resolverse distinto según en qué pantalla esté.
   const nombre = user ? displayNameOf(user) : '';
   const iniciales = user ? initialsOf(user) : '·';
-  const rol = user ? ROLE_LABEL[user.role] : 'Paciente';
+  const rol = user ? roleLabelOf(user.role) : 'Paciente';
 
   return (
     /* La primera columna es `auto`: mide lo que mide la barra, así que al abrirse

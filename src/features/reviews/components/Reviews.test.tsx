@@ -207,6 +207,27 @@ describe('AppointmentReview (ENG-80)', () => {
   });
 });
 
+describe('AppointmentReview, reseña heredada en revisión', () => {
+  it('una PENDIENTE_MODERACION aclara que no está publicada', async () => {
+    const vieja: MyReview = {
+      id: 'r1',
+      appointmentId: TURNO,
+      professionalId: PRO,
+      rating: 4,
+      comment: 'Bien',
+      status: 'PENDIENTE_MODERACION',
+      moderationReason: null,
+      createdAt: '2026-10-01T15:00:00.000Z',
+    };
+    renderWith(<AppointmentReview appointmentId={TURNO} professionalName="Ana García" />, () =>
+      json([vieja]),
+    );
+
+    expect(await screen.findByText(/no llegó a publicarse/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Dejar una reseña' })).not.toBeInTheDocument();
+  });
+});
+
 describe('ProfessionalReviews (ENG-82)', () => {
   it('muestra el promedio, las reseñas con su autor y la respuesta del profesional', async () => {
     renderWith(<ProfessionalReviews professionalId={PRO} card={card} />, () =>
@@ -405,6 +426,19 @@ describe('ConsultationClosing (ENG-190)', () => {
       await screen.findByText(/¡gracias! tu reseña ya se ve en su perfil/i),
     ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ir a mis turnos' })).toBeInTheDocument();
+  });
+
+  it('si el backend la guarda sin publicar, no dice que ya se ve en el perfil', async () => {
+    const user = userEvent.setup();
+    cierre((_url, init) =>
+      init?.method === 'POST' ? json({ ...MIA, status: 'RECHAZADA' }, 201) : json([]),
+    );
+
+    await user.click(await screen.findByRole('radio', { name: /5 estrellas/i }));
+    await user.click(screen.getByRole('button', { name: 'Enviar reseña' }));
+
+    expect(await screen.findByText(/no se publicó en el perfil/i)).toBeInTheDocument();
+    expect(screen.queryByText(/ya se ve en su perfil/i)).not.toBeInTheDocument();
   });
 
   it('"Ahora no" va a mis turnos sin mandar nada', async () => {

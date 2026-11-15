@@ -44,6 +44,17 @@ export const DASHBOARD_BY_ROLE: Record<UserRole, string> = {
   PROFESIONAL: '/profesional',
 };
 
+/** `GET /me` puede devolver un rol que el tipo ya no admite (MODERADOR sigue en
+ *  `user_role` de la base). Sin esto, ni el menú ni los guards saben qué hacer. */
+export function isKnownRole(role: string | undefined): role is UserRole {
+  return role !== undefined && Object.prototype.hasOwnProperty.call(DASHBOARD_BY_ROLE, role);
+}
+
+/** Nombre en pantalla de un rol, con respaldo para uno desconocido. */
+export function roleLabelOf(role: string): string {
+  return isKnownRole(role) ? ROLE_LABEL[role] : 'Usuario';
+}
+
 export function dashboardPathFor(role: UserRole): string {
   return DASHBOARD_BY_ROLE[role] ?? '/';
 }

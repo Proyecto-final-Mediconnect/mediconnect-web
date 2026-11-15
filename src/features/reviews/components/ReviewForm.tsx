@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '../../../shared/ui/Button';
+import type { MyReview } from '../types';
 import { useCreateReview } from '../hooks/useReviews';
 import { StarInput } from './Stars';
 
@@ -20,7 +21,8 @@ export function ReviewForm({
 }: {
   appointmentId: string;
   professionalName: string;
-  onDone: () => void;
+  /** Recibe la reseña guardada: el backend decide su estado, no el formulario. */
+  onDone: (resena: MyReview) => void;
   onCancel: () => void;
   /** Las estrellas que ya tocó en la tarjeta del inicio (ENG-190). */
   initialRating?: number;

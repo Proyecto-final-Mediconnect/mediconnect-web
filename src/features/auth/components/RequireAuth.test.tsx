@@ -77,6 +77,14 @@ describe('RequireAuth (ENG-44)', () => {
     expect(screen.queryByText('CONTENIDO PRIVADO')).not.toBeInTheDocument();
   });
 
+  it('con un rol que ya no existe (MODERADOR) no entra a la app: ofrece cerrar sesión', async () => {
+    renderGuarded({ status: 200, body: { ...PACIENTE, role: 'MODERADOR' } });
+
+    expect(await screen.findByText(/tu cuenta no tiene acceso/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /cerrar sesión/i })).toBeVisible();
+    expect(screen.queryByText('CONTENIDO PRIVADO')).not.toBeInTheDocument();
+  });
+
   describe('consentimiento (ENG-140)', () => {
     it('sin aceptar los textos vigentes muestra el pedido de consentimiento, no la app', async () => {
       renderGuarded({ status: 200, body: { ...PACIENTE, legalAccepted: false } });

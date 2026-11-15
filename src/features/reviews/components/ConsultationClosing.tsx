@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import type { MyReview } from '../types';
 import { useMyReviews } from '../hooks/useReviews';
 import { ReviewForm } from './ReviewForm';
 
@@ -30,7 +31,7 @@ export function ConsultationClosing({
 }) {
   const navigate = useNavigate();
   const mias = useMyReviews();
-  const [enviada, setEnviada] = useState(false);
+  const [enviada, setEnviada] = useState<MyReview | null>(null);
   const yaReseno = mias.data?.some((r) => r.appointmentId === appointmentId) ?? false;
 
   return (
@@ -58,7 +59,10 @@ export function ConsultationClosing({
         <div className="grid justify-items-start gap-4">
           <p role="status" className="text-sm leading-[1.7] text-ink">
             {enviada
-              ? '¡Gracias! Tu reseña ya se ve en su perfil.'
+              ? enviada.status === 'APROBADA'
+                ? '¡Gracias! Tu reseña ya se ve en su perfil.'
+                : // Si el filtro de lenguaje la rechazó con 201, no mentimos.
+                  '¡Gracias! Recibimos tu reseña, pero no se publicó en el perfil.'
               : 'Ya dejaste tu reseña de esta consulta. ¡Gracias!'}
           </p>
           <Link to="/mis-turnos" className={BOTON_MIS_TURNOS}>
@@ -70,7 +74,7 @@ export function ConsultationClosing({
           appointmentId={appointmentId}
           professionalName={professionalName ?? 'tu profesional'}
           cancelLabel="Ahora no"
-          onDone={() => setEnviada(true)}
+          onDone={setEnviada}
           onCancel={() => void navigate('/mis-turnos')}
         />
       )}

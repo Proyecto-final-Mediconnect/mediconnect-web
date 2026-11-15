@@ -49,10 +49,17 @@ export function AppointmentReview({
           {resena.comment && (
             <p className="text-[13px] leading-[1.6] text-ink">“{resena.comment}”</p>
           )}
-          {/* Solo reseñas viejas: de cuando había moderación. */}
+          {/* Solo reseñas viejas: de cuando había moderación. Ya no hay quien las
+              revise, así que lo que no está APROBADA no se publicó (review de #113). */}
           {resena.status === 'RECHAZADA' && (
             <p className="text-[12px] text-danger">
               No se publicó{resena.moderationReason ? `: ${resena.moderationReason}` : '.'}
+            </p>
+          )}
+          {resena.status === 'PENDIENTE_MODERACION' && (
+            <p className="text-[12px] text-muted">
+              Esta reseña es de una etapa anterior y no llegó a publicarse en el perfil del
+              profesional.
             </p>
           )}
         </>

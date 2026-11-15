@@ -97,6 +97,15 @@ describe('AppShell', () => {
     expect(menu().getByRole('link', { name: 'Mi perfil' })).toBeVisible();
   });
 
+  it('un rol que la app ya no usa no muestra "undefined" ni el menú del paciente', async () => {
+    renderShell({ ...PACIENTE, role: 'MODERADOR' as SessionUser['role'] });
+    await screen.findByText('Marina Sosa');
+
+    expect(screen.getByText('Usuario')).toBeVisible();
+    expect(screen.queryByText('undefined')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Buscar profesionales' })).not.toBeInTheDocument();
+  });
+
   it('al profesional le ofrece las suyas, que no son las mismas', async () => {
     renderShell(PROFESIONAL, '/profesional');
     await screen.findByText('Valeria Ocampo');
