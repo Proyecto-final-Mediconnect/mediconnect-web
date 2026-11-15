@@ -42,8 +42,7 @@ export function ReservarTurnoCta({
       <p
         className={`${layout} rounded-[10px] border border-dashed border-line-strong bg-surface px-3 py-3 text-center text-xs font-medium leading-snug text-muted`}
       >
-        Las reservas son para cuentas de paciente. Tenés la sesión abierta como{' '}
-        {user.role === 'PROFESIONAL' ? 'profesional' : 'moderador'}.
+        Las reservas son para cuentas de paciente. Tenés la sesión abierta como profesional.
       </p>
     );
   }

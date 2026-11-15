@@ -1,19 +1,12 @@
 import { useState } from 'react';
 import { Modal } from '../../../shared/ui/Modal';
 import { useMyReviews } from '../hooks/useReviews';
-import { STATUS_LABELS } from '../lib/reviews';
 import { ReviewForm } from './ReviewForm';
 import { Stars } from './Stars';
 
-const TONO = {
-  PENDIENTE_MODERACION: 'bg-tag-warm text-tag-warm-ink',
-  APROBADA: 'bg-surface-teal text-brand-hover',
-  RECHAZADA: 'bg-danger/10 text-danger',
-} as const;
-
 /**
  * La reseña de una consulta terminada, en el detalle del turno (ENG-80): el
- * botón para dejarla o, si ya la dejó, en qué quedó.
+ * botón para dejarla o, si ya la dejó, la reseña.
  */
 export function AppointmentReview({
   appointmentId,
@@ -51,20 +44,16 @@ export function AppointmentReview({
     <div className="grid gap-2 rounded-[12px] border border-line-soft bg-surface px-4 py-3.5">
       {resena ? (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[13px] font-semibold text-brand-deep">Tu reseña</span>
-            <span
-              className={`rounded-full px-2.5 py-0.5 text-[11px] font-bold ${TONO[resena.status]}`}
-            >
-              {STATUS_LABELS[resena.status]}
-            </span>
-          </div>
+          <span className="text-[13px] font-semibold text-brand-deep">Tu reseña</span>
           <Stars value={resena.rating} />
           {resena.comment && (
             <p className="text-[13px] leading-[1.6] text-ink">“{resena.comment}”</p>
           )}
-          {resena.status === 'RECHAZADA' && resena.moderationReason && (
-            <p className="text-[12px] text-danger">Motivo: {resena.moderationReason}</p>
+          {/* Solo reseñas viejas: de cuando había moderación. */}
+          {resena.status === 'RECHAZADA' && (
+            <p className="text-[12px] text-danger">
+              No se publicó{resena.moderationReason ? `: ${resena.moderationReason}` : '.'}
+            </p>
           )}
         </>
       ) : (

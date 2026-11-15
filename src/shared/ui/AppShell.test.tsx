@@ -16,14 +16,6 @@ const PACIENTE: SessionUser = {
   lastName: 'Sosa',
 };
 
-const MODERADOR: SessionUser = {
-  id: 'u3',
-  email: 'mod@test.com',
-  role: 'MODERADOR',
-  firstName: 'Lucía',
-  lastName: 'Peralta',
-};
-
 const PROFESIONAL: SessionUser = {
   id: 'u2',
   email: 'valeria@test.com',
@@ -274,43 +266,6 @@ describe('AppShell', () => {
       await screen.findByText('Marina Sosa');
 
       expect(menu().queryByRole('link', { name: /videoconsulta/i })).not.toBeInTheDocument();
-    });
-  });
-  describe('moderador', () => {
-    it('ve su sección, y no las del paciente', async () => {
-      // Antes caía en el menú del paciente: cuatro de sus cinco ítems le
-      // devolvían 403, y su única pantalla real no estaba.
-      renderShell(MODERADOR, '/moderacion');
-      await screen.findByText('Lucía Peralta');
-
-      expect(menu().getByRole('link', { name: 'Moderación' })).toBeVisible();
-      expect(menu().queryByRole('link', { name: 'Mis turnos' })).not.toBeInTheDocument();
-      expect(menu().queryByRole('link', { name: 'Mi historia clínica' })).not.toBeInTheDocument();
-      expect(menu().queryByRole('link', { name: 'Panel' })).not.toBeInTheDocument();
-    });
-
-    it('se lo identifica como Moderador, no como Paciente', async () => {
-      renderShell(MODERADOR, '/moderacion');
-
-      expect(await screen.findByText('Moderador')).toBeVisible();
-    });
-
-    it('no le ofrece la videoconsulta: no atiende ni se atiende', async () => {
-      renderShell(MODERADOR, '/moderacion');
-      await screen.findByText('Lucía Peralta');
-
-      expect(menu().queryByText('Videoconsulta')).not.toBeInTheDocument();
-    });
-
-    it('no pide los turnos: no tiene ninguno', async () => {
-      renderShell(MODERADOR, '/moderacion');
-      await screen.findByText('Lucía Peralta');
-
-      const aTurnos = vi
-        .mocked(globalThis.fetch)
-        .mock.calls.filter(([url]) => String(url).includes('/appointments/me'));
-
-      expect(aTurnos).toHaveLength(0);
     });
   });
 });

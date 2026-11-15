@@ -1,5 +1,6 @@
-/** Roles de dominio de MediConnect (espeja `user_role` de la base). */
-export type UserRole = 'PACIENTE' | 'PROFESIONAL' | 'MODERADOR';
+/** Roles de dominio de MediConnect. `user_role` en la base conserva MODERADOR,
+ *  pero no se usa: no hay moderación (las reseñas se publican en el acto). */
+export type UserRole = 'PACIENTE' | 'PROFESIONAL';
 
 /** Perfil del usuario autenticado, tal como lo devuelve `GET /me`.
  *  El `role` viene de `profiles.role` (base), no del JWT. */
@@ -22,7 +23,6 @@ export interface SessionUser {
 export const ROLE_LABEL: Record<UserRole, string> = {
   PACIENTE: 'Paciente',
   PROFESIONAL: 'Profesional',
-  MODERADOR: 'Moderador',
 };
 
 /** Iniciales para el avatar. Cae al email cuando el perfil todavía no tiene
@@ -42,7 +42,6 @@ export function displayNameOf(user: SessionUser): string {
 export const DASHBOARD_BY_ROLE: Record<UserRole, string> = {
   PACIENTE: '/paciente',
   PROFESIONAL: '/profesional',
-  MODERADOR: '/moderacion',
 };
 
 export function dashboardPathFor(role: UserRole): string {

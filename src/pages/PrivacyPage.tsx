@@ -120,7 +120,6 @@ function Rectificar({ rol }: { rol: string | undefined }) {
         ) : null}
         {rol === 'PACIENTE' &&
           'La historia clínica no se edita: si una entrada tiene un error, el profesional que la escribió la corrige con una entrada nueva, y las dos quedan a la vista. Pedíselo por mensaje.'}
-        {rol === 'MODERADOR' && 'Para corregir tu email o tu nombre, escribinos.'}
       </p>
     </Tarjeta>
   );

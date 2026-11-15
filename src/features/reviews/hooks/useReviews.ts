@@ -4,15 +4,13 @@ import {
   createReview,
   deleteReviewResponse,
   dismissPendingReview,
-  getModerationQueue,
   getReceivedReviews,
   getMyReviews,
   getPendingReviews,
   getProfessionalReviews,
-  moderateReview,
   saveReviewResponse,
 } from '../api/reviewsApi';
-import type { ModerationDecision, NewReview, ReviewStatus } from '../types';
+import type { NewReview } from '../types';
 
 const retryServerErrorsOnly = (failureCount: number, error: Error) =>
   !isClientError(error) && failureCount < 1;
@@ -73,29 +71,6 @@ export function useDismissPendingReview() {
   return useMutation({
     mutationFn: dismissPendingReview,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: PENDING }),
-  });
-}
-
-export function useModerationQueue(status: ReviewStatus, page: number) {
-  return useQuery({
-    queryKey: ['reviews', 'moderation', status, page],
-    queryFn: () => getModerationQueue(status, page),
-    // La página anterior se mantiene solo al paginar dentro de la misma pestaña:
-    // al cambiar de estado se mostrarían reseñas de otra pestaña con sus acciones.
-    placeholderData: (previa, consultaPrevia) =>
-      consultaPrevia?.queryKey[2] === status ? previa : undefined,
-    retry: retryServerErrorsOnly,
-  });
-}
-
-export function useModerateReview() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, decision }: { id: string; decision: ModerationDecision }) =>
-      moderateReview(id, decision),
-    retry: false,
-    // También si falla: si otro moderador ya la decidió, la lista queda al día.
-    onSettled: () => queryClient.invalidateQueries({ queryKey: ['reviews', 'moderation'] }),
   });
 }
 

@@ -15,7 +15,6 @@ import { LandingPage } from './pages/LandingPage';
 import { LegalPage } from './pages/LegalPage';
 import { LoginPage } from './pages/LoginPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
-import { ModeratorDashboardPage } from './pages/ModeratorDashboardPage';
 import { MyAppointmentsPage } from './pages/MyAppointmentsPage';
 import { MyClinicalRecordPage } from './pages/MyClinicalRecordPage';
 import { PatientDashboardPage } from './pages/PatientDashboardPage';
@@ -138,8 +137,7 @@ function App() {
         }
       />
       {/* Mis turnos (ENG-55). Los dos roles, una sola ruta: `/appointments/me`
-          devuelve los turnos donde el usuario es paciente o profesional. El
-          MODERADOR no entra porque no tiene turnos propios. */}
+          devuelve los turnos donde el usuario es paciente o profesional. */}
       <Route
         path="/mis-turnos"
         element={
@@ -171,12 +169,11 @@ function App() {
       {/* El catálogo dentro de la app: mismo contenido que `/profesionales`,
           pero con la barra lateral. La pública sigue existiendo para quien llega
           sin cuenta, y no pide la sesión a propósito — por eso son dos rutas y no
-          una que elija el marco. El MODERADOR también entra: le sirve para ver el
-          perfil sobre el que está moderando una reseña. */}
+          una que elija el marco. */}
       <Route
         path="/buscar"
         element={
-          <RequireAuth allow={['PACIENTE', 'PROFESIONAL', 'MODERADOR']}>
+          <RequireAuth allow={['PACIENTE', 'PROFESIONAL']}>
             <PatientCatalogPage />
           </RequireAuth>
         }
@@ -184,7 +181,7 @@ function App() {
       <Route
         path="/buscar/:professionalId"
         element={
-          <RequireAuth allow={['PACIENTE', 'PROFESIONAL', 'MODERADOR']}>
+          <RequireAuth allow={['PACIENTE', 'PROFESIONAL']}>
             <PatientProfessionalProfilePage />
           </RequireAuth>
         }
@@ -292,14 +289,6 @@ function App() {
         element={
           <RequireAuth allow={['PROFESIONAL']}>
             <ProfessionalEarningsPage />
-          </RequireAuth>
-        }
-      />
-      <Route
-        path="/moderacion"
-        element={
-          <RequireAuth allow={['MODERADOR']}>
-            <ModeratorDashboardPage />
           </RequireAuth>
         }
       />

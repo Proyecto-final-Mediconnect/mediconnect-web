@@ -132,16 +132,6 @@ export function IconVideo(p: IconProps) {
   );
 }
 
-/** Moderación: un escudo con el visto. */
-export function IconModeracion(p: IconProps) {
-  return (
-    <Svg {...p}>
-      <path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6l7-3Z" />
-      <path d="m9 12 2 2 4-4" />
-    </Svg>
-  );
-}
-
 /** Mensajes: un globo de diálogo (ENG-70). */
 export function IconMensajes(p: IconProps) {
   return (

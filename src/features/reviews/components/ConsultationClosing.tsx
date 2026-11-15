@@ -58,7 +58,7 @@ export function ConsultationClosing({
         <div className="grid justify-items-start gap-4">
           <p role="status" className="text-sm leading-[1.7] text-ink">
             {enviada
-              ? '¡Gracias! Tu reseña se publica cuando la revisemos.'
+              ? '¡Gracias! Tu reseña ya se ve en su perfil.'
               : 'Ya dejaste tu reseña de esta consulta. ¡Gracias!'}
           </p>
           <Link to="/mis-turnos" className={BOTON_MIS_TURNOS}>

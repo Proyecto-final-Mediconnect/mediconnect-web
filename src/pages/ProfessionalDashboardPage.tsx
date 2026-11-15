@@ -67,8 +67,8 @@ export function ProfessionalDashboardPage() {
   const tareas = professionalTasks(perfil.data, agenda.data);
 
   const saludo = user?.firstName ? `Buen día, ${user.firstName}.` : 'Buen día.';
-  // El precio se resuelve en el perfil; la matrícula no (la valida un
-  // moderador), pero el perfil muestra su estado. Por eso el detalle dice qué
+  // El precio se resuelve en el perfil; la matrícula no (la valida el
+  // equipo a mano), pero el perfil muestra su estado. Por eso el detalle dice qué
   // falta en vez de un "te falta algo" que mande a buscar.
   const faltaPrecio = tareas.some((t) => t.id === 'precio');
   const matricula = tareas.find((t) => t.id === 'matricula');

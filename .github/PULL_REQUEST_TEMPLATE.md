@@ -13,5 +13,5 @@
 > Agrega información que permita a los _Revisores_ reproducir el ambiente de pruebas o que consideres que deban tener en cuenta para ejecutar la funcionalidad.
 >
 > 1. Levantar el entorno local con los cambios aplicados.
-> 2. Loguearse con un usuario del rol correspondiente (paciente, profesional o moderador).
+> 2. Loguearse con un usuario del rol correspondiente (paciente o profesional).
 > 3. …

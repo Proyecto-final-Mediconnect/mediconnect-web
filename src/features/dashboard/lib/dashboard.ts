@@ -132,7 +132,7 @@ export function professionalTasks(
       id: 'matricula',
       ...estado,
       severity: 'blocker',
-      // No hay pantalla donde resolverlo: depende de la moderación, no del
+      // No hay pantalla donde resolverlo: la valida el equipo a mano, no el
       // profesional. Un botón acá sería mentira.
       to: null,
     });
