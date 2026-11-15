@@ -21,6 +21,7 @@ import { mergeMessages } from '../lib/messages';
 import {
   subscribeToConversation,
   subscribeToChatSignals,
+  subscribeToInbox,
   type ChatSignals,
   type RealtimeStatus,
 } from '../lib/realtime';
@@ -35,17 +36,21 @@ const NOTIFICATIONS_KEY = ['notifications', 'me'] as const;
 /** Sin Realtime, cada cuánto se buscan mensajes nuevos de la conversación abierta. */
 export const POLL_INTERVAL_MS = 5_000;
 /** Con Realtime, igual se reconcilia de vez en cuando: el stream puede perder un evento. */
-const LIVE_RECONCILE_MS = 60_000;
+export const LIVE_RECONCILE_MS = 30_000;
+/** Mínimo entre dos pedidos de reconciliación de la misma conversación, vengan de donde vengan. */
+export const RECONCILE_MIN_GAP_MS = 1_500;
+/** Las invalidaciones de la bandeja disparadas por avisos se juntan en una por ventana. */
+export const INVALIDATE_COALESCE_MS = 300;
 
 const retryUnlessClientError = (failureCount: number, error: Error) =>
   !isClientError(error) && failureCount < 1;
 
-/** Mis conversaciones. Se refresca cada 30 s para que el contador de no leídos no quede viejo. */
+/** Mis conversaciones. Se refresca cada 30 s (y por Realtime) para que el contador de no leídos no quede viejo. */
 export function useConversations() {
   return useQuery({
     queryKey: CHAT_INBOX_KEY,
     queryFn: getMyConversations,
-    refetchInterval: 30_000,
+    refetchInterval: LIVE_RECONCILE_MS,
     refetchOnWindowFocus: true,
     retry: retryUnlessClientError,
   });
@@ -95,23 +100,41 @@ export function useMessages(conversationId: string | undefined, live: boolean) {
 /**
  * Vuelve a pedir la página más reciente y la funde con la caché. Trae los
  * mensajes nuevos y también los "Leído" que cambiaron.
+ *
+ * Limita la frecuencia: con uno en vuelo no se pide otro (se anota y se repite
+ * una sola vez), y entre el fin de un pedido y el inicio del siguiente pasan al
+ * menos {@link RECONCILE_MIN_GAP_MS}, con un único pedido final ("trailing") para
+ * no perder el último aviso. Así un cliente que mande "leí" o "mensaje" en loop
+ * no hace refetchear al otro a la velocidad del round-trip.
  */
-/**
- * Con uno en vuelo no se pide otro: se anota y se repite una sola vez al
- * terminar. Así un "leí" que llega junto con la reconciliación de fondo no
- * duplica pedidos, y un cliente que mande "leí" en loop no hace refetchear al
- * otro sin parar.
- */
-const inFlight = new Map<string, { again: boolean }>();
+const reconciles = new Map<
+  string,
+  { running: boolean; again: boolean; lastEnd: number; timer?: ReturnType<typeof setTimeout> }
+>();
 
 function reconcileLatest(queryClient: QueryClient, conversationId: string) {
-  const running = inFlight.get(conversationId);
-  if (running) {
-    running.again = true;
+  let state = reconciles.get(conversationId);
+  if (!state) {
+    state = { running: false, again: false, lastEnd: -Infinity };
+    reconciles.set(conversationId, state);
+  }
+  if (state.running || state.timer) {
+    state.again = true;
     return;
   }
-  const state = { again: false };
-  inFlight.set(conversationId, state);
+  const wait = state.lastEnd + RECONCILE_MIN_GAP_MS - Date.now();
+  if (wait > 0) {
+    const s = state;
+    s.again = false;
+    s.timer = setTimeout(() => {
+      s.timer = undefined;
+      reconcileLatest(queryClient, conversationId);
+    }, wait);
+    return;
+  }
+  const s = state;
+  s.running = true;
+  s.again = false;
   getMessages(conversationId)
     .then((page) => {
       for (const message of page.mensajes) addToCache(queryClient, conversationId, message);
@@ -119,9 +142,40 @@ function reconcileLatest(queryClient: QueryClient, conversationId: string) {
     // Un fallo de red no pisa lo que ya se ve: se reintenta en el próximo ciclo.
     .catch(() => {})
     .finally(() => {
-      inFlight.delete(conversationId);
-      if (state.again) reconcileLatest(queryClient, conversationId);
+      s.running = false;
+      s.lastEnd = Date.now();
+      if (s.again) {
+        s.again = false;
+        reconcileLatest(queryClient, conversationId);
+      }
     });
+}
+
+/** Al cerrar la conversación se olvida su estado: un pedido pendiente ya no sirve. */
+function forgetReconcile(conversationId: string) {
+  clearTimeout(reconciles.get(conversationId)?.timer);
+  reconciles.delete(conversationId);
+}
+
+/** Invalidaciones por aviso, una por ventana y por clave: ver {@link INVALIDATE_COALESCE_MS}. */
+const pendingInvalidations = new WeakMap<QueryClient, Map<string, ReturnType<typeof setTimeout>>>();
+
+function invalidateCoalesced(queryClient: QueryClient, queryKey: readonly unknown[]) {
+  let timers = pendingInvalidations.get(queryClient);
+  if (!timers) {
+    timers = new Map();
+    pendingInvalidations.set(queryClient, timers);
+  }
+  const id = JSON.stringify(queryKey);
+  if (timers.has(id)) return;
+  const pending = timers;
+  pending.set(
+    id,
+    setTimeout(() => {
+      pending.delete(id);
+      void queryClient.invalidateQueries({ queryKey });
+    }, INVALIDATE_COALESCE_MS),
+  );
 }
 
 /** Suma un mensaje a la página más reciente de la caché, sin duplicarlo. */
@@ -156,7 +210,7 @@ export function useConversationRealtime(conversationId: string | undefined): Rea
       conversationId,
       (message) => {
         addToCache(queryClient, conversationId, message);
-        void queryClient.invalidateQueries({ queryKey: CHAT_INBOX_KEY });
+        invalidateCoalesced(queryClient, CHAT_INBOX_KEY);
       },
       (next) => {
         setStatus(next);
@@ -168,6 +222,23 @@ export function useConversationRealtime(conversationId: string | undefined): Rea
   }, [conversationId, queryClient]);
 
   return status;
+}
+
+/**
+ * La bandeja en vivo: un mensaje nuevo mío, de cualquier conversación (incluida
+ * una que todavía no existía para mí), actualiza la lista y los no leídos sin
+ * recargar. Se usa una sola vez, en la pantalla de la bandeja.
+ */
+export function useInboxRealtime() {
+  const queryClient = useQueryClient();
+  useEffect(
+    () =>
+      subscribeToInbox(() => {
+        invalidateCoalesced(queryClient, CHAT_INBOX_KEY);
+        invalidateCoalesced(queryClient, NOTIFICATIONS_KEY);
+      }),
+    [queryClient],
+  );
 }
 
 /** Cuánto sigue la burbuja de "escribiendo" sin un aviso nuevo. Un poco más que el espaciado de los avisos. */
@@ -195,9 +266,15 @@ export function useChatSignals(conversationId: string) {
         timer = setTimeout(() => setOthersTyping(false), TYPING_VISIBLE_MS);
       },
       onRead: () => reconcileLatest(queryClient, conversationId),
+      // El otro mandó un mensaje: se pide al backend, sin esperar a Postgres Changes.
+      onMessage: () => {
+        reconcileLatest(queryClient, conversationId);
+        invalidateCoalesced(queryClient, CHAT_INBOX_KEY);
+      },
     });
     return () => {
       clearTimeout(timer);
+      forgetReconcile(conversationId);
       signals.current?.stop();
       signals.current = null;
     };
@@ -205,9 +282,10 @@ export function useChatSignals(conversationId: string) {
 
   const notifyTyping = useCallback(() => signals.current?.notifyTyping(), []);
   const notifyRead = useCallback(() => signals.current?.notifyRead(), []);
+  const notifyMessage = useCallback(() => signals.current?.notifyMessage(), []);
   const clearTyping = useCallback(() => setOthersTyping(false), []);
 
-  return { othersTyping, notifyTyping, notifyRead, clearTyping };
+  return { othersTyping, notifyTyping, notifyRead, notifyMessage, clearTyping };
 }
 
 export function useSendMessage(conversationId: string) {

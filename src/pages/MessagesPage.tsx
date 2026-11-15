@@ -5,7 +5,7 @@ import { ConversationList } from '../features/chat/components/ConversationList';
 import { ConversationView } from '../features/chat/components/ConversationView';
 import { DraftConversationView } from '../features/chat/components/DraftConversationView';
 import { NewChatDialog } from '../features/chat/components/NewChatDialog';
-import { useConversations } from '../features/chat/hooks/useChat';
+import { useConversations, useInboxRealtime } from '../features/chat/hooks/useChat';
 import { DashboardLayout } from './DashboardLayout';
 
 /**
@@ -26,6 +26,7 @@ export function MessagesPage() {
   }>();
   const { user } = useSession();
   const inbox = useConversations();
+  useInboxRealtime();
   const [choosing, setChoosing] = useState(false);
 
   const role = user?.role === 'PROFESIONAL' ? 'PROFESIONAL' : 'PACIENTE';

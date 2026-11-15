@@ -8,7 +8,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { MessagesPage } from './MessagesPage';
 import { SESSION_QUERY_KEY } from '../features/auth/hooks/useSession';
 import type { ChatMessage, ConversationInbox } from '../features/chat/types/chat';
-import { POLL_INTERVAL_MS } from '../features/chat/hooks/useChat';
+import { POLL_INTERVAL_MS, RECONCILE_MIN_GAP_MS } from '../features/chat/hooks/useChat';
 import type { RealtimeStatus } from '../features/chat/lib/realtime';
 
 /**
@@ -22,6 +22,7 @@ const realtime = vi.hoisted(() => ({
   read: null as (() => void) | null,
   notify: vi.fn(),
   notifyRead: vi.fn(),
+  notifyMessage: vi.fn(),
 }));
 vi.mock('../features/chat/lib/realtime', () => ({
   isRealtimeConfigured: () => false,
@@ -37,12 +38,14 @@ vi.mock('../features/chat/lib/realtime', () => ({
       realtime.push = null;
     };
   },
+  subscribeToInbox: () => () => {},
   subscribeToChatSignals: (_id: string, handlers: { onTyping: () => void; onRead: () => void }) => {
     realtime.typing = handlers.onTyping;
     realtime.read = handlers.onRead;
     return {
       notifyTyping: realtime.notify,
       notifyRead: realtime.notifyRead,
+      notifyMessage: realtime.notifyMessage,
       stop: () => {
         realtime.typing = null;
         realtime.read = null;
@@ -220,6 +223,7 @@ beforeEach(() => {
   realtime.read = null;
   realtime.notify.mockReset();
   realtime.notifyRead.mockReset();
+  realtime.notifyMessage.mockReset();
 });
 
 afterEach(() => {
@@ -483,6 +487,7 @@ describe('MessagesPage (ENG-70)', () => {
   });
 
   it('varios "leí" seguidos no disparan un pedido por cada uno', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
     const { calls } = fakeBackend();
     renderAt(`/mensajes/${CONV}`);
     await screen.findByText('Hola, doctora');
@@ -496,13 +501,34 @@ describe('MessagesPage (ENG-70)', () => {
         calls.slice(before).filter((c) => c.url.includes(`/conversations/${CONV}/messages`)).length,
       ).toBeGreaterThan(0),
     );
-    await new Promise((r) => setTimeout(r, 50));
-    // Uno en vuelo y, como llegaron más mientras tanto, uno más: nunca diez.
-    expect(
+    const pedidos = () =>
       calls
         .slice(before)
-        .filter((c) => c.method === 'GET' && c.url.includes(`/conversations/${CONV}/messages`)),
-    ).toHaveLength(2);
+        .filter((c) => c.method === 'GET' && c.url.includes(`/conversations/${CONV}/messages`));
+    // Uno al momento; los demás se juntan en un único pedido que espera la pausa mínima.
+    expect(pedidos()).toHaveLength(1);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(RECONCILE_MIN_GAP_MS + 100);
+    });
+    expect(pedidos()).toHaveLength(2);
+    vi.useRealTimers();
+  });
+
+  it('al mandar un mensaje, texto o adjunto, avisa a la otra persona', async () => {
+    const user = userEvent.setup();
+    fakeBackend();
+    renderAt(`/mensajes/${CONV}`);
+    const box = await screen.findByLabelText('Mensaje para Ana García');
+
+    await user.type(box, 'Hola{Enter}');
+    await waitFor(() => expect(realtime.notifyMessage).toHaveBeenCalledTimes(1));
+
+    await user.upload(
+      screen.getByLabelText('Elegir un archivo'),
+      new File(['%PDF-1.7 x'], 'x.pdf', { type: 'application/pdf' }),
+    );
+    await user.click(screen.getByRole('button', { name: 'Enviar mensaje' }));
+    await waitFor(() => expect(realtime.notifyMessage).toHaveBeenCalledTimes(2));
   });
 
   it('al escribir avisa a la otra persona; con espacios solos, no', async () => {

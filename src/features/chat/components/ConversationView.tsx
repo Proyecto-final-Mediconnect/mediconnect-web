@@ -57,7 +57,8 @@ export function ConversationView({ conversationId, counterpart, myId }: Props) {
   const hide = useHideConversation();
   const { mutate: markAsRead } = useMarkConversationRead(conversationId, myId);
   const { next, past } = useCounterpartAppointments(counterpart.id, myId);
-  const { othersTyping, notifyTyping, notifyRead, clearTyping } = useChatSignals(conversationId);
+  const { othersTyping, notifyTyping, notifyRead, notifyMessage, clearTyping } =
+    useChatSignals(conversationId);
   const [infoOpen, setInfoOpen] = useState(false);
   const [confirmingHide, setConfirmingHide] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
@@ -144,11 +145,24 @@ export function ConversationView({ conversationId, counterpart, myId }: Props) {
             error={send.error ?? sendFile.error}
             onSend={(content, onSent) => {
               sendFile.reset();
-              send.mutate(content, { onSuccess: onSent });
+              send.mutate(content, {
+                onSuccess: () => {
+                  notifyMessage();
+                  onSent();
+                },
+              });
             }}
             onAttach={(file, content, onSent) => {
               send.reset();
-              sendFile.mutate({ file, contenido: content || undefined }, { onSuccess: onSent });
+              sendFile.mutate(
+                { file, contenido: content || undefined },
+                {
+                  onSuccess: () => {
+                    notifyMessage();
+                    onSent();
+                  },
+                },
+              );
             }}
             onTyping={notifyTyping}
           />

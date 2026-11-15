@@ -97,11 +97,15 @@ services:
     #   - img: las propias, `data:`/`blob:` (el QR y avatares) y el storage de
     #     Supabase (fotos de perfil).
     #   - connect: el backend, Supabase (REST y Realtime del chat) y Sentry.
-    #   - frame: Daily, que es el iframe de la videoconsulta (Prebuilt, sin
-    #     `daily-js`: la página no habla con Daily, solo lo embebe).
+    #   - frame: Daily, el iframe de la videoconsulta (Prebuilt vía `createFrame`
+    #     de `daily-js`, que va empaquetado: script-src 'self' alcanza). Según la guía
+    #     de CSP de Daily (docs.daily.co/guides/privacy-and-security/content-security-policy)
+    #     hay que listar también sus dominios de respaldo `*.daily.co`,
+    #     `*.dailywebrtc.com` y `*.dailywebrtc.net`. Esa guía no cubre connect-src
+    #     para Prebuilt: probar con Report-Only y mirar la consola.
     # Los hosts van fijos y no con comodín: `*.supabase.co` o `img-src https:`
     # dejarían mandar datos a un proyecto o un host de cualquiera. Supabase es el
-    # proyecto `aezdyfwimzhbrtoqiwwe` y Daily el dominio `mediconnecttesis`; si
+    # proyecto `aezdyfwimzhbrtoqiwwe` y Daily la cuenta `mediconnecttesis`; si
     # cambia alguno, hay que cambiarlo acá. Sentry queda con comodín de región
     # (`*.ingest.de.sentry.io`, la de la organización): confirmar el host contra
     # el `VITE_SENTRY_DSN` de Render.
@@ -118,7 +122,7 @@ services:
     headers:
       - path: /*
         name: Content-Security-Policy
-        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://aezdyfwimzhbrtoqiwwe.supabase.co; connect-src 'self' https://mediconnect-backend-smss.onrender.com https://aezdyfwimzhbrtoqiwwe.supabase.co wss://aezdyfwimzhbrtoqiwwe.supabase.co https://*.ingest.de.sentry.io; frame-src https://mediconnecttesis.daily.co; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+        value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://aezdyfwimzhbrtoqiwwe.supabase.co; connect-src 'self' https://mediconnect-backend-smss.onrender.com https://aezdyfwimzhbrtoqiwwe.supabase.co wss://aezdyfwimzhbrtoqiwwe.supabase.co https://*.ingest.de.sentry.io; frame-src https://mediconnecttesis.daily.co https://*.daily.co https://*.dailywebrtc.com https://*.dailywebrtc.net; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
       - path: /*
         name: X-Frame-Options
         value: DENY

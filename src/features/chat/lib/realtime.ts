@@ -71,6 +71,20 @@ async function currentToken(): Promise<string | null> {
   return pending;
 }
 
+/**
+ * Deja el token puesto en el socket **antes** de unirse a un canal. Con la opción
+ * `accessToken`, supabase-js lo pide por su cuenta pero sin esperarlo: el canal
+ * puede unirse como `anon`, quedar "SUBSCRIBED" y, por la RLS, no recibir nunca
+ * nada. Es el síntoma de "el mensaje aparece recién al recargar".
+ */
+async function authorized(supabase: SupabaseClient): Promise<void> {
+  try {
+    await supabase.realtime.setAuth();
+  } catch {
+    // Sin token el canal igual se une; la reconciliación de fondo cubre el resto.
+  }
+}
+
 function realtimeClient(): Promise<SupabaseClient | null> {
   client ??= import('@supabase/supabase-js')
     .then(({ createClient }) =>
@@ -114,12 +128,14 @@ export function subscribeToConversation(
   let stopped = false;
   let stop = () => {};
 
-  void realtimeClient().then((supabase) => {
+  void realtimeClient().then(async (supabase) => {
     if (stopped) return;
     if (!supabase) {
       onStatus('sin-conexion');
       return;
     }
+    await authorized(supabase);
+    if (stopped) return;
     const channel = supabase
       .channel(`conversation:${conversationId}`)
       .on<MessageRow>(
@@ -147,12 +163,52 @@ export function subscribeToConversation(
   };
 }
 
+/**
+ * Escucha **cualquier** mensaje nuevo mío, de cualquier conversación, para que
+ * la bandeja y el contador de no leídos se actualicen sin esperar el refetch ni
+ * recargar. Sin `filter`: quien decide qué llega es la RLS de `messages`, que
+ * solo deja pasar las conversaciones de las que soy parte.
+ */
+export function subscribeToInbox(onChange: () => void): () => void {
+  if (!isRealtimeConfigured()) return () => {};
+  let stopped = false;
+  let stop = () => {};
+
+  void realtimeClient().then(async (supabase) => {
+    if (stopped || !supabase) return;
+    await authorized(supabase);
+    if (stopped) return;
+    const channel = supabase
+      .channel('inbox')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, onChange)
+      // Al (re)unirse se refresca: los INSERT de mientras el socket estuvo caído no llegan.
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') onChange();
+        else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          console.warn(`[chat] bandeja en vivo: ${status}`);
+        }
+      });
+    stop = () => void supabase.removeChannel(channel);
+  });
+
+  return () => {
+    stopped = true;
+    stop();
+  };
+}
+
 /** Como mucho un aviso de "escribiendo" cada tanto, no uno por tecla. */
 export const TYPING_SEND_EVERY_MS = 2_500;
 
 export interface ChatSignals {
   /** Avisa que estoy escribiendo. Se puede llamar en cada tecla: se espacia solo. */
   notifyTyping: () => void;
+  /**
+   * Avisa que acabo de mandar un mensaje, para que el otro lo pida al backend al
+   * momento. Es el camino que **no** depende de Postgres Changes ni de la RLS: si
+   * ese stream se cae o llega tarde, el mensaje igual aparece.
+   */
+  notifyMessage: () => void;
   /** Avisa que acabo de leer la conversación, para que el "Leído" del otro no espere al refetch. */
   notifyRead: () => void;
   stop: () => void;
@@ -160,15 +216,15 @@ export interface ChatSignals {
 
 /**
  * Avisos entre los dos navegadores de una conversación, por Broadcast de
- * Realtime: "está escribiendo…" y "leí".
+ * Realtime: "está escribiendo…", "leí" y "mandé un mensaje".
  *
  * El canal es **privado** (`typing:<id>`): Realtime deja escuchar y avisar solo a
  * quien las políticas de `realtime.messages` se lo permiten, y esas piden ser
  * participante de la conversación (migración `eng70_chat_typing` del backend).
  * Un canal público lo podría escuchar cualquiera que sepa el id.
  *
- * Los avisos no llevan datos: "leí" solo hace que el otro vuelva a pedir los
- * mensajes al backend, que es de donde sale el "Leído". Un aviso falso no puede
+ * Los avisos no llevan datos: "leí" y "mensaje" solo hacen que el otro vuelva a
+ * pedir los mensajes al backend, que es de donde sale el "Leído". Un aviso falso no puede
  * marcar nada.
  *
  * Sin Realtime no hay avisos: el refetch cada pocos segundos trae el "Leído" y
@@ -176,9 +232,14 @@ export interface ChatSignals {
  */
 export function subscribeToChatSignals(
   conversationId: string,
-  handlers: { onTyping: () => void; onRead: () => void },
+  handlers: { onTyping: () => void; onRead: () => void; onMessage: () => void },
 ): ChatSignals {
-  const none = { notifyTyping: () => {}, notifyRead: () => {}, stop: () => {} };
+  const none = {
+    notifyTyping: () => {},
+    notifyRead: () => {},
+    notifyMessage: () => {},
+    stop: () => {},
+  };
   if (!isRealtimeConfigured()) return none;
 
   let stopped = false;
@@ -188,15 +249,20 @@ export function subscribeToChatSignals(
   let ready = false;
   /** Un "leí" pedido antes de estar unido: es justo el de abrir el chat. */
   let pendingRead = false;
+  /** Igual para un mensaje mandado antes de que el canal esté unido. */
+  let pendingMessage = false;
   let send: ((event: string) => void) | null = null;
   let stop = () => {};
 
-  void realtimeClient().then((supabase) => {
+  void realtimeClient().then(async (supabase) => {
     if (stopped || !supabase) return;
+    await authorized(supabase);
+    if (stopped) return;
     const channel = supabase
       .channel(`typing:${conversationId}`, { config: { private: true } })
       .on('broadcast', { event: 'escribiendo' }, () => handlers.onTyping())
-      .on('broadcast', { event: 'leido' }, () => handlers.onRead());
+      .on('broadcast', { event: 'leido' }, () => handlers.onRead())
+      .on('broadcast', { event: 'mensaje' }, () => handlers.onMessage());
     send = (event) => void channel.send({ type: 'broadcast', event, payload: {} });
     stop = () => void supabase.removeChannel(channel);
     channel.subscribe((status) => {
@@ -205,6 +271,10 @@ export function subscribeToChatSignals(
         if (pendingRead) {
           pendingRead = false;
           send?.('leido');
+        }
+        if (pendingMessage) {
+          pendingMessage = false;
+          send?.('mensaje');
         }
         return;
       }
@@ -227,6 +297,10 @@ export function subscribeToChatSignals(
     notifyRead: () => {
       if (send && ready) send('leido');
       else pendingRead = true;
+    },
+    notifyMessage: () => {
+      if (send && ready) send('mensaje');
+      else pendingMessage = true;
     },
     stop: () => {
       stopped = true;
