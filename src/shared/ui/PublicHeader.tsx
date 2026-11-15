@@ -5,7 +5,7 @@ import {
   dashboardPathFor,
   displayNameOf,
   initialsOf,
-  ROLE_LABEL,
+  roleLabelOf,
   type SessionUser,
 } from '../../features/auth/types/session';
 import { Logo } from './Logo';
@@ -131,7 +131,7 @@ function BloqueSesion({ user }: { user: SessionUser }) {
           {displayNameOf(user)}
         </span>
         <span className="text-[11px] font-medium leading-tight text-muted">
-          {ROLE_LABEL[user.role]}
+          {roleLabelOf(user.role)}
         </span>
       </span>
     </Link>

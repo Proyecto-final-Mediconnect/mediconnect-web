@@ -16,14 +16,6 @@ const PACIENTE: SessionUser = {
   lastName: 'Sosa',
 };
 
-const MODERADOR: SessionUser = {
-  id: 'u3',
-  email: 'mod@test.com',
-  role: 'MODERADOR',
-  firstName: 'Lucía',
-  lastName: 'Peralta',
-};
-
 const PROFESIONAL: SessionUser = {
   id: 'u2',
   email: 'valeria@test.com',
@@ -103,6 +95,15 @@ describe('AppShell', () => {
     expect(menu().getByRole('link', { name: 'Mis turnos' })).toBeVisible();
     expect(menu().getByRole('link', { name: 'Buscar profesionales' })).toBeVisible();
     expect(menu().getByRole('link', { name: 'Mi perfil' })).toBeVisible();
+  });
+
+  it('un rol que la app ya no usa no muestra "undefined" ni el menú del paciente', async () => {
+    renderShell({ ...PACIENTE, role: 'MODERADOR' as SessionUser['role'] });
+    await screen.findByText('Marina Sosa');
+
+    expect(screen.getByText('Usuario')).toBeVisible();
+    expect(screen.queryByText('undefined')).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Buscar profesionales' })).not.toBeInTheDocument();
   });
 
   it('al profesional le ofrece las suyas, que no son las mismas', async () => {
@@ -274,43 +275,6 @@ describe('AppShell', () => {
       await screen.findByText('Marina Sosa');
 
       expect(menu().queryByRole('link', { name: /videoconsulta/i })).not.toBeInTheDocument();
-    });
-  });
-  describe('moderador', () => {
-    it('ve su sección, y no las del paciente', async () => {
-      // Antes caía en el menú del paciente: cuatro de sus cinco ítems le
-      // devolvían 403, y su única pantalla real no estaba.
-      renderShell(MODERADOR, '/moderacion');
-      await screen.findByText('Lucía Peralta');
-
-      expect(menu().getByRole('link', { name: 'Moderación' })).toBeVisible();
-      expect(menu().queryByRole('link', { name: 'Mis turnos' })).not.toBeInTheDocument();
-      expect(menu().queryByRole('link', { name: 'Mi historia clínica' })).not.toBeInTheDocument();
-      expect(menu().queryByRole('link', { name: 'Panel' })).not.toBeInTheDocument();
-    });
-
-    it('se lo identifica como Moderador, no como Paciente', async () => {
-      renderShell(MODERADOR, '/moderacion');
-
-      expect(await screen.findByText('Moderador')).toBeVisible();
-    });
-
-    it('no le ofrece la videoconsulta: no atiende ni se atiende', async () => {
-      renderShell(MODERADOR, '/moderacion');
-      await screen.findByText('Lucía Peralta');
-
-      expect(menu().queryByText('Videoconsulta')).not.toBeInTheDocument();
-    });
-
-    it('no pide los turnos: no tiene ninguno', async () => {
-      renderShell(MODERADOR, '/moderacion');
-      await screen.findByText('Lucía Peralta');
-
-      const aTurnos = vi
-        .mocked(globalThis.fetch)
-        .mock.calls.filter(([url]) => String(url).includes('/appointments/me'));
-
-      expect(aTurnos).toHaveLength(0);
     });
   });
 });

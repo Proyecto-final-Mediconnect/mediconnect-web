@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '../../../shared/ui/Button';
+import type { MyReview } from '../types';
 import { useCreateReview } from '../hooks/useReviews';
 import { StarInput } from './Stars';
 
@@ -7,8 +8,8 @@ const MAX = 1000;
 
 /**
  * Dejar la reseña de una consulta (ENG-80): las estrellas y, si quiere, un
- * comentario. Se publica recién cuando la aprueba un moderador, y el formulario
- * lo dice antes de mandar, no después.
+ * comentario. Se publica en el acto, y el formulario lo dice antes de mandar,
+ * no después.
  */
 export function ReviewForm({
   appointmentId,
@@ -20,7 +21,8 @@ export function ReviewForm({
 }: {
   appointmentId: string;
   professionalName: string;
-  onDone: () => void;
+  /** Recibe la reseña guardada: el backend decide su estado, no el formulario. */
+  onDone: (resena: MyReview) => void;
   onCancel: () => void;
   /** Las estrellas que ya tocó en la tarjeta del inicio (ENG-190). */
   initialRating?: number;
@@ -78,8 +80,7 @@ export function ReviewForm({
       </label>
 
       <p className="rounded-[10px] bg-surface px-4 py-3 text-[13px] leading-[1.6] text-muted">
-        Se publica en su perfil cuando la revise un moderador. Va con tu nombre y la inicial de tu
-        apellido.
+        Se publica en su perfil apenas la enviás. Va con tu nombre y la inicial de tu apellido.
       </p>
 
       {crear.isError && (

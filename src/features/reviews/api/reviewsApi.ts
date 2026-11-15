@@ -1,15 +1,11 @@
 import { apiFetch } from '../../../shared/api/apiFetch';
 import { toApiError } from '../../../shared/api/apiError';
 import type {
-  ModerationDecision,
-  ModerationPage,
-  ModerationReview,
   MyReview,
   NewReview,
   PendingReview,
   PublicReviewPage,
   ReviewResponse,
-  ReviewStatus,
 } from '../types';
 
 async function json<T>(response: Response, fallback: string): Promise<T> {
@@ -39,26 +35,6 @@ export async function createReview(appointmentId: string, review: NewReview): Pr
     body: JSON.stringify(review),
   });
   return json(response, 'No pudimos guardar la reseña.');
-}
-
-export async function getModerationQueue(
-  status: ReviewStatus,
-  page: number,
-): Promise<ModerationPage> {
-  const response = await apiFetch(`/moderation/reviews?status=${status}&page=${page}`);
-  return json(response, 'No pudimos cargar las reseñas.');
-}
-
-export async function moderateReview(
-  reviewId: string,
-  decision: ModerationDecision,
-): Promise<ModerationReview> {
-  const response = await apiFetch(`/moderation/reviews/${encodeURIComponent(reviewId)}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(decision),
-  });
-  return json(response, 'No pudimos guardar la decisión.');
 }
 
 /** Las reseñas publicadas que recibió el profesional, con sus respuestas (ENG-106). */

@@ -41,9 +41,8 @@ export function useAvailability(professionalId: string, from: string, to: string
 /**
  * Los turnos del usuario.
  *
- * @param enabled En `false` no pide nada. Existe por el MODERADOR: no tiene
- *   turnos propios ni la ruta le corresponde, así que el menú lateral pediría una
- *   lista que nunca va a poder usar.
+ * @param enabled En `false` no pide nada: el menú lateral espera a que la
+ *   sesión resuelva antes de pedir la lista.
  */
 export function useMyAppointments(enabled = true) {
   return useQuery({

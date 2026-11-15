@@ -2,8 +2,8 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Logo } from '../../../shared/ui/Logo';
 import { LegalAcceptanceGate } from '../../legal/components/LegalAcceptanceGate';
-import { useSession } from '../hooks/useSession';
-import { dashboardPathFor, type UserRole } from '../types/session';
+import { useLogout, useSession } from '../hooks/useSession';
+import { dashboardPathFor, isKnownRole, type UserRole } from '../types/session';
 
 type RequireAuthProps = {
   children: ReactNode;
@@ -43,6 +43,35 @@ function SessionLoading() {
   );
 }
 
+/** Sesión con un rol que la app ya no usa (p. ej. MODERADOR, que sigue en la
+ *  base): no hay dashboard ni menú que mostrarle, así que ni siquiera se
+ *  entra a la app. Lo único útil es poder cerrar sesión. */
+function UnsupportedRole() {
+  const logout = useLogout();
+  return (
+    <main className="flex min-h-svh items-center justify-center bg-surface px-4 py-10">
+      <section
+        role="alert"
+        className="grid w-full max-w-[460px] gap-4 rounded-[14px] border border-line bg-white p-7 text-center"
+      >
+        <h1 className="font-display text-[22px] text-brand-deep">Tu cuenta no tiene acceso</h1>
+        <p className="text-sm leading-[1.7] text-muted">
+          El rol de esta cuenta ya no existe en MediConnect. Escribinos a soporte para que lo
+          actualicemos.
+        </p>
+        <button
+          type="button"
+          onClick={() => logout.mutate()}
+          disabled={logout.isPending}
+          className="text-[13px] font-semibold text-brand-hover underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:opacity-60"
+        >
+          Cerrar sesión
+        </button>
+      </section>
+    </main>
+  );
+}
+
 export function RequireAuth({ children, allow, skipLegal = false }: RequireAuthProps) {
   const { user, isLoading } = useSession();
   const location = useLocation();
@@ -53,6 +82,9 @@ export function RequireAuth({ children, allow, skipLegal = false }: RequireAuthP
     // Guardamos a dónde quería ir para volver ahí después de loguearse.
     return <Navigate to="/ingresar" replace state={{ from: location }} />;
   }
+
+  // `user.role` viene de la base y puede no ser uno de los dos del tipo.
+  if (!isKnownRole(user.role)) return <UnsupportedRole />;
 
   if (allow && !allow.includes(user.role)) {
     return <Navigate to={dashboardPathFor(user.role)} replace />;

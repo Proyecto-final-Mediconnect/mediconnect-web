@@ -2,7 +2,12 @@ import { useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useMyAppointments } from '../../features/appointments/hooks/useAppointments';
 import { useLogout, useSession } from '../../features/auth/hooks/useSession';
-import { displayNameOf, initialsOf, ROLE_LABEL } from '../../features/auth/types/session';
+import {
+  displayNameOf,
+  initialsOf,
+  isKnownRole,
+  roleLabelOf,
+} from '../../features/auth/types/session';
 import { nextAppointment } from '../../features/dashboard/lib/dashboard';
 import { NotificationsBell } from '../../features/notifications/components/NotificationsBell';
 import { firstJoinable } from '../../features/video/lib/joinWindow';
@@ -15,7 +20,6 @@ import {
   IconHistoria,
   IconMensajes,
   IconMediPass,
-  IconModeracion,
   IconPacientes,
   IconPanel,
   IconPerfil,
@@ -117,23 +121,9 @@ const NAV_PROFESIONAL: NavItem[][] = [
   ],
 ];
 
-/**
- * El moderador tiene una sola pantalla propia, y el catálogo, que es público y le
- * sirve para ver el perfil sobre el que está moderando una reseña. Son dos ítems,
- * pero los dos andan: antes veía los cinco del paciente y cuatro le daban 403.
- */
-const NAV_MODERADOR: NavItem[][] = [
-  [
-    { to: '/moderacion', label: 'Moderación', end: true, Icon: IconModeracion },
-    { to: '/buscar', label: 'Buscar profesionales', Icon: IconBuscar },
-  ],
-  [{ to: '/privacidad', label: 'Privacidad y datos', Icon: IconPrivacidad }],
-];
-
 const NAV_POR_ROL: Record<string, NavItem[][]> = {
   PACIENTE: NAV_PACIENTE,
   PROFESIONAL: NAV_PROFESIONAL,
-  MODERADOR: NAV_MODERADOR,
 };
 
 /**
@@ -219,17 +209,8 @@ export function AppShell({ title, displayTitle = false, children }: AppShellProp
    *  trabajo en curso, y en un turno o una consulta abierta eso duele. */
   const [confirmandoSalida, setConfirmandoSalida] = useState(false);
 
-  const esModerador = user?.role === 'MODERADOR';
-
-  /**
-   * Si tiene sentido pedirle los turnos a este usuario.
-   *
-   * Se exige que la sesión ya haya resuelto (`user` no nulo) y no solo que el rol
-   * no sea MODERADOR: mientras carga, `user` es nulo y `esModerador` da false, así
-   * que el moderador igual disparaba el request en el primer render — que es
-   * justamente lo que se quiere evitar.
-   */
-  const tieneTurnos = user != null && !esModerador;
+  /** Los turnos se piden recién cuando la sesión resolvió (`user` no nulo). */
+  const tieneTurnos = user != null;
 
   // La consulta a la que se puede entrar ahora. Comparte queryKey con "Mis
   // turnos", así que estar en el menú de todas las pantallas privadas no agrega
@@ -241,16 +222,17 @@ export function AppShell({ title, displayTitle = false, children }: AppShellProp
   const enCurso = firstJoinable(turnos, now);
   const proxima = enCurso ?? nextAppointment(turnos, now);
 
-  // Mapa explícito y no un ternario: con `PROFESIONAL ? … : PACIENTE`, el
-  // MODERADOR caía en el menú del paciente y cuatro de sus cinco ítems le
-  // devolvían 403. Mientras la sesión no cargó se cae al de paciente, que es el
-  // rol más común; el guard de la ruta es RequireAuth, no esto.
-  const grupos = NAV_POR_ROL[user?.role ?? ''] ?? NAV_PACIENTE;
+  // Mapa explícito por rol. Mientras la sesión no cargó se cae al de paciente,
+  // que es el rol más común; el guard de la ruta es RequireAuth, no esto.
+  // Un rol desconocido (MODERADOR residual en la base) no hereda el menú de
+  // paciente: queda sin secciones (RequireAuth ya lo frena antes).
+  const grupos: NavItem[][] =
+    user && !isKnownRole(user.role) ? [] : (NAV_POR_ROL[user?.role ?? ''] ?? NAV_PACIENTE);
   // Los mismos helpers que usa la barra pública: el nombre y las iniciales de
   // una persona no deberían resolverse distinto según en qué pantalla esté.
   const nombre = user ? displayNameOf(user) : '';
   const iniciales = user ? initialsOf(user) : '·';
-  const rol = user ? ROLE_LABEL[user.role] : 'Paciente';
+  const rol = user ? roleLabelOf(user.role) : 'Paciente';
 
   return (
     /* La primera columna es `auto`: mide lo que mide la barra, así que al abrirse
@@ -310,10 +292,8 @@ export function AppShell({ title, displayTitle = false, children }: AppShellProp
               ))}
 
               {/* La videoconsulta cierra el primer bloque: es lo que sigue a un
-                  turno, no una sección aparte. El moderador no la tiene — no
-                  atiende ni se atiende, y apagada le diría "cuando tengas un
-                  turno agendado", que nunca pasa. */}
-              {i === 0 && !esModerador && (
+                  turno, no una sección aparte. */}
+              {i === 0 && (
                 <VideoconsultaLink appointmentId={proxima?.id ?? null} enVivo={enCurso !== null} />
               )}
             </div>

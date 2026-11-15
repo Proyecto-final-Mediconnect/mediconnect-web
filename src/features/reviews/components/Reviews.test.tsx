@@ -9,14 +9,13 @@ import type { ReactElement, ReactNode } from 'react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { AppointmentReview } from './AppointmentReview';
 import { ConsultationClosing } from './ConsultationClosing';
-import { ModerationQueue } from './ModerationQueue';
 import { PendingReviewCards } from './PendingReviewCards';
 import { ProfessionalReviews } from './ProfessionalReviews';
 import { Stars, StarInput } from './Stars';
 import { ratingLabel } from '../lib/reviews';
-import type { ModerationReview, MyReview } from '../types';
+import type { MyReview } from '../types';
 
-/** ENG-80, ENG-81 y ENG-82: dejar, moderar y ver reseñas. */
+/** ENG-80 y ENG-82: dejar reseñas, que se publican en el acto, y verlas. */
 
 const TURNO = '44444444-4444-4444-8444-444444444444';
 const PRO = '22222222-2222-4222-8222-222222222222';
@@ -115,7 +114,7 @@ describe('AppointmentReview (ENG-80)', () => {
       (_url, init) => {
         if (init?.method === 'POST') {
           enviada = JSON.parse(String(init.body));
-          return json({ id: 'r1', appointmentId: TURNO, status: 'PENDIENTE_MODERACION' }, 201);
+          return json({ id: 'r1', appointmentId: TURNO, status: 'APROBADA' }, 201);
         }
         return json([]);
       },
@@ -167,7 +166,28 @@ describe('AppointmentReview (ENG-80)', () => {
     expect(await screen.findByRole('button', { name: 'Dejar una reseña' })).toBeInTheDocument();
   });
 
-  it('con reseña, muestra en qué quedó y el motivo si no se publicó', async () => {
+  it('con reseña la muestra, sin estado "En revisión"', async () => {
+    const publicada: MyReview = {
+      id: 'r1',
+      appointmentId: TURNO,
+      professionalId: PRO,
+      rating: 5,
+      comment: 'Muy clara',
+      status: 'APROBADA',
+      moderationReason: null,
+      createdAt: '2026-11-01T15:00:00.000Z',
+    };
+    renderWith(<AppointmentReview appointmentId={TURNO} professionalName="Ana García" />, () =>
+      json([publicada]),
+    );
+
+    expect(await screen.findByText('Tu reseña')).toBeInTheDocument();
+    expect(screen.getByText('“Muy clara”')).toBeInTheDocument();
+    expect(screen.queryByText(/revisión/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Dejar una reseña' })).not.toBeInTheDocument();
+  });
+
+  it('una reseña vieja rechazada dice que no se publicó y por qué', async () => {
     const rechazada: MyReview = {
       id: 'r1',
       appointmentId: TURNO,
@@ -182,8 +202,28 @@ describe('AppointmentReview (ENG-80)', () => {
       json([rechazada]),
     );
 
-    expect(await screen.findByText('No publicada')).toBeInTheDocument();
-    expect(screen.getByText('Motivo: Tiene datos personales')).toBeInTheDocument();
+    expect(await screen.findByText('No se publicó: Tiene datos personales')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Dejar una reseña' })).not.toBeInTheDocument();
+  });
+});
+
+describe('AppointmentReview, reseña heredada en revisión', () => {
+  it('una PENDIENTE_MODERACION aclara que no está publicada', async () => {
+    const vieja: MyReview = {
+      id: 'r1',
+      appointmentId: TURNO,
+      professionalId: PRO,
+      rating: 4,
+      comment: 'Bien',
+      status: 'PENDIENTE_MODERACION',
+      moderationReason: null,
+      createdAt: '2026-10-01T15:00:00.000Z',
+    };
+    renderWith(<AppointmentReview appointmentId={TURNO} professionalName="Ana García" />, () =>
+      json([vieja]),
+    );
+
+    expect(await screen.findByText(/no llegó a publicarse/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Dejar una reseña' })).not.toBeInTheDocument();
   });
 });
@@ -281,114 +321,6 @@ describe('ProfessionalReviews (ENG-82)', () => {
   });
 });
 
-describe('ModerationQueue (ENG-81)', () => {
-  const PENDIENTE: ModerationReview = {
-    id: '55555555-5555-4555-8555-555555555555',
-    rating: 4,
-    comment: 'Buena atención, aunque arrancó tarde.',
-    status: 'PENDIENTE_MODERACION',
-    createdAt: '2026-11-01T15:00:00.000Z',
-    patient: 'Marina López',
-    professional: { id: PRO, name: 'Ana García' },
-    moderationReason: null,
-    moderatedAt: null,
-  };
-
-  function cola(decisiones: unknown[]) {
-    return renderWith(<ModerationQueue />, (_url, init) => {
-      if (init?.method === 'PATCH') {
-        decisiones.push(JSON.parse(String(init.body)));
-        return json({ ...PENDIENTE, status: 'APROBADA' });
-      }
-      return json({ reviews: [PENDIENTE], page: 1, hasMore: false });
-    });
-  }
-
-  it('muestra quién reseñó a quién y aprueba', async () => {
-    const decisiones: unknown[] = [];
-    cola(decisiones);
-
-    expect(await screen.findByText('Buena atención, aunque arrancó tarde.')).toBeInTheDocument();
-    expect(screen.getByText('Marina López')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Aprobar' }));
-
-    expect(await screen.findByRole('status')).toHaveTextContent(/ya se ve en su perfil/);
-    expect(decisiones).toEqual([{ decision: 'APROBADA' }]);
-  });
-
-  it('rechazar pide el motivo y lo manda', async () => {
-    const decisiones: unknown[] = [];
-    cola(decisiones);
-
-    await userEvent.click(await screen.findByRole('button', { name: 'Rechazar' }));
-    const dialogo = screen.getByRole('dialog', { hidden: true });
-    const enviar = within(dialogo).getByRole('button', { name: 'Rechazar', hidden: true });
-    expect(enviar).toBeDisabled();
-
-    await userEvent.type(within(dialogo).getByRole('textbox', { hidden: true }), 'Tiene insultos');
-    await userEvent.click(enviar);
-
-    await vi.waitFor(() =>
-      expect(decisiones).toEqual([{ decision: 'RECHAZADA', reason: 'Tiene insultos' }]),
-    );
-  });
-
-  it('al cambiar de pestaña no muestra las pendientes con sus acciones', async () => {
-    // Las aprobadas tardan: mientras tanto no puede quedar la pestaña anterior.
-    let soltarAprobadas: () => void = () => {};
-    const aprobadas = new Promise<Response>((resolve) => {
-      soltarAprobadas = () => resolve(json({ reviews: [], page: 1, hasMore: false }));
-    });
-    vi.spyOn(globalThis, 'fetch').mockImplementation((input) =>
-      String(input).includes('APROBADA')
-        ? aprobadas
-        : Promise.resolve(json({ reviews: [PENDIENTE], page: 1, hasMore: false })),
-    );
-    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-    render(
-      <QueryClientProvider client={client}>
-        <ModerationQueue />
-      </QueryClientProvider>,
-    );
-
-    expect(await screen.findByRole('button', { name: 'Aprobar' })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('tab', { name: 'Aprobadas' }));
-
-    expect(screen.getByText('Cargando reseñas…')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Aprobar' })).not.toBeInTheDocument();
-    soltarAprobadas();
-    expect(await screen.findByText('Todavía no hay reseñas acá')).toBeInTheDocument();
-  });
-
-  it('al decidir la última de una página que no es la primera, vuelve a la anterior', async () => {
-    let decidida = false;
-    renderWith(<ModerationQueue />, (url, init) => {
-      if (init?.method === 'PATCH') {
-        decidida = true;
-        return json({ ...PENDIENTE, id: 'p2', status: 'APROBADA' });
-      }
-      if (url.endsWith('page=2')) {
-        const reviews = decidida ? [] : [{ ...PENDIENTE, id: 'p2', comment: 'De la página 2' }];
-        return json({ reviews, page: 2, hasMore: false });
-      }
-      return json({ reviews: [PENDIENTE], page: 1, hasMore: true });
-    });
-
-    await userEvent.click(await screen.findByRole('button', { name: 'Siguientes →' }));
-    expect(await screen.findByText('De la página 2')).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: 'Aprobar' }));
-
-    expect(await screen.findByText('Buena atención, aunque arrancó tarde.')).toBeInTheDocument();
-    expect(screen.queryByText('No hay reseñas para revisar')).not.toBeInTheDocument();
-  });
-
-  it('sin pendientes lo dice', async () => {
-    renderWith(<ModerationQueue />, () => json({ reviews: [], page: 1, hasMore: false }));
-
-    expect(await screen.findByText('No hay reseñas para revisar')).toBeInTheDocument();
-  });
-});
-
 describe('PendingReviewCards (ENG-190)', () => {
   const PENDIENTE = {
     appointmentId: TURNO,
@@ -446,7 +378,7 @@ describe('ConsultationClosing (ENG-190)', () => {
     professionalId: PRO,
     rating: 5,
     comment: null,
-    status: 'PENDIENTE_MODERACION',
+    status: 'APROBADA',
     moderationReason: null,
     createdAt: '2026-11-20T16:00:00.000Z',
   };
@@ -490,8 +422,23 @@ describe('ConsultationClosing (ENG-190)', () => {
     await user.click(await screen.findByRole('radio', { name: /5 estrellas/i }));
     await user.click(screen.getByRole('button', { name: 'Enviar reseña' }));
 
-    expect(await screen.findByText(/¡gracias! tu reseña se publica/i)).toBeInTheDocument();
+    expect(
+      await screen.findByText(/¡gracias! tu reseña ya se ve en su perfil/i),
+    ).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Ir a mis turnos' })).toBeInTheDocument();
+  });
+
+  it('si el backend la guarda sin publicar, no dice que ya se ve en el perfil', async () => {
+    const user = userEvent.setup();
+    cierre((_url, init) =>
+      init?.method === 'POST' ? json({ ...MIA, status: 'RECHAZADA' }, 201) : json([]),
+    );
+
+    await user.click(await screen.findByRole('radio', { name: /5 estrellas/i }));
+    await user.click(screen.getByRole('button', { name: 'Enviar reseña' }));
+
+    expect(await screen.findByText(/no se publicó en el perfil/i)).toBeInTheDocument();
+    expect(screen.queryByText(/ya se ve en su perfil/i)).not.toBeInTheDocument();
   });
 
   it('"Ahora no" va a mis turnos sin mandar nada', async () => {

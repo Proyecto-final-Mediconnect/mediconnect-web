@@ -19,8 +19,8 @@ export const RESPONSE_MAX_LENGTH = 1000;
  * el promedio arriba, y la respuesta pública de cada una.
  *
  * Son las mismas que ve cualquiera en el perfil. La respuesta se publica al
- * guardarla, sin pasar por moderación: la firma el profesional con su nombre, y
- * el backend igual la pasa por el filtro de lenguaje (ENG-107).
+ * guardarla: la firma el profesional con su nombre, y el backend la pasa por el
+ * filtro de lenguaje (ENG-107).
  */
 export function ProfessionalReviewsPage() {
   const resenas = useReceivedReviews();
@@ -50,8 +50,8 @@ export function ProfessionalReviewsPage() {
           <section className="grid justify-items-center gap-1.5 rounded-[14px] border border-line bg-white px-6 py-10 text-center">
             <h2 className="text-[15px] font-semibold text-brand-deep">Todavía no tenés reseñas</h2>
             <p className="max-w-[420px] text-[13px] leading-[1.6] text-muted">
-              Cuando un paciente deje una reseña después de su consulta y un moderador la apruebe,
-              va a aparecer acá y en tu perfil público.
+              Cuando un paciente deje una reseña después de su consulta, va a aparecer acá y en tu
+              perfil público.
             </p>
           </section>
         ) : (
