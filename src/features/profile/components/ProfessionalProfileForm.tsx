@@ -8,7 +8,12 @@ import {
   useUpdateProfile,
   useUploadPhoto,
 } from '../hooks/useProfile';
-import { professionalProfileSchema } from '../types/professionalProfile';
+import {
+  professionalProfileSchema,
+  type Education,
+  type EducationDraft,
+} from '../types/professionalProfile';
+import { EducationEditor } from './EducationEditor';
 import { ProfilePreview } from './ProfilePreview';
 
 const MAX_SPECIALTIES = 3;
@@ -23,8 +28,20 @@ const MAX_BIO = 500;
 const MAX_INPUT_BYTES = 12 * 1024 * 1024;
 
 type FieldErrors = Partial<
-  Record<'bio' | 'consultationPrice' | 'specialtyIds', string>
+  Record<'bio' | 'consultationPrice' | 'specialtyIds' | 'education', string>
 >;
+
+const toDraft = (items: Education[] | undefined): EducationDraft[] =>
+  (items ?? []).map((e) => ({
+    uid: crypto.randomUUID(),
+    institution: e.institution,
+    degree: e.degree,
+    year: e.year === null ? '' : String(e.year),
+  }));
+
+/** Para comparar si hay cambios: sin `uid`, que cambia en cada carga. */
+const educationKey = (rows: EducationDraft[]) =>
+  JSON.stringify(rows.map((r) => [r.degree.trim(), r.institution.trim(), r.year]));
 
 export function ProfessionalProfileForm() {
   const {
@@ -40,6 +57,8 @@ export function ProfessionalProfileForm() {
   const [bio, setBio] = useState('');
   const [price, setPrice] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [education, setEducation] = useState<EducationDraft[]>([]);
+  const [educationErrorRow, setEducationErrorRow] = useState<number | undefined>();
   const [errors, setErrors] = useState<FieldErrors>({});
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
@@ -56,7 +75,8 @@ export function ProfessionalProfileForm() {
     bio: string;
     price: string;
     specialtyIds: string[];
-  }>({ bio: '', price: '', specialtyIds: [] });
+    education: string;
+  }>({ bio: '', price: '', specialtyIds: [], education: educationKey([]) });
 
   // Sembramos el formulario una sola vez cuando llega el perfil, para no pisar
   // ediciones sin guardar (ej. al subir la foto, que también refresca el perfil).
@@ -70,11 +90,14 @@ export function ProfessionalProfileForm() {
       );
       const ids = profile.specialties.map((s) => s.id);
       setSelectedIds(ids);
+      const drafts = toDraft(profile.education);
+      setEducation(drafts);
       setOriginal({
         bio: profile.bio ?? '',
         price:
           profile.consultationPrice !== null ? String(profile.consultationPrice) : '',
         specialtyIds: ids,
+        education: educationKey(drafts),
       });
       seeded.current = true;
     }
@@ -138,27 +161,57 @@ export function ProfessionalProfileForm() {
       bio,
       consultationPrice: priceValue,
       specialtyIds: selectedIds,
+      education: education.map((row) => ({
+        degree: row.degree,
+        institution: row.institution,
+        year: row.year.trim() === '' ? null : Number(row.year),
+      })),
     });
 
     if (!parsed.success) {
       const fieldErrors: FieldErrors = {};
+      let errorRow: number | undefined;
       for (const issue of parsed.error.issues) {
         const field = issue.path[0] as keyof FieldErrors;
-        if (field && !fieldErrors[field]) fieldErrors[field] = issue.message;
+        // En la formación se dice en qué título está el problema.
+        const message =
+          field === 'education' && typeof issue.path[1] === 'number'
+            ? `Título ${issue.path[1] + 1}: ${issue.message}`
+            : issue.message;
+        if (field && !fieldErrors[field]) {
+          fieldErrors[field] = message;
+          if (field === 'education' && typeof issue.path[1] === 'number') {
+            errorRow = issue.path[1];
+          }
+        }
       }
+      setEducationErrorRow(errorRow);
       setErrors(fieldErrors);
       return;
     }
 
     setErrors({});
-    updateProfile.mutate(parsed.data, {
+    setEducationErrorRow(undefined);
+    // `education` es opcional en el esquema: solo viaja si el profesional la
+    // tocó, así guardar la bio o el precio no depende de que el backend ya la
+    // acepte ni pisa la formación con `[]`.
+    const payload =
+      educationKey(education) !== original.education
+        ? parsed.data
+        : { ...parsed.data, education: undefined };
+    updateProfile.mutate(payload, {
       onSuccess: () => {
         setSaved(true);
         // El nuevo punto de comparación es lo que había en el formulario al
         // enviar, no lo que devuelve el backend: el precio viaja como número y
         // en el campo es un string, así que comparar contra la respuesta dejaría
         // el formulario "sucio" para siempre después de guardar.
-        setOriginal({ bio, price, specialtyIds: selectedIds });
+        setOriginal({
+          bio,
+          price,
+          specialtyIds: selectedIds,
+          education: educationKey(education),
+        });
       },
     });
   }
@@ -171,7 +224,8 @@ export function ProfessionalProfileForm() {
   const sucio =
     bio !== original.bio ||
     price !== original.price ||
-    selectedIds.join(',') !== original.specialtyIds.join(',');
+    selectedIds.join(',') !== original.specialtyIds.join(',') ||
+    educationKey(education) !== original.education;
 
   return (
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -285,6 +339,15 @@ export function ProfessionalProfileForm() {
               <p className="text-[13px] text-danger">{errors.specialtyIds}</p>
             )}
           </fieldset>
+        </Seccion>
+
+        <Seccion
+          titulo="Formación"
+          detalle="Tus títulos, residencias y posgrados. Se muestran en tu perfil público, del más reciente al más viejo."
+        >
+          <EducationEditor rows={education} onChange={setEducation} error={errors.education}
+            errorRow={educationErrorRow}
+          />
         </Seccion>
 
         <Seccion

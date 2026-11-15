@@ -7,7 +7,10 @@ import { apiError } from './apiError';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL as string;
 
 /**
- * Actualiza el perfil (bio, precio, especialidades).
+ * Actualiza el perfil (bio, precio, especialidades y formación).
+ *
+ * La formación es un reemplazo completo: se manda siempre la lista entera, y
+ * vacía si el profesional sacó todos los títulos.
  *
  * El precio en `null` se manda EXPLÍCITO, no se omite: para el backend omitir un
  * campo es "no lo toques" (solo escribe los `!== undefined`), así que omitirlo
@@ -21,6 +24,7 @@ export async function updateMyProfile(
     bio: input.bio,
     specialtyIds: input.specialtyIds,
     consultationPrice: input.consultationPrice,
+    education: input.education,
   };
 
   const response = await fetch(`${API_BASE_URL}/professionals/me`, {
