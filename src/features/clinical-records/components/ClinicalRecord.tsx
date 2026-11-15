@@ -420,7 +420,7 @@ function EncabezadoImpreso({
         </p>
       </div>
       {scopeNote && <p className="mt-3 text-[12px] leading-[1.6] text-muted">{scopeNote}</p>}
-      <p className="mt-3 rounded-[8px] bg-surface px-3.5 py-2.5 text-[11px] leading-[1.6] text-muted">
+      <p className="mt-3 rounded-[8px] border border-line bg-surface px-3.5 py-2.5 text-[11px] leading-[1.6] text-muted">
         Cada registro queda sellado en una cadena de verificación (hash SHA-256) y no se puede
         modificar ni borrar: una corrección es un registro nuevo vinculado al original.
       </p>

@@ -83,6 +83,18 @@ describe('ClinicalRecord', () => {
       expect(screen.queryByText(/sellada en la cadena/i)).not.toBeInTheDocument();
     });
 
+    it('el encabezado impreso dice qué es, cuándo se sacó y cuántos registros trae', async () => {
+      entries = [makeEntry()];
+      renderRecord();
+
+      await screen.findByText('Dolor lumbar de 3 días');
+      // Está en el DOM y oculto en pantalla (`hidden print:block`): jsdom no evalúa `print:`.
+      expect(
+        screen.getAllByRole('heading', { name: 'Historia clínica', hidden: true }),
+      ).toHaveLength(2); // el de lectores de pantalla y el del encabezado impreso
+      expect(screen.getByText(/impresa el/i)).toHaveTextContent(/1 registros/);
+    });
+
     it('muestra la hora en 24 h y en horario de Buenos Aires', async () => {
       // 23:30 UTC = 20:30 en Buenos Aires; en 12 h saldría "08:30 p. m.".
       entries = [makeEntry({ createdAt: '2026-08-27T23:30:00.000Z' })];

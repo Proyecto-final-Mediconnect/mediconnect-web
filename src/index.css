@@ -76,6 +76,11 @@ body {
   letter-spacing: -0.02em;
 }
 
+/* Márgenes de la hoja: sin esto el navegador usa los suyos y el texto queda pegado al borde. */
+@page {
+  margin: 14mm;
+}
+
 /* Hoja impresa.
  *
  * La usa "Descargar historia en PDF": no hay endpoint de exportación y no hace
@@ -86,11 +91,6 @@ body {
  * superior y los controles. Un papel no se navega. Las tarjetas, en cambio,
  * tienen que conservar el borde y evitar partirse al medio: una entrada clínica
  * cortada entre dos hojas se lee mal y, peor, se puede leer incompleta. */
-/* Márgenes de la hoja: sin esto el navegador usa los suyos y el texto queda pegado al borde. */
-@page {
-  margin: 14mm;
-}
-
 @media print {
   /* Fondos de color a papel blanco: el gris del panel sale como una mancha y
      se come el tóner sin aportar nada. */

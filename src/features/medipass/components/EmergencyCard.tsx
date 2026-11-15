@@ -268,7 +268,7 @@ function TarjetaRecien({
  */
 function HojaTarjeta({ tarjeta, nombre }: { tarjeta: EmergencyCardCreated; nombre: string }) {
   return createPortal(
-    <div className="hoja-tarjeta hidden bg-white p-[12mm] text-ink print:block">
+    <div className="hoja-tarjeta hidden bg-white text-ink print:block">
       <Logo variant="lockup" className="h-8" alt="MediConnect" />
       <h1 className="font-display mt-6 text-[26px] leading-[1.15] text-brand-deep">
         Tu tarjeta de emergencia MediPass
