@@ -76,6 +76,11 @@ body {
   letter-spacing: -0.02em;
 }
 
+/* Márgenes de la hoja: sin esto el navegador usa los suyos y el texto queda pegado al borde. */
+@page {
+  margin: 14mm;
+}
+
 /* Hoja impresa.
  *
  * La usa "Descargar historia en PDF": no hay endpoint de exportación y no hace
@@ -126,23 +131,16 @@ body {
   }
 }
 
-/* Tarjeta de emergencia del MediPass (ENG-176): cuando está en pantalla, es lo
- * único que sale en papel, en su tamaño, arriba a la izquierda de la hoja. */
+/* Tarjeta de emergencia del MediPass (ENG-176): al imprimir, solo sale la hoja
+ * `.hoja-tarjeta` (un portal en `body`, ver `EmergencyCard`). Se oculta el resto de
+ * la app con `display: none` y no con `visibility`: lo oculto por visibilidad igual
+ * ocupa lugar y en un diálogo con scroll el navegador lo recorta al paginar. */
 @media print {
-  body:has(.tarjeta-imprimible) * {
-    visibility: hidden;
+  body:has(.hoja-tarjeta) > *:not(.hoja-tarjeta) {
+    display: none !important;
   }
 
-  .tarjeta-imprimible,
-  .tarjeta-imprimible * {
-    visibility: visible;
-  }
-
-  .tarjeta-imprimible {
-    position: absolute;
-    top: 0;
-    left: 0;
-    break-inside: avoid;
+  .hoja-tarjeta {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }

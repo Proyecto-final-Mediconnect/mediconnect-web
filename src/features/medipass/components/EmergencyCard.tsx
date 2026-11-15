@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Logo } from '../../../shared/ui/Logo';
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog';
 import { MediPassQr } from '../../../shared/ui/MediPassQr';
 import {
@@ -187,9 +189,13 @@ export function EmergencyCard({ nombre }: { nombre: string }) {
 }
 
 /**
- * La tarjeta para imprimir, justo después de generarla. Es lo único que sale en
- * papel (`.tarjeta-imprimible`, ver `index.css`): del tamaño de una tarjeta de
- * crédito, para la billetera.
+ * La tarjeta para imprimir, justo después de generarla.
+ *
+ * Lo que sale en papel NO es esta vista sino `HojaTarjeta`: una hoja A4 propia,
+ * montada fuera de la app (portal en `body`) y visible solo al imprimir. Antes se
+ * intentaba imprimir esta misma tarjeta ocultando todo lo demás con CSS, y no
+ * salía: vive dentro de un panel con scroll y de un diálogo, que el navegador
+ * recorta al paginar.
  */
 function TarjetaRecien({
   tarjeta,
@@ -202,8 +208,9 @@ function TarjetaRecien({
 }) {
   return (
     <div className="grid gap-5 md:grid-cols-[auto_minmax(0,1fr)] md:items-center">
+      <HojaTarjeta tarjeta={tarjeta} nombre={nombre} />
       <div
-        className="tarjeta-imprimible grid w-[340px] max-w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-4 justify-self-center rounded-[14px] border-2 border-danger bg-white p-4"
+        className="grid w-[340px] max-w-full grid-cols-[auto_minmax(0,1fr)] items-center gap-4 justify-self-center rounded-[14px] border-2 border-danger bg-white p-4"
         aria-label="Tarjeta de emergencia para imprimir"
       >
         <MediPassQr value={emergencyCardUrl(window.location.origin, tarjeta.tarjeta)} size={128} />
@@ -236,7 +243,7 @@ function TarjetaRecien({
             onClick={() => window.print()}
             className="rounded-full bg-brand-deep px-5 py-2.5 text-[14px] font-semibold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
           >
-            Imprimir
+            Imprimir o guardar PDF
           </button>
           <button
             type="button"
@@ -248,5 +255,62 @@ function TarjetaRecien({
         </div>
       </div>
     </div>
+  );
+}
+
+/**
+ * La hoja que se imprime (o se guarda como PDF desde el diálogo de impresión).
+ *
+ * Una hoja A4 con la tarjeta a tamaño real de tarjeta de crédito (85,6 × 54 mm)
+ * dentro de un marco punteado para recortarla, y las instrucciones al costado.
+ * Está en un portal en `body` y oculta en pantalla: el CSS de impresión
+ * (`index.css`, `.hoja-tarjeta`) esconde el resto de la app y deja solo esto.
+ */
+function HojaTarjeta({ tarjeta, nombre }: { tarjeta: EmergencyCardCreated; nombre: string }) {
+  return createPortal(
+    <div className="hoja-tarjeta hidden bg-white text-ink print:block">
+      <Logo variant="lockup" className="h-8" alt="MediConnect" />
+      <h1 className="font-display mt-6 text-[26px] leading-[1.15] text-brand-deep">
+        Tu tarjeta de emergencia MediPass
+      </h1>
+      <p className="mt-2 max-w-[150mm] text-[13px] leading-[1.6] text-muted">
+        Recortala por la línea punteada y llevala en la billetera. Si alguien tiene que atenderte y
+        no puede hablar, escanea el código y ve tus alergias, medicación y contacto de emergencia.
+      </p>
+
+      <div className="mt-8 inline-block border border-dashed border-muted-soft p-[3mm]">
+        <div className="grid h-[54mm] w-[85.6mm] grid-cols-[auto_minmax(0,1fr)] items-center gap-[4mm] rounded-[3mm] border-2 border-danger bg-white p-[4mm]">
+          <MediPassQr
+            value={emergencyCardUrl(window.location.origin, tarjeta.tarjeta)}
+            size={104}
+          />
+          <div className="min-w-0">
+            <p className="text-[8px] font-bold uppercase tracking-[0.14em] text-danger">
+              Emergencia médica
+            </p>
+            {nombre && (
+              <p className="mt-1 text-[12px] font-bold leading-tight text-brand-deep">{nombre}</p>
+            )}
+            <p className="mt-1.5 text-[8.5px] leading-[1.4] text-ink">
+              Escaneá este código con la cámara para ver mis alergias, medicación y contacto de
+              emergencia.
+            </p>
+            <p className="mt-1.5 text-[8px] text-muted">MediConnect · MediPass</p>
+          </div>
+        </div>
+      </div>
+
+      <ul className="mt-8 grid max-w-[150mm] gap-1.5 text-[12px] leading-[1.6] text-ink">
+        <li>El código abre 30 minutos de información vital, y cada acceso queda registrado.</li>
+        <li>Es personal: no lo compartas ni lo publiques.</li>
+        <li>
+          Si la perdés, desactivala desde MediPass &gt; Tarjeta de emergencia y generá una nueva.
+        </li>
+      </ul>
+      <p className="mt-10 text-[10px] text-muted">
+        Generada el {FECHA.format(new Date())} · MediConnect
+      </p>
+    </div>,
+    document.body,
   );
 }

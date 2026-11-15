@@ -78,9 +78,13 @@ describe('EmergencyCard (ENG-176)', () => {
     renderCard({ activa: false, creadaEl: null });
 
     await user.click(await screen.findByRole('button', { name: 'Generar mi tarjeta' }));
-    await user.click(await screen.findByRole('button', { name: 'Imprimir' }));
+    await user.click(await screen.findByRole('button', { name: 'Imprimir o guardar PDF' }));
 
     expect(print).toHaveBeenCalledTimes(1);
+    // Lo que se imprime es la hoja A4, montada directo en `body` (fuera del diálogo).
+    const hoja = document.querySelector('.hoja-tarjeta');
+    expect(hoja?.parentElement).toBe(document.body);
+    expect(hoja).toHaveTextContent('Tu tarjeta de emergencia MediPass');
   });
 
   it('después de "Listo", el QR desaparece y queda solo que hay una activa', async () => {
