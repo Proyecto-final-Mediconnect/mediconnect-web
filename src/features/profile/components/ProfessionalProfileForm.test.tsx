@@ -18,6 +18,7 @@ const PROFILE = {
   currency: 'ARS',
   status: 'ACTIVO',
   specialties: [],
+  education: [{ institution: 'Universidad Nacional de Córdoba', degree: 'Medicina', year: 2015 }],
 };
 
 const SPECIALTIES = [
@@ -115,6 +116,78 @@ describe('ProfessionalProfileForm', () => {
     // Omitirlo significaría "no lo toques": el precio seguiría publicado mientras
     // la UI dice "Perfil guardado ✓".
     expect(lastPatchBody()).toHaveProperty('consultationPrice', null);
+  });
+
+  describe('formación (ENG-48)', () => {
+    it('precarga los títulos que ya tiene', async () => {
+      renderForm();
+
+      expect(await screen.findByDisplayValue('Medicina')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('Universidad Nacional de Córdoba')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('2015')).toBeInTheDocument();
+    });
+
+    it('agregar un título y guardar manda la lista entera, con el año en null si falta', async () => {
+      const user = userEvent.setup();
+      renderForm();
+      await screen.findByDisplayValue('Medicina');
+
+      await user.click(screen.getByRole('button', { name: '+ Agregar título' }));
+      const titulos = screen.getAllByLabelText('Título');
+      const instituciones = screen.getAllByLabelText('Institución');
+      await user.type(titulos[1], 'Residencia en Cardiología');
+      await user.type(instituciones[1], 'Hospital Italiano');
+      expect(screen.getByText('Tenés cambios sin guardar.')).toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+      await screen.findByRole('status');
+
+      expect(lastPatchBody().education).toEqual([
+        { degree: 'Medicina', institution: 'Universidad Nacional de Córdoba', year: 2015 },
+        { degree: 'Residencia en Cardiología', institution: 'Hospital Italiano', year: null },
+      ]);
+    });
+
+    it('quitar todos los títulos manda la lista vacía, para que el backend los borre', async () => {
+      const user = userEvent.setup();
+      renderForm();
+      await screen.findByDisplayValue('Medicina');
+
+      await user.click(screen.getByRole('button', { name: 'Quitar el título 1' }));
+      expect(screen.getByText('Todavía no cargaste ningún título.')).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+      await screen.findByRole('status');
+
+      expect(lastPatchBody().education).toEqual([]);
+    });
+
+    it('un título sin institución no se manda y dice cuál es', async () => {
+      const user = userEvent.setup();
+      renderForm();
+      await screen.findByDisplayValue('Medicina');
+
+      await user.click(screen.getByRole('button', { name: '+ Agregar título' }));
+      await user.type(screen.getAllByLabelText('Título')[1], 'Posgrado');
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+      expect(await screen.findByText('Título 2: Falta la institución')).toBeInTheDocument();
+      const patches = vi
+        .mocked(globalThis.fetch)
+        .mock.calls.filter(([, init]) => init?.method === 'PATCH');
+      expect(patches).toHaveLength(0);
+    });
+
+    it('un año futuro se rechaza antes de mandar', async () => {
+      const user = userEvent.setup();
+      renderForm();
+      const anio = await screen.findByDisplayValue('2015');
+
+      await user.clear(anio);
+      await user.type(anio, String(new Date().getFullYear() + 1));
+      await user.click(screen.getByRole('button', { name: 'Guardar cambios' }));
+
+      expect(await screen.findByText('Título 1: El año no puede ser futuro')).toBeInTheDocument();
+    });
   });
 
   it('muestra el mensaje del backend cuando falla la carga del perfil', async () => {
