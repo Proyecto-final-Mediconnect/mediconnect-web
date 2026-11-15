@@ -116,13 +116,13 @@ export function NotificationsBell() {
                     >
                       <span
                         aria-hidden="true"
-                        className={`flex size-8 flex-none items-center justify-center rounded-full ${
+                        className={`flex size-8 flex-none items-center justify-center rounded-full [&>svg]:h-4 [&>svg]:w-4 ${
                           unreadItem
                             ? 'bg-brand-hover text-white'
                             : 'bg-surface-teal text-brand-hover'
                         }`}
                       >
-                        <NotificationIcon type={n.type} className="h-4! w-4!" />
+                        <NotificationIcon type={n.type} />
                       </span>
                       <span className="grid min-w-0 flex-1 gap-0.5">
                         <span className="flex items-baseline gap-2">

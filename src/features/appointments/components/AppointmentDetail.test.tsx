@@ -108,6 +108,61 @@ describe('AppointmentDetail (ENG-178)', () => {
     expect(screen.getByText('Este turno ya se reprogramó una vez.')).toBeInTheDocument();
   });
 
+  describe('devolución al cancelar', () => {
+    const PROFILE = {
+      id: LATER.professional.id,
+      firstName: 'Ana',
+      lastName: 'Médica',
+      photoUrl: null,
+      bio: null,
+      specialties: [],
+      education: [],
+      price: 15000,
+      currency: 'ARS',
+      cancellationPolicy: { hoursFullRefund: 24, hoursPartialRefund: 6, partialRefundPercent: 50 },
+    };
+    const conHorario = (scheduledAt: string) => ({ ...LATER, scheduledAt });
+
+    it('confirmado y en plazo dice que devuelven el 100 %', async () => {
+      mockApi({ mine: () => jsonResponse([LATER]), profile: () => jsonResponse(PROFILE) });
+      renderDetail(LATER.id);
+
+      expect(
+        await screen.findByText('Si cancelás ahora, te devolvemos el 100 %.'),
+      ).toBeInTheDocument();
+    });
+
+    it('confirmado fuera de plazo dice que no hay devolución', async () => {
+      // Faltan 3 horas: por debajo de las 6 del tramo parcial.
+      const cerca = conHorario('2026-08-17T14:00:00.000Z');
+      mockApi({ mine: () => jsonResponse([cerca]), profile: () => jsonResponse(PROFILE) });
+      renderDetail(LATER.id);
+
+      expect(await screen.findByText('Si cancelás ahora, no hay devolución.')).toBeInTheDocument();
+    });
+
+    it('confirmado en el tramo parcial dice el porcentaje parcial', async () => {
+      // Faltan 10 horas: entre 6 y 24.
+      const medio = conHorario('2026-08-17T21:00:00.000Z');
+      mockApi({ mine: () => jsonResponse([medio]), profile: () => jsonResponse(PROFILE) });
+      renderDetail(LATER.id);
+
+      expect(
+        await screen.findByText('Si cancelás ahora, te devolvemos el 50 %.'),
+      ).toBeInTheDocument();
+    });
+
+    it('un turno sin pagar muestra el texto genérico, sin porcentaje', async () => {
+      mockApi({ mine: () => jsonResponse(ALL), profile: () => jsonResponse(PROFILE) });
+      renderDetail(UPCOMING.id);
+
+      expect(
+        await screen.findByText('El horario queda libre para otro paciente.'),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/Si cancelás ahora/)).not.toBeInTheDocument();
+    });
+  });
+
   describe('reprogramar un turno pagado (ENG-66)', () => {
     const PROFILE = {
       id: LATER.professional.id,
