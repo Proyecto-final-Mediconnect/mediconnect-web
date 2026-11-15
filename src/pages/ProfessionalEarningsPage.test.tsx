@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -131,10 +131,10 @@ describe('ProfessionalEarningsPage (ENG-194)', () => {
     );
 
     expect(await screen.findByText('No tuviste cobros en noviembre de 2026')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'Descargar CSV' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Exportar a Excel' })).toBeDisabled();
   });
 
-  it('filtra por estado y por paciente, y el CSV usa los mismos filtros', async () => {
+  it('filtra por estado y por paciente', async () => {
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderPage(() => json(COBROS));
     await screen.findByRole('cell', { name: 'Julián Sosa' });
@@ -189,5 +189,41 @@ describe('ProfessionalEarningsPage (ENG-194)', () => {
 
     const alerta = await screen.findByRole('alert');
     expect(within(alerta).getByRole('button', { name: 'Reintentar' })).toBeVisible();
+  });
+
+  it('exportar baja el Excel del período con los mismos filtros', async () => {
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    const crear = vi.fn(() => 'blob:xlsx');
+    Object.assign(URL, { createObjectURL: crear, revokeObjectURL: vi.fn() });
+    let descarga = '';
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      descarga = this.download;
+    });
+    renderPage((url) =>
+      url.includes('/export')
+        ? new Response(new Uint8Array([0x50, 0x4b]), {
+            headers: {
+              'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            },
+          })
+        : json(COBROS),
+    );
+    await screen.findByRole('cell', { name: 'Julián Sosa' });
+
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Estado' }), 'REEMBOLSO_PARCIAL');
+    await user.click(screen.getByRole('button', { name: 'Exportar a Excel' }));
+
+    await waitFor(() => expect(click).toHaveBeenCalled());
+    expect(
+      pedidos().some(
+        (u) =>
+          u.includes('/professionals/me/earnings/export?from=2026-11-01&to=2026-11-30') &&
+          u.includes('estado=REEMBOLSO_PARCIAL'),
+      ),
+    ).toBe(true);
+    expect(crear).toHaveBeenCalled();
+    expect(descarga).toBe('mis-cobros-2026-11-01-a-2026-11-30.xlsx');
   });
 });

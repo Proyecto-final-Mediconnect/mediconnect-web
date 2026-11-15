@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { formatDate, formatPrice } from '../features/appointments/lib/weeks';
 import { cuando } from '../features/appointments/lib/timeline';
-import { downloadEarningsCsv } from '../features/earnings/api/earningsApi';
+import { downloadEarningsXlsx } from '../features/earnings/api/earningsApi';
 import { useMyEarnings } from '../features/earnings/hooks/useEarnings';
 import {
   currentMonth,
@@ -33,10 +33,10 @@ const FECHA =
 
 /**
  * Mis cobros (ENG-194): lo cobrado, lo reembolsado y el neto del período, y el
- * detalle por turno, con la descarga en CSV.
+ * detalle por turno, con la descarga en Excel.
  *
  * El período se elige por mes, por los últimos 30 o 90 días, el año o un rango
- * a mano. Estado, paciente y orden filtran la tabla, y los totales y el CSV
+ * a mano. Estado, paciente y orden filtran la tabla, y los totales y el Excel
  * siguen a lo que se ve: "cuánto le cobré a Fulano este año".
  *
  * Solo muestra: el cobro va directo a la cuenta de MercadoPago del profesional,
@@ -49,7 +49,7 @@ export function ProfessionalEarningsPage() {
   const [rango, setRango] = useState({ desde: '', hasta: '' });
   const [filtros, setFiltros] = useState<EarningsFilters>({});
   const [pagina, setPagina] = useState(1);
-  const [csv, setCsv] = useState<{ cargando: boolean; error: string | null }>({
+  const [excel, setExcel] = useState<{ cargando: boolean; error: string | null }>({
     cargando: false,
     error: null,
   });
@@ -66,18 +66,18 @@ export function ProfessionalEarningsPage() {
   }
 
   async function descargar() {
-    setCsv({ cargando: true, error: null });
+    setExcel({ cargando: true, error: null });
     try {
-      const blob = await downloadEarningsCsv(from, to, filtros);
+      const blob = await downloadEarningsXlsx(from, to, filtros);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `cobros-${from}-a-${to}.csv`;
+      link.download = `mis-cobros-${from}-a-${to}.xlsx`;
       link.click();
       URL.revokeObjectURL(url);
-      setCsv({ cargando: false, error: null });
+      setExcel({ cargando: false, error: null });
     } catch (err) {
-      setCsv({ cargando: false, error: (err as Error).message });
+      setExcel({ cargando: false, error: (err as Error).message });
     }
   }
 
@@ -171,9 +171,11 @@ export function ProfessionalEarningsPage() {
             <Button
               variant="secondary"
               onClick={() => void descargar()}
-              disabled={!valido || csv.cargando || !cobros.data || cobros.data.totals.turnos === 0}
+              disabled={
+                !valido || excel.cargando || !cobros.data || cobros.data.totals.turnos === 0
+              }
             >
-              {csv.cargando ? 'Generando…' : 'Descargar CSV'}
+              {excel.cargando ? 'Generando…' : 'Exportar a Excel'}
             </Button>
           </div>
 
@@ -258,9 +260,9 @@ export function ProfessionalEarningsPage() {
           </p>
         ) : (
           <>
-            {csv.error && (
+            {excel.error && (
               <p role="alert" className="text-sm text-danger">
-                {csv.error}
+                {excel.error}
               </p>
             )}
             {cobros.isPending ? (
