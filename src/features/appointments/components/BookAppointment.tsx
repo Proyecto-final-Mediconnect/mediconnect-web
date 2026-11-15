@@ -14,6 +14,7 @@ import {
   firstAvailableIndex,
   formatDate,
   formatPrice,
+  formatRange,
   horizonRange,
   indexOfDate,
   pageOfIndex,
@@ -272,9 +273,7 @@ export function BookAppointment({ professionalId, rescheduleId }: BookAppointmen
   const primero = diasVisibles[0]?.date;
   const ultimo = diasVisibles[diasVisibles.length - 1]?.date;
   const rangeLabel = `${
-    primero && ultimo
-      ? `Del ${formatDate(primero)} al ${formatDate(ultimo)}`
-      : 'Sin días para mostrar'
+    primero && ultimo ? formatRange(primero, ultimo) : 'Sin días para mostrar'
   }${availability.isFetching ? ' · actualizando…' : ''}`;
 
   return (
@@ -289,6 +288,8 @@ export function BookAppointment({ professionalId, rescheduleId }: BookAppointmen
           rangeLabel={rangeLabel}
           activeDate={activeDate}
           onOpenDate={setDiaAbierto}
+          // El horizonte arranca hoy, en hora argentina: ver `horizonRange`.
+          today={fechas[0]}
           jumper={
             <DateJumper
               dates={fechas}

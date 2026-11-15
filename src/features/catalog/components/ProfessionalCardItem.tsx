@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { formatPrice } from '../lib/formatPrice';
+import { uniqueSpecialties } from '../lib/uniqueSpecialties';
 import type { ProfessionalCard } from '../types/catalog';
 import { ReservarTurnoCta } from './ReservarTurnoCta';
 import { ratingLabel } from '../../reviews/lib/reviews';
@@ -40,9 +41,12 @@ export function ProfessionalCardItem({
   basePath: string;
 }) {
   const fullName = `${professional.firstName} ${professional.lastName}`;
-  const otherSpecialties = professional.specialties.filter(
-    (s) => s.id !== professional.primarySpecialty?.id,
-  );
+  // Sin repetidos y sin la principal, que ya va en el renglón de arriba: antes
+  // se filtraba solo por id y una especialidad duplicada aparecía dos veces.
+  const primary = professional.primarySpecialty;
+  const otherSpecialties = uniqueSpecialties(
+    primary ? [primary, ...professional.specialties] : professional.specialties,
+  ).filter((s) => s.id !== primary?.id);
 
   return (
     <li className="rounded-[14px] border border-line bg-white p-6 transition-colors hover:border-brand/40">
@@ -98,7 +102,7 @@ export function ProfessionalCardItem({
             {otherSpecialties.map((specialty) => (
               <li
                 key={specialty.id}
-                className="rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-muted"
+                className="max-w-full break-words rounded-full border border-line bg-surface px-2.5 py-1 text-xs font-medium text-muted"
               >
                 {specialty.name}
               </li>

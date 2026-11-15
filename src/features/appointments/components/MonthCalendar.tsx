@@ -19,8 +19,9 @@ import { formatDate, formatMonth, monthGrid, monthsInWindow } from '../lib/weeks
  * días sin lugar van apagados y no se pueden elegir.
  */
 
-/** Encabezados de la grilla, empezando en lunes. */
-const DIAS = ['L', 'M', 'M', 'J', 'V', 'S', 'D'] as const;
+/** Encabezados de la grilla, empezando en lunes. Dos letras y no una: con una
+ *  sola, martes y miércoles quedaban los dos como "M" y había que adivinar. */
+const DIAS = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'] as const;
 
 export function MonthCalendar({
   dates,
@@ -56,10 +57,10 @@ export function MonthCalendar({
           destino={anterior}
           onClick={() => anterior && setMes(anterior)}
         >
-          ←
+          <Chevron direccion="izquierda" />
         </FlechaMes>
 
-        <span className="text-[13px] font-bold capitalize text-brand-deep">
+        <span className="text-[14px] font-bold capitalize text-brand-deep" aria-live="polite">
           {formatMonth(visible)} {visible.slice(0, 4)}
         </span>
 
@@ -68,13 +69,13 @@ export function MonthCalendar({
           destino={siguiente}
           onClick={() => siguiente && setMes(siguiente)}
         >
-          →
+          <Chevron direccion="derecha" />
         </FlechaMes>
       </div>
 
       <div
         aria-hidden="true"
-        className="mt-3 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-soft"
+        className="mt-3 grid grid-cols-7 gap-1 text-center text-[10px] font-semibold uppercase tracking-[0.06em] text-muted-soft"
       >
         {DIAS.map((d, n) => (
           <span key={n}>{d}</span>
@@ -93,6 +94,9 @@ export function MonthCalendar({
               // Fuera del horizonte publicado no hay nada que ofrecer: el mes
               // asoma días que el backend todavía no publicó.
               fueraDeRango={date < primero || date > ultimo}
+              // La ventana arranca hoy (la arma el backend en hora argentina), así
+              // que el primer día publicado es "hoy" sin depender del reloj local.
+              hoy={date === primero}
               activo={date === activeDate}
               onPick={onPick}
             />
@@ -100,9 +104,22 @@ export function MonthCalendar({
         )}
       </div>
 
-      <p className="mt-3 text-[11px] leading-snug text-muted">
-        Los días en verde tienen horarios libres. Se puede reservar hasta el{' '}
-        {formatDate(ultimo)}.
+      <ul className="mt-3.5 flex flex-wrap gap-x-4 gap-y-1.5 text-[11px] text-muted">
+        <li className="flex items-center gap-1.5">
+          <span aria-hidden="true" className="h-3 w-3 rounded-[3px] bg-surface-teal" />
+          Con horarios libres
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span aria-hidden="true" className="h-3 w-3 rounded-[3px] bg-brand-deep" />
+          Elegido
+        </li>
+        <li className="flex items-center gap-1.5">
+          <span aria-hidden="true" className="h-3 w-3 rounded-[3px] ring-1 ring-inset ring-brand" />
+          Hoy
+        </li>
+      </ul>
+      <p className="mt-2 text-[11px] leading-snug text-muted">
+        Se puede reservar hasta el {formatDate(ultimo)}.
       </p>
     </div>
   );
@@ -125,10 +142,27 @@ function FlechaMes({
       aria-label={label}
       disabled={destino === null}
       onClick={onClick}
-      className="rounded-[6px] border border-line-strong px-2 py-1 text-[12px] font-semibold text-muted transition-colors hover:border-brand hover:text-brand-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-40"
+      className="flex h-8 w-8 items-center justify-center rounded-[7px] border border-line-strong text-muted transition-colors hover:border-brand hover:text-brand-deep focus:outline-none focus-visible:ring-2 focus-visible:ring-brand disabled:cursor-not-allowed disabled:opacity-40"
     >
       {children}
     </button>
+  );
+}
+
+function Chevron({ direccion }: { direccion: 'izquierda' | 'derecha' }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="h-4 w-4"
+    >
+      <path d={direccion === 'izquierda' ? 'M15 6l-6 6 6 6' : 'M9 6l6 6-6 6'} />
+    </svg>
   );
 }
 
@@ -136,12 +170,14 @@ function Dia({
   date,
   libres,
   fueraDeRango,
+  hoy,
   activo,
   onPick,
 }: {
   date: string;
   libres: number;
   fueraDeRango: boolean;
+  hoy: boolean;
   activo: boolean;
   onPick: (date: string) => void;
 }) {
@@ -156,18 +192,26 @@ function Dia({
       disabled={!elegible}
       onClick={() => onPick(date)}
       aria-pressed={elegible ? activo : undefined}
+      aria-current={hoy ? 'date' : undefined}
       aria-label={
         fueraDeRango
           ? `${numero} — fuera del período que se puede reservar`
-          : `${numero} — ${libres === 0 ? 'sin horarios libres' : `${libres} horarios libres`}`
+          : `${numero} — ${libres === 0 ? 'sin horarios libres' : `${libres} horarios libres`}${
+              hoy ? ' (hoy)' : ''
+            }`
       }
-      className={`aspect-square rounded-[7px] text-[13px] font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
+      // Altura fija y no `aspect-square`: a ancho de escritorio los cuadrados
+      // quedaban enormes, y en un celular angosto se aplastaban por debajo de lo
+      // que se puede tocar con el dedo.
+      className={`flex h-10 w-full items-center justify-center rounded-[8px] text-[13px] tabular-nums transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand ${
         activo
-          ? 'bg-brand-deep text-white'
+          ? 'bg-brand-deep font-bold text-white'
           : elegible
-            ? 'bg-surface-teal text-brand-deep hover:bg-brand/25'
-            : 'text-muted-soft'
-      } ${elegible ? '' : 'cursor-not-allowed'}`}
+            ? 'bg-surface-teal font-semibold text-brand-deep hover:bg-brand/25'
+            : `font-medium text-muted-soft ${fueraDeRango ? 'opacity-50' : ''}`
+      } ${hoy && !activo ? 'ring-1 ring-inset ring-brand' : ''} ${
+        elegible ? '' : 'cursor-not-allowed'
+      }`}
     >
       {numero}
     </button>

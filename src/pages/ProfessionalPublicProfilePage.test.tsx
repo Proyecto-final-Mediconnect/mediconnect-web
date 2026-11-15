@@ -67,7 +67,9 @@ describe('ProfessionalPublicProfilePage', () => {
     renderPage();
 
     expect(await screen.findByRole('heading', { name: 'Ana Álvarez' })).toBeVisible();
-    expect(screen.getByText('Cardiología · Clínica Médica')).toBeVisible();
+    expect(screen.getByRole('list', { name: 'Especialidades' })).toHaveTextContent(
+      'CardiologíaClínica Médica',
+    );
     // El diseño repite el precio en tres contextos —el resumen del profesional,
     // la fila del servicio y el total del panel de reserva—, así que acá se
     // afirma que está, no cuántas veces.

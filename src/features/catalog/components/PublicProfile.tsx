@@ -3,6 +3,7 @@ import { Button } from '../../../shared/ui/Button';
 import { formatPrice } from '../lib/formatPrice';
 import type { PublicProfessionalProfile } from '../types/catalog';
 import { ReservarTurnoCta } from './ReservarTurnoCta';
+import { SpecialtyChips } from './SpecialtyChips';
 import { ProfessionalReviews } from '../../reviews/components/ProfessionalReviews';
 import { Stars } from '../../reviews/components/Stars';
 import { ratingLabel } from '../../reviews/lib/reviews';
@@ -192,11 +193,7 @@ function Cabecera({
           </span>
         </div>
 
-        <p className="mt-1.5 text-[15px] font-medium text-muted">
-          {profile.specialties.length > 0
-            ? profile.specialties.map((s) => s.name).join(' · ')
-            : 'Especialidad a confirmar'}
-        </p>
+        <SpecialtyChips specialties={profile.specialties} className="mt-2.5" />
 
         {profile.bio && (
           // `whitespace-pre-line`: la bio se carga en un textarea y los saltos

@@ -4,7 +4,7 @@ import { PASOS } from '../lib/bookingSteps';
  *  `lib/bookingSteps`, que es de donde los toman las tres pantallas. */
 export function BookingStepper({ actual }: { actual: number }) {
   return (
-    <ol className="flex max-w-[640px] justify-between rounded-[14px] border border-line bg-white px-7 py-[22px]">
+    <ol className="flex max-w-[640px] justify-between gap-1 rounded-[14px] border border-line bg-white px-4 py-4 sm:px-7 sm:py-[22px]">
       {PASOS.map((paso, i) => {
         const n = i + 1;
         const hecho = n < actual;
@@ -25,7 +25,7 @@ export function BookingStepper({ actual }: { actual: number }) {
               {hecho ? '✓' : n}
             </span>
             <span
-              className={`text-[11px] font-semibold tracking-[0.04em] ${
+              className={`text-[10px] font-semibold tracking-[0.02em] sm:text-[11px] sm:tracking-[0.04em] ${
                 activo ? 'text-brand-deep' : 'text-muted-soft'
               }`}
             >

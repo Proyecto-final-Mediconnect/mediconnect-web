@@ -58,7 +58,10 @@ export function DateJumper({
       {abierto && (
         <div
           id={panelId}
-          className="mt-3 inline-block rounded-[10px] border border-line bg-surface px-4 py-3.5"
+          // Bloque de ancho acotado y no `inline-block`: el calendario se estira con
+          // `w-full`, y adentro de un inline-block en un celular angosto se salía
+          // de la tarjeta en vez de achicarse.
+          className="mt-3 w-full max-w-[372px] rounded-[10px] border border-line bg-surface px-3 py-3.5 sm:px-4"
         >
           <MonthCalendar
             dates={dates}
