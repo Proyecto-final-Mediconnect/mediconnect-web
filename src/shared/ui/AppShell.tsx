@@ -2,7 +2,12 @@ import { useState, type ReactNode } from 'react';
 import { Link, NavLink } from 'react-router-dom';
 import { useMyAppointments } from '../../features/appointments/hooks/useAppointments';
 import { useLogout, useSession } from '../../features/auth/hooks/useSession';
-import { displayNameOf, initialsOf, isKnownRole, roleLabelOf } from '../../features/auth/types/session';
+import {
+  displayNameOf,
+  initialsOf,
+  isKnownRole,
+  roleLabelOf,
+} from '../../features/auth/types/session';
 import { nextAppointment } from '../../features/dashboard/lib/dashboard';
 import { NotificationsBell } from '../../features/notifications/components/NotificationsBell';
 import { firstJoinable } from '../../features/video/lib/joinWindow';
