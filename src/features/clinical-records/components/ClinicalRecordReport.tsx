@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom';
 import { Logo } from '../../../shared/ui/Logo';
 import { readEntryFields, shortHash } from '../lib/clinicalEntry';
-import { nombreDe } from '../lib/filtrarEntradas';
+import { nombreDe, ordenarRecientesPrimero } from '../lib/filtrarEntradas';
 import { ENTRY_TYPE_LABELS, type ClinicalEntry } from '../types/clinicalRecord';
 
 const ZONA = 'America/Argentina/Buenos_Aires';
@@ -54,7 +54,8 @@ export function ClinicalRecordReport({
   paciente,
   alcance,
 }: {
-  /** Lo que se imprime, en el orden de la pantalla. */
+  /** Lo que se imprime. Sale del más reciente al más antiguo, como en la
+   *  pantalla, llegue en el orden que llegue (el backend los da al revés). */
   entries: ClinicalEntry[];
   /** Cuántos registros tiene la historia completa, para avisar si hay filtros. */
   total: number;
@@ -150,7 +151,7 @@ export function ClinicalRecordReport({
                 Registros, del más reciente al más antiguo
               </h2>
               <div className="mt-1">
-                {entries.map((e) => (
+                {ordenarRecientesPrimero(entries).map((e) => (
                   <Registro
                     key={e.id}
                     entry={e}

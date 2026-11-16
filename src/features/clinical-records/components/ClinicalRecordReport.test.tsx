@@ -84,6 +84,27 @@ describe('ClinicalRecordReport', () => {
     expect(hoja).toHaveTextContent('Sello a3f9c1b2');
   });
 
+  it('pone arriba el registro más nuevo aunque lleguen del más viejo al más nuevo', () => {
+    render(
+      <ClinicalRecordReport
+        entries={[ORIGINAL, CORRECCION]}
+        total={2}
+        corregidaPor={new Map([['e1', 2]])}
+        posicionDe={
+          new Map([
+            ['e1', 1],
+            ['e2', 2],
+          ])
+        }
+      />,
+    );
+
+    const texto = document.querySelector('.hoja-historia')?.textContent ?? '';
+    expect(texto.indexOf('Corrige el registro N.º 1')).toBeLessThan(
+      texto.indexOf('Tiene una corrección posterior'),
+    );
+  });
+
   it('avisa cuando el documento sale con filtros', () => {
     render(
       <ClinicalRecordReport
