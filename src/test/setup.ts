@@ -28,3 +28,15 @@ if (typeof HTMLDialogElement !== 'undefined') {
     };
   }
 }
+
+/**
+ * jsdom no carga imágenes: `complete` queda en `false` para siempre. La
+ * impresión de los reportes espera a que carguen las de la hoja (el logo), así
+ * que sin esto cada test de "Exportar PDF" esperaría el tope de 3 s.
+ */
+if (typeof HTMLImageElement !== 'undefined') {
+  Object.defineProperty(HTMLImageElement.prototype, 'complete', {
+    configurable: true,
+    get: () => true,
+  });
+}
