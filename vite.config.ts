@@ -22,6 +22,18 @@ const uploadSourceMaps = Boolean(sentryAuthToken);
 
 export default defineConfig({
   build: {
+    rollupOptions: {
+      output: {
+        // Vendor aparte: cambia poco, así el navegador lo conserva entre deploys.
+        manualChunks(id: string) {
+          if (!id.includes('node_modules')) return undefined;
+          if (/[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/.test(id)) return 'react';
+          if (id.includes('@tanstack')) return 'query';
+          if (id.includes('@supabase')) return 'supabase';
+          return undefined;
+        },
+      },
+    },
     // `hidden` genera los .map pero omite el comentario `//# sourceMappingURL`
     // del bundle, así el navegador nunca los pide. Sentry los resuelve igual
     // por debug id, y el plugin los borra del output después de subirlos: no

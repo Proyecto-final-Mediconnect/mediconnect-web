@@ -120,6 +120,17 @@ services:
     # videoconsulta, chat y pago mirando la consola, y recién ahí pasarla a
     # `Content-Security-Policy`.
     headers:
+      # Cache (carga lenta): Vite nombra `/assets/*` con hash del contenido, así
+      # que nunca cambian bajo el mismo nombre y se cachean un año. El HTML y
+      # los archivos sin hash se revalidan, o un deploy no se vería.
+      # En Render el último header que coincide con un path pisa a los anteriores
+      # para el mismo nombre: por eso `/*` va primero y `/assets/*` después.
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
       - path: /*
         name: Content-Security-Policy
         value: "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://aezdyfwimzhbrtoqiwwe.supabase.co; connect-src 'self' https://mediconnect-backend-smss.onrender.com https://aezdyfwimzhbrtoqiwwe.supabase.co wss://aezdyfwimzhbrtoqiwwe.supabase.co https://*.ingest.de.sentry.io; frame-src https://mediconnecttesis.daily.co https://*.daily.co https://*.dailywebrtc.com https://*.dailywebrtc.net; media-src 'self' blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"

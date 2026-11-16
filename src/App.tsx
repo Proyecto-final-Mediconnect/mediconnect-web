@@ -1,43 +1,47 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from './features/auth/components/RequireAuth';
-import { VideoConsultationPreviewPage } from './dev/VideoConsultationPreviewPage';
-import { AppointmentConfirmedPage } from './pages/AppointmentConfirmedPage';
-import { AppointmentDetailPage } from './pages/AppointmentDetailPage';
-import { BookAppointmentPage } from './pages/BookAppointmentPage';
-import { CatalogPage } from './pages/CatalogPage';
-import { EmergencyViewPage } from './pages/EmergencyViewPage';
-import { GuardiaFichaPage } from './pages/GuardiaFichaPage';
-import { GuardiaJuegoPage } from './pages/GuardiaJuegoPage';
-import { MediPassPage } from './pages/MediPassPage';
-import { PrivacyPage } from './pages/PrivacyPage';
-import { MessagesPage } from './pages/MessagesPage';
 import { LandingPage } from './pages/LandingPage';
-import { LegalPage } from './pages/LegalPage';
 import { LoginPage } from './pages/LoginPage';
-import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
-import { MyAppointmentsPage } from './pages/MyAppointmentsPage';
-import { MyClinicalRecordPage } from './pages/MyClinicalRecordPage';
-import { PatientDashboardPage } from './pages/PatientDashboardPage';
-import { PaymentPage } from './pages/PaymentPage';
-import { ProfessionalDashboardPage } from './pages/ProfessionalDashboardPage';
-import { ProfessionalPublicProfilePage } from './pages/ProfessionalPublicProfilePage';
-import { ProfessionalRegisterPage } from './pages/ProfessionalRegisterPage';
-import { ProfessionalProfilePage } from './pages/ProfessionalProfilePage';
-import { ProfessionalEarningsPage } from './pages/ProfessionalEarningsPage';
-import { ProfessionalPatientsPage } from './pages/ProfessionalPatientsPage';
-import { ProfessionalReviewsPage } from './pages/ProfessionalReviewsPage';
-import { ProfessionalSchedulePage } from './pages/ProfessionalSchedulePage';
-import { PatientCatalogPage } from './pages/PatientCatalogPage';
-import { PatientClinicalRecordPage } from './pages/PatientClinicalRecordPage';
-import { PatientProfessionalProfilePage } from './pages/PatientProfessionalProfilePage';
-import { PatientProfilePage } from './pages/PatientProfilePage';
-import { RegisterPage } from './pages/RegisterPage';
-import { ResetPasswordPage } from './pages/ResetPasswordPage';
-import { SpikeDailyPage } from './pages/SpikeDailyPage';
-import { VideoConsultationPage } from './pages/VideoConsultationPage';
+
+// Cada pantalla es un chunk aparte: la primera carga baja solo lo que se ve.
+const VideoConsultationPreviewPage = lazy(() => import('./dev/VideoConsultationPreviewPage').then((m) => ({ default: m.VideoConsultationPreviewPage })));
+const AppointmentConfirmedPage = lazy(() => import('./pages/AppointmentConfirmedPage').then((m) => ({ default: m.AppointmentConfirmedPage })));
+const AppointmentDetailPage = lazy(() => import('./pages/AppointmentDetailPage').then((m) => ({ default: m.AppointmentDetailPage })));
+const BookAppointmentPage = lazy(() => import('./pages/BookAppointmentPage').then((m) => ({ default: m.BookAppointmentPage })));
+const CatalogPage = lazy(() => import('./pages/CatalogPage').then((m) => ({ default: m.CatalogPage })));
+const EmergencyViewPage = lazy(() => import('./pages/EmergencyViewPage').then((m) => ({ default: m.EmergencyViewPage })));
+const GuardiaFichaPage = lazy(() => import('./pages/GuardiaFichaPage').then((m) => ({ default: m.GuardiaFichaPage })));
+const GuardiaJuegoPage = lazy(() => import('./pages/GuardiaJuegoPage').then((m) => ({ default: m.GuardiaJuegoPage })));
+const MediPassPage = lazy(() => import('./pages/MediPassPage').then((m) => ({ default: m.MediPassPage })));
+const PrivacyPage = lazy(() => import('./pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })));
+const MessagesPage = lazy(() => import('./pages/MessagesPage').then((m) => ({ default: m.MessagesPage })));
+const LegalPage = lazy(() => import('./pages/LegalPage').then((m) => ({ default: m.LegalPage })));
+const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
+const MyAppointmentsPage = lazy(() => import('./pages/MyAppointmentsPage').then((m) => ({ default: m.MyAppointmentsPage })));
+const MyClinicalRecordPage = lazy(() => import('./pages/MyClinicalRecordPage').then((m) => ({ default: m.MyClinicalRecordPage })));
+const PatientDashboardPage = lazy(() => import('./pages/PatientDashboardPage').then((m) => ({ default: m.PatientDashboardPage })));
+const PaymentPage = lazy(() => import('./pages/PaymentPage').then((m) => ({ default: m.PaymentPage })));
+const ProfessionalDashboardPage = lazy(() => import('./pages/ProfessionalDashboardPage').then((m) => ({ default: m.ProfessionalDashboardPage })));
+const ProfessionalPublicProfilePage = lazy(() => import('./pages/ProfessionalPublicProfilePage').then((m) => ({ default: m.ProfessionalPublicProfilePage })));
+const ProfessionalRegisterPage = lazy(() => import('./pages/ProfessionalRegisterPage').then((m) => ({ default: m.ProfessionalRegisterPage })));
+const ProfessionalProfilePage = lazy(() => import('./pages/ProfessionalProfilePage').then((m) => ({ default: m.ProfessionalProfilePage })));
+const ProfessionalEarningsPage = lazy(() => import('./pages/ProfessionalEarningsPage').then((m) => ({ default: m.ProfessionalEarningsPage })));
+const ProfessionalPatientsPage = lazy(() => import('./pages/ProfessionalPatientsPage').then((m) => ({ default: m.ProfessionalPatientsPage })));
+const ProfessionalReviewsPage = lazy(() => import('./pages/ProfessionalReviewsPage').then((m) => ({ default: m.ProfessionalReviewsPage })));
+const ProfessionalSchedulePage = lazy(() => import('./pages/ProfessionalSchedulePage').then((m) => ({ default: m.ProfessionalSchedulePage })));
+const PatientCatalogPage = lazy(() => import('./pages/PatientCatalogPage').then((m) => ({ default: m.PatientCatalogPage })));
+const PatientClinicalRecordPage = lazy(() => import('./pages/PatientClinicalRecordPage').then((m) => ({ default: m.PatientClinicalRecordPage })));
+const PatientProfessionalProfilePage = lazy(() => import('./pages/PatientProfessionalProfilePage').then((m) => ({ default: m.PatientProfessionalProfilePage })));
+const PatientProfilePage = lazy(() => import('./pages/PatientProfilePage').then((m) => ({ default: m.PatientProfilePage })));
+const RegisterPage = lazy(() => import('./pages/RegisterPage').then((m) => ({ default: m.RegisterPage })));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage').then((m) => ({ default: m.ResetPasswordPage })));
+const SpikeDailyPage = lazy(() => import('./pages/SpikeDailyPage').then((m) => ({ default: m.SpikeDailyPage })));
+const VideoConsultationPage = lazy(() => import('./pages/VideoConsultationPage').then((m) => ({ default: m.VideoConsultationPage })));
 
 function App() {
   return (
+    <Suspense fallback={<div role="status" aria-live="polite" className="p-8 text-center">Cargando…</div>}>
     <Routes>
       {/* Públicas */}
       <Route path="/" element={<LandingPage />} />
@@ -304,6 +308,7 @@ function App() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   );
 }
 
