@@ -134,7 +134,11 @@ export function AppointmentConfirmedPage() {
 
             <aside className="grid gap-4 lg:sticky lg:top-24">
               {receipt && (
-                <PaymentReceipt receipt={receipt} confirmedAt={payment.data?.confirmedAt} />
+                <PaymentReceipt
+                  receipt={receipt}
+                  confirmedAt={payment.data?.confirmedAt}
+                  appointment={appointment}
+                />
               )}
               <section className="overflow-hidden rounded-[14px] border border-line bg-white">
                 <header className="border-b border-line-soft px-[22px] py-[18px]">

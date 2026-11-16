@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import { cuando } from '../../appointments/lib/timeline';
 import { formatPrice } from '../../appointments/lib/weeks';
+import type { Appointment } from '../../appointments/types/appointment';
+import { usePrintReport } from '../../../shared/lib/printReport';
+import { ExportPdfButton } from '../../../shared/ui/PrintableReport';
+import { ReceiptSheet } from './ReceiptSheet';
 import { paymentMethodLabel } from '../lib/receipt';
 import type { PaymentReceipt as Receipt } from '../types/payment';
 
@@ -8,18 +12,23 @@ import type { PaymentReceipt as Receipt } from '../types/payment';
  * El comprobante del pago (ENG-199): importe, medio, cuándo se acreditó y el
  * número de operación de MercadoPago, que se puede copiar para un reclamo.
  *
- * Lo usan la confirmación de la reserva y el detalle del turno.
+ * Lo usan la confirmación de la reserva y el detalle del turno. Con el turno,
+ * se puede descargar en PDF (la hoja de `ReceiptSheet`).
  */
 export function PaymentReceipt({
   receipt,
   confirmedAt,
   titulo = 'Comprobante',
+  appointment,
 }: {
   receipt: Receipt;
   confirmedAt: string | null | undefined;
   titulo?: string;
+  /** El turno pagado: sin él no hay datos para el PDF y no se ofrece. */
+  appointment?: Appointment | null;
 }) {
   const fecha = cuando(confirmedAt);
+  const { imprimiendo, imprimir } = usePrintReport();
 
   return (
     <section
@@ -38,6 +47,9 @@ export function PaymentReceipt({
           Acreditado
         </span>
       </header>
+      {imprimiendo && appointment && (
+        <ReceiptSheet receipt={receipt} confirmedAt={confirmedAt} appointment={appointment} />
+      )}
       <dl className="grid gap-[11px] px-[22px] py-[18px] text-sm font-medium text-ink">
         <Fila titulo="Importe">
           <span className="font-bold text-brand-deep">
@@ -50,6 +62,11 @@ export function PaymentReceipt({
       {/* Al pie y en gris: no compite con el importe, pero está para un reclamo y
           coincide con el "Operación #…" del comprobante de MercadoPago. */}
       {receipt.operationId && <NumeroDeOperacion numero={receipt.operationId} />}
+      {appointment && (
+        <div className="border-t border-line-soft px-[22px] py-3">
+          <ExportPdfButton onClick={imprimir} label="Descargar comprobante" />
+        </div>
+      )}
     </section>
   );
 }

@@ -146,9 +146,11 @@ export function ReportTable({
 export function ExportPdfButton({
   onClick,
   disabled,
+  label = 'Exportar PDF',
 }: {
   onClick: () => void;
   disabled?: boolean;
+  label?: string;
 }) {
   return (
     <button
@@ -166,7 +168,7 @@ export function ExportPdfButton({
           strokeLinejoin="round"
         />
       </svg>
-      Exportar PDF
+      {label}
     </button>
   );
 }

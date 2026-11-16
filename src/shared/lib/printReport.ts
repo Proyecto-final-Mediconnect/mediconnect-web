@@ -19,9 +19,17 @@ export function usePrintReport() {
     if (!imprimiendo) return;
     const terminar = () => setImprimiendo(false);
     window.addEventListener('afterprint', terminar);
-    // Un tick para que el portal ya esté en el DOM cuando se abre el diálogo.
-    const id = window.setTimeout(() => window.print(), 0);
+    let cancelado = false;
+    // Un tick para que el portal ya esté en el DOM, y después se espera a que
+    // carguen sus imágenes: el logo de la hoja no está en la pantalla, y si el
+    // diálogo se abre antes de que baje, el PDF sale sin logo.
+    const id = window.setTimeout(() => {
+      void imagenesDeLaHoja().then(() => {
+        if (!cancelado) window.print();
+      });
+    }, 0);
     return () => {
+      cancelado = true;
       window.clearTimeout(id);
       window.removeEventListener('afterprint', terminar);
     };
@@ -35,6 +43,25 @@ export function usePrintReport() {
   }, [imprimiendo]);
 
   return { imprimiendo, imprimir };
+}
+
+/** Cuánto se espera a las imágenes de la hoja antes de imprimir igual. */
+const ESPERA_IMAGENES_MS = 3000;
+
+/** Resuelve cuando las imágenes de `.hoja-reporte` cargaron (o fallaron). */
+function imagenesDeLaHoja(): Promise<void> {
+  const pendientes = Array.from(document.querySelectorAll<HTMLImageElement>('.hoja-reporte img'))
+    .filter((img) => !img.complete)
+    .map(
+      (img) =>
+        new Promise<void>((listo) => {
+          img.addEventListener('load', () => listo(), { once: true });
+          img.addEventListener('error', () => listo(), { once: true });
+        }),
+    );
+  if (pendientes.length === 0) return Promise.resolve();
+  const tope = new Promise<void>((listo) => window.setTimeout(listo, ESPERA_IMAGENES_MS));
+  return Promise.race([Promise.all(pendientes).then(() => undefined), tope]);
 }
 
 const FECHA_LARGA = new Intl.DateTimeFormat('es-AR', {

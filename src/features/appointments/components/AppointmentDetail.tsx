@@ -261,6 +261,7 @@ export function AppointmentDetail({
               titulo="Pago"
               receipt={payment.data.receipt}
               confirmedAt={payment.data.confirmedAt}
+              appointment={appointment}
             />
           )}
           {/* La reseña de una consulta que ya se hizo (ENG-80): va aparte,
