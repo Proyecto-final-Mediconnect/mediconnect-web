@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSession } from '../features/auth/hooks/useSession';
+import { displayNameOf } from '../features/auth/types/session';
 import { ClinicalRecord } from '../features/clinical-records/components/ClinicalRecord';
 import { MyDocuments } from '../features/patient-documents/components/MyDocuments';
 import { UploadDocumentForm } from '../features/patient-documents/components/UploadDocumentForm';
@@ -78,6 +79,7 @@ export function MyClinicalRecordPage() {
       {user && (
         <ClinicalRecord
           patientId={user.id}
+          paciente={displayNameOf(user)}
           scopeNote="En orden cronológico, de lo más reciente a lo más viejo. Los registros cerrados no se editan: si hubo una corrección, aparece como una entrada nueva vinculada al original."
           emptyText="Todavía no hay entradas en tu historia clínica. Aparecen acá cuando un profesional registra algo de una consulta."
         />

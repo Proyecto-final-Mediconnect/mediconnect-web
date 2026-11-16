@@ -167,6 +167,19 @@ body {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
+  /* La historia clínica ocupa varias hojas: el margen de arriba y de abajo lo
+     dan el \`thead\` y el \`tfoot\` de su tabla, que se repiten en cada hoja. */
+  .hoja-reporte.hoja-historia {
+    padding: 0 15mm;
+  }
+
+  .hoja-historia thead {
+    display: table-header-group;
+  }
+
+  .hoja-historia tfoot {
+    display: table-footer-group;
+  }
 }
 
 /* Panel lateral (SideDrawer, ENG-178). */
