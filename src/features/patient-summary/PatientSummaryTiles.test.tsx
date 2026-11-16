@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -90,5 +90,22 @@ describe('PatientSummaryTiles (ENG-198)', () => {
   it('si falla, deja reintentar', async () => {
     renderTiles(() => json({ message: 'Se cayó.' }, 500));
     expect(await screen.findByRole('button', { name: 'Reintentar' })).toBeVisible();
+  });
+
+  it('exporta el resumen a PDF con el detalle de pagos y accesos', async () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+    renderTiles(() => json(RESUMEN));
+    await screen.findByRole('link', { name: /consultas realizadas/i });
+
+    await user.click(screen.getByRole('button', { name: 'Exportar PDF' }));
+
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
+    const hoja = document.querySelector('.hoja-reporte');
+    expect(hoja?.parentElement).toBe(document.body);
+    expect(hoja).toHaveTextContent('Resumen de tu actividad');
+    expect(hoja).toHaveTextContent('Últimos 30 días');
+    expect(hoja).toHaveTextContent(/Total neto\s*\$\s?45\.000/);
+    expect(hoja).toHaveTextContent('Accesos en total5');
   });
 });

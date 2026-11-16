@@ -20,6 +20,7 @@ import {
 } from '../lib/filtrarEntradas';
 import { ENTRY_TYPE_LABELS, type ClinicalEntry } from '../types/clinicalRecord';
 import { EntryCard } from './EntryCard';
+import { ClinicalRecordReport } from './ClinicalRecordReport';
 import { TONO_TIPO } from '../lib/entryTone';
 import { CorrectedChip, TypeChip } from './entryType';
 import { RecordFilters } from './RecordFilters';
@@ -74,6 +75,8 @@ type ClinicalRecordProps = {
    * cuáles ya están corregidas.
    */
   onCorregir?: (entry: ClinicalEntry) => void;
+  /** De quién es la historia, para el encabezado del PDF. */
+  paciente?: string;
 };
 
 export function ClinicalRecord({
@@ -82,6 +85,7 @@ export function ClinicalRecord({
   scopeNote,
   viewerId,
   onCorregir,
+  paciente,
 }: ClinicalRecordProps) {
   const record = useClinicalRecord(patientId);
   const [filtros, setFiltros] = useState<FiltrosHC>(FILTROS_VACIOS);
@@ -240,6 +244,17 @@ export function ClinicalRecord({
 
   return (
     <div className="grid gap-8">
+      {/* El PDF es un documento propio (portal en `body`), no esta pantalla
+          impresa. Sale con "Descargar PDF" y también con Ctrl+P. */}
+      {imprimiendo && record.data && (
+        <ClinicalRecordReport
+          entries={visibles}
+          total={entries.length}
+          corregidaPor={corregidaPor}
+          posicionDe={posicionDe}
+          paciente={paciente}
+        />
+      )}
       <section aria-labelledby="entradas">
         {/* El título de la sección no se dibuja: la barra del panel ya dice en
             qué pantalla estás y repetirlo empujaba la cadena media pantalla

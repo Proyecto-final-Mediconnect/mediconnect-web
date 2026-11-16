@@ -1,5 +1,10 @@
 import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
+import { SESSION_QUERY_KEY } from '../../auth/hooks/useSession';
+import { displayNameOf, type SessionUser } from '../../auth/types/session';
+import { ExportPdfButton } from '../../../shared/ui/PrintableReport';
+import { usePrintReport } from '../../../shared/lib/printReport';
 import { Button } from '../../../shared/ui/Button';
 import { DashboardSection } from '../../dashboard/components/PanelPieces';
 import { useMyStats } from '../hooks/useMyStats';
@@ -18,6 +23,7 @@ import {
   type ActivityPeriod,
 } from '../lib/activity';
 import type { ProfessionalStats } from '../types';
+import { ActivityReport } from './ActivityReport';
 
 const ROTULO = 'text-[11px] font-semibold uppercase tracking-[0.12em] text-muted';
 const TARJETA = 'rounded-[14px] border border-line bg-white p-5';
@@ -37,9 +43,25 @@ export function ActivitySection() {
   const [periodo, setPeriodo] = useState<ActivityPeriod>(DEFAULT_ACTIVITY_PERIOD);
   const { from, to } = activityRange(periodo);
   const stats = useMyStats(from, to);
+  const { imprimiendo, imprimir } = usePrintReport();
+  // De la caché y no con `useSession`: el panel ya cargó la sesión, y así la
+  // sección no dispara otro pedido a `/me`.
+  const usuario = useQueryClient().getQueryData<SessionUser | null>(SESSION_QUERY_KEY);
+  const etiquetaPeriodo = ACTIVITY_PERIODS.find((p) => p.value === periodo)!.label;
+  const exportable = !!stats.data && !stats.isFetching && !isEmptyPeriod(stats.data);
 
   return (
-    <DashboardSection title="Mi actividad">
+    <DashboardSection
+      title="Mi actividad"
+      action={<ExportPdfButton onClick={imprimir} disabled={!exportable} />}
+    >
+      {imprimiendo && stats.data && (
+        <ActivityReport
+          datos={stats.data}
+          periodo={etiquetaPeriodo}
+          persona={usuario ? displayNameOf(usuario) : undefined}
+        />
+      )}
       <div role="group" aria-label="Período" className="flex flex-wrap gap-2">
         {ACTIVITY_PERIODS.map((p) => {
           const activo = p.value === periodo;

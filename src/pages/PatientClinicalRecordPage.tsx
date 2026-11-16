@@ -80,6 +80,7 @@ export function PatientClinicalRecordPage() {
 
       <ClinicalRecord
         patientId={patientId}
+        paciente={nombre ?? undefined}
         // Con ENG-60 el vacío pasó a ser literal: si no hay entradas, este
         // paciente no tiene historia clínica. Antes podía haber una historia
         // entera escrita por otros e invisible para quien miraba, y por eso el

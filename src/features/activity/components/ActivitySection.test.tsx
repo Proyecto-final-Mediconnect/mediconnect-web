@@ -180,4 +180,31 @@ describe('Mi actividad', () => {
     expect(await screen.findByRole('group', { name: 'Cancelaciones' })).toBeInTheDocument();
     expect(intentos).toBe(2);
   });
+
+  it('exporta el reporte a PDF: arma la hoja con los números y abre la impresión', async () => {
+    const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+    renderSection(() => json(STATS));
+    await screen.findByRole('group', { name: 'Cancelaciones' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Exportar PDF' }));
+
+    await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
+    const hoja = document.querySelector('.hoja-reporte');
+    expect(hoja?.parentElement).toBe(document.body);
+    expect(hoja).toHaveTextContent('Reporte de actividad');
+    expect(hoja).toHaveTextContent('Últimos 3 meses');
+    expect(hoja).toHaveTextContent('Del 1 de septiembre al 30 de noviembre de 2026');
+    expect(hoja).toHaveTextContent('Turnos cerrados25');
+
+    // Al terminar de imprimir, la hoja se desmonta: no queda colgada del body.
+    window.dispatchEvent(new Event('afterprint'));
+    await waitFor(() => expect(document.querySelector('.hoja-reporte')).toBeNull());
+  });
+
+  it('sin turnos en el período no hay nada que exportar', async () => {
+    renderSection(() => json(VACIO));
+    await screen.findByText('Todavía no tenés consultas en este período.');
+
+    expect(screen.getByRole('button', { name: 'Exportar PDF' })).toBeDisabled();
+  });
 });
