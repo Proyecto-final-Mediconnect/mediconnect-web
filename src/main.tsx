@@ -12,7 +12,11 @@ import type { SessionUser } from './features/auth/types/session';
 import { onLegalNotAccepted } from './shared/api/apiFetch';
 import { ErrorBoundary } from './shared/ui/ErrorBoundary';
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  // Sin esto cada navegación refetchea todo; 30 s alcanza para que volver a una
+  // pantalla sea instantáneo. Los hooks que necesitan otra cosa la pisan.
+  defaultOptions: { queries: { staleTime: 30_000 } },
+});
 
 // El backend rechaza todo con 403 LEGAL_NOT_ACCEPTED si el usuario no aceptó los
 // textos vigentes (ENG-140). Se marca la sesión cacheada para que `RequireAuth`
