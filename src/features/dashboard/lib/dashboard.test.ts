@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   completedCount,
+  currentOrNextAppointment,
+  dayLabel,
   nextAppointment,
   nextPhrase,
   patientTasks,
   professionalTasks,
   recentCounterparts,
-  withinNextWeek,
+  upcomingAgenda,
 } from './dashboard';
 import type { Appointment } from '../../appointments/types/appointment';
 import type { PatientProfile } from '../../patient-profile/types/patientProfile';
@@ -85,10 +87,105 @@ describe('contadores', () => {
   it('cuenta los completados', () => {
     expect(completedCount(turnos)).toBe(1);
   });
+});
 
-  it('la semana toma 7 días exactos, no el mes', () => {
-    // El del 25 queda afuera; el cancelado del 6 también.
-    expect(withinNextWeek(turnos, AHORA).map((t) => t.id)).toEqual(['a']);
+/** ENG-207 — los próximos turnos del profesional en el panel. */
+describe('upcomingAgenda', () => {
+  // AHORA es el jueves 3 de septiembre a las 09:00 en Argentina.
+  const en = (id: string, date: string, hora: string, extra: Partial<Appointment> = {}) =>
+    turno({
+      id,
+      date,
+      startTime: hora,
+      scheduledAt: `${date}T${hora}:00-03:00`,
+      status: 'CONFIRMADO',
+      ...extra,
+    });
+
+  it('resume hoy, mañana y los 7 días y agrupa la lista por día', () => {
+    const turnos = [
+      en('manana', '2026-09-04', '10:00'),
+      en('hoy-2', '2026-09-03', '15:00', { status: 'RESERVADO_SIN_PAGAR' }),
+      en('hoy-1', '2026-09-03', '11:00'),
+      en('sabado', '2026-09-05', '09:30'),
+      en('ultimo-dia', '2026-09-09', '18:00'),
+      en('afuera', '2026-09-10', '09:00'),
+      en('cancelado', '2026-09-03', '12:00', { status: 'CANCELADO' }),
+    ];
+
+    const agenda = upcomingAgenda(turnos, AHORA);
+
+    expect(agenda.counts).toEqual({ today: 2, tomorrow: 1, week: 5 });
+    expect(agenda.days.map((d) => [d.label, d.appointments.map((a) => a.id)])).toEqual([
+      ['Hoy', ['hoy-1', 'hoy-2']],
+      ['Mañana', ['manana']],
+      ['sábado 5 de septiembre', ['sabado']],
+      ['miércoles 9 de septiembre', ['ultimo-dia']],
+    ]);
+    expect(agenda.later).toBe(1);
+  });
+
+  it('una consulta empezada sigue en la lista hasta que se cierra la sala', () => {
+    // 08:40 + 30 min + 15 de tolerancia = 09:25: a las 09:00 sigue abierta.
+    const empezada = en('empezada', '2026-09-03', '08:40');
+    // 08:00 + 45 = 08:45: ya cerró.
+    const cerrada = en('cerrada', '2026-09-03', '08:00');
+
+    const agenda = upcomingAgenda([empezada, cerrada], AHORA);
+    expect(agenda.days.flatMap((d) => d.appointments.map((a) => a.id))).toEqual(['empezada']);
+    expect(agenda.counts.today).toBe(1);
+  });
+
+  it('un turno de después de la semana solo cuenta como "más adelante"', () => {
+    const agenda = upcomingAgenda([en('lejos', '2026-09-20', '10:00')], AHORA);
+    expect(agenda).toMatchObject({ counts: { week: 0 }, days: [], later: 1 });
+  });
+
+  it('separa los que esperan que el paciente elija, por plazo, sin los vencidos', () => {
+    const esperando = (id: string, plazo: string) =>
+      en(id, '2026-09-04', '10:00', { status: 'A_REPROGRAMAR', reprogramDeadline: plazo });
+    const agenda = upcomingAgenda(
+      [
+        esperando('despues', '2026-09-05T12:00:00Z'),
+        esperando('antes', '2026-09-04T12:00:00Z'),
+        esperando('vencido', '2026-09-03T11:00:00Z'),
+      ],
+      AHORA,
+    );
+
+    expect(agenda.awaitingPatient.map((a) => a.id)).toEqual(['antes', 'despues']);
+    // No ocupan agenda: no se cuentan en el resumen.
+    expect(agenda.counts.week).toBe(0);
+  });
+
+  it('"Hoy" es el día argentino aunque en UTC ya sea mañana', () => {
+    // 23:30 del 3 en Argentina = 02:30 del 4 en UTC.
+    const noche = new Date('2026-09-04T02:30:00Z');
+    expect(dayLabel('2026-09-03', '2026-09-03')).toBe('Hoy');
+    const agenda = upcomingAgenda([en('a', '2026-09-04', '10:00')], noche);
+    expect(agenda.days[0].label).toBe('Mañana');
+  });
+});
+
+describe('currentOrNextAppointment (ENG-207)', () => {
+  it('la consulta en curso manda sobre la próxima', () => {
+    const enCurso = turno({
+      id: 'en-curso',
+      scheduledAt: '2026-09-03T11:50:00Z',
+      status: 'CONFIRMADO',
+    });
+    const proxima = turno({ id: 'proxima', scheduledAt: '2026-09-03T14:00:00Z' });
+
+    expect(nextAppointment([enCurso, proxima], AHORA)?.id).toBe('proxima');
+    expect(currentOrNextAppointment([enCurso, proxima], AHORA)?.id).toBe('en-curso');
+    expect(nextPhrase(enCurso, 'Juan Paciente', AHORA)).toBe(
+      'Tu consulta de las 09:00 con Juan Paciente está en curso.',
+    );
+  });
+
+  it('sin consulta en curso es la próxima', () => {
+    const proxima = turno({ id: 'proxima', scheduledAt: '2026-09-03T14:00:00Z' });
+    expect(currentOrNextAppointment([proxima], AHORA)?.id).toBe('proxima');
   });
 });
 

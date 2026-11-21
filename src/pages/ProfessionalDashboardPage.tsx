@@ -1,7 +1,5 @@
 import { Link } from 'react-router-dom';
 import { ActivitySection } from '../features/activity/components/ActivitySection';
-import { DateBadge } from '../features/appointments/components/agenda/DateBadge';
-import { StatusChip } from '../features/appointments/components/agenda/StatusChip';
 import { useMyAppointments } from '../features/appointments/hooks/useAppointments';
 import { counterpartOf } from '../features/appointments/lib/myAppointments';
 import { formatDate } from '../features/appointments/lib/weeks';
@@ -10,16 +8,16 @@ import { useSession } from '../features/auth/hooks/useSession';
 import {
   DashboardSection,
   IconTile,
-  NextAppointmentCard,
   NoNextAppointment,
   PendingTaskList,
 } from '../features/dashboard/components/PanelPieces';
+import { UpcomingAppointments } from '../features/dashboard/components/UpcomingAppointments';
 import {
-  nextAppointment,
+  currentOrNextAppointment,
   nextPhrase,
   professionalTasks,
   recentCounterparts,
-  withinNextWeek,
+  upcomingAgenda,
 } from '../features/dashboard/lib/dashboard';
 import { useMyProfile } from '../features/profile/hooks/useProfile';
 import { useMySchedule } from '../features/schedule/hooks/useSchedule';
@@ -29,9 +27,6 @@ import { DashboardLayout } from './DashboardLayout';
 const fullName = (p: AppointmentParty) => `${p.firstName} ${p.lastName}`;
 const clinicalRecordOf = (p: AppointmentParty) => `/pacientes/${p.id}/historia-clinica`;
 
-/** Cuántos turnos de la semana se listan: el resto queda en "Mis consultas". */
-const PROXIMOS_VISIBLES = 5;
-
 /**
  * Panel del profesional (ENG-44, rediseñado con la misma estructura que el del
  * paciente).
@@ -40,15 +35,13 @@ const PROXIMOS_VISIBLES = 5;
  * validada, precio publicado y agenda cargada son condiciones del backend, y sin
  * ellas el profesional no aparece en el catálogo o no se le puede reservar.
  *
- * Después, lo que se mira todos los días: la próxima consulta (con la historia
- * clínica a un clic, que es lo que se abre antes de atender), la semana y los
- * pacientes recientes. Antes de esas listas, "Mi actividad" (ENG-196): consultas, tasas de
- * cancelación y ausentismo, calificación y pacientes del período, con datos del
- * backend. Reemplaza a la vieja tarjeta "Tu semana", que contaba en el navegador
- * lo mismo que ya muestra la lista de los próximos siete días y un "Publicados"
- * (la oferta de la agenda) que se entendía mal. En la columna lateral, el
- * consultorio. El profesional no paga: la tarjeta no le ofrece el pago aunque
- * el turno esté sin pagar.
+ * Después, lo que se mira todos los días: los próximos turnos (ENG-207), con
+ * pestañas Hoy, Mañana y 7 días y la consulta en curso o la próxima resaltada
+ * (con la historia clínica a un clic, que es lo que se abre antes de atender).
+ * Debajo, "Mi actividad" (ENG-196): consultas, tasas de cancelación y
+ * ausentismo, calificación y pacientes del período, con datos del backend; y los
+ * pacientes recientes. En la columna lateral, el consultorio. El profesional no
+ * paga: el panel no le ofrece el pago aunque el turno esté sin pagar.
  */
 export function ProfessionalDashboardPage() {
   const { user } = useSession();
@@ -58,11 +51,9 @@ export function ProfessionalDashboardPage() {
   const now = useNow();
 
   const lista = turnos.data ?? [];
-  const proximo = nextAppointment(lista, now);
+  const proximo = currentOrNextAppointment(lista, now);
   const pacienteProximo = proximo ? counterpartOf(proximo, user?.id ?? null) : null;
-  const estaSemana = withinNextWeek(lista, now).sort(
-    (a, b) => Date.parse(a.scheduledAt) - Date.parse(b.scheduledAt),
-  );
+  const agendaProxima = upcomingAgenda(lista, now);
   const recientes = recentCounterparts(lista, now, (a) => a.patient);
   const tareas = professionalTasks(perfil.data, agenda.data);
 
@@ -85,7 +76,7 @@ export function ProfessionalDashboardPage() {
       subtitle={
         turnos.isPending
           ? ' '
-          : nextPhrase(proximo, pacienteProximo ? fullName(pacienteProximo) : null)
+          : nextPhrase(proximo, pacienteProximo ? fullName(pacienteProximo) : null, now)
       }
     >
       <div className="grid gap-8">
@@ -93,21 +84,30 @@ export function ProfessionalDashboardPage() {
 
         <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
           <div className="grid min-w-0 gap-8">
-            <DashboardSection title="Tu próxima consulta">
+            {/* Lo primero del panel (ENG-207): el pantallazo de lo que viene,
+                con la consulta en curso o la próxima resaltada adentro. Antes
+                era una tarjeta grande con un solo turno y la semana quedaba
+                abajo de todo. */}
+            <DashboardSection
+              title="Próximos turnos"
+              action={
+                <Link
+                  to="/mis-turnos"
+                  className="text-sm font-semibold text-brand-hover hover:underline"
+                >
+                  Ver todos
+                </Link>
+              }
+            >
               {turnos.isPending ? (
                 <p role="status" aria-live="polite" className="text-sm text-muted">
                   Cargando tus consultas…
                 </p>
-              ) : proximo ? (
-                <NextAppointmentCard
-                  appointment={proximo}
-                  counterpartLabel="Paciente"
-                  counterpartName={pacienteProximo ? fullName(pacienteProximo) : null}
-                  primaryAction={
-                    pacienteProximo
-                      ? { to: clinicalRecordOf(pacienteProximo), label: 'Ver historia clínica' }
-                      : undefined
-                  }
+              ) : proximo || agendaProxima.awaitingPatient.length > 0 ? (
+                <UpcomingAppointments
+                  agenda={agendaProxima}
+                  highlight={proximo}
+                  userId={user?.id ?? null}
                 />
               ) : (
                 <NoNextAppointment
@@ -119,66 +119,9 @@ export function ProfessionalDashboardPage() {
               )}
             </DashboardSection>
 
-            {/* Arriba de las listas: con una semana cargada, la lista de turnos
-                empujaba la actividad fuera de la pantalla. */}
             <ActivitySection />
 
             <div className="grid items-start gap-8 2xl:grid-cols-2">
-              {estaSemana.length > 0 && (
-                <DashboardSection
-                  title="Los próximos siete días"
-                  action={
-                    <Link
-                      to="/mis-turnos"
-                      className="text-sm font-semibold text-brand-hover hover:underline"
-                    >
-                      Ver todos
-                    </Link>
-                  }
-                >
-                  <ul className="divide-y divide-line-soft overflow-hidden rounded-[14px] border border-line bg-white">
-                    {estaSemana.slice(0, PROXIMOS_VISIBLES).map((turno) => {
-                      const paciente = counterpartOf(turno, user?.id ?? null);
-                      return (
-                        <li key={turno.id}>
-                          {/* La fila entera abre la historia clínica: es lo que
-                              un profesional quiere ver antes de atender. */}
-                          <Link
-                            to={paciente ? clinicalRecordOf(paciente) : `/turnos/${turno.id}`}
-                            className="flex items-center gap-4 px-4 py-3 transition-colors hover:bg-surface focus:outline-none focus-visible:bg-surface"
-                          >
-                            <DateBadge date={turno.date} />
-                            <span className="min-w-0 flex-1">
-                              <span className="block truncate text-[15px] font-semibold text-brand-deep">
-                                {paciente ? fullName(paciente) : 'Paciente no disponible'}
-                              </span>
-                              <span className="block text-sm text-muted">
-                                {turno.startTime} · {turno.durationMinutes} min
-                              </span>
-                            </span>
-                            <StatusChip status={turno.status} />
-                            <span aria-hidden="true" className="text-muted-soft">
-                              ›
-                            </span>
-                          </Link>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  {estaSemana.length > PROXIMOS_VISIBLES && (
-                    <p className="text-sm text-muted">
-                      Y {estaSemana.length - PROXIMOS_VISIBLES} más esta semana.{' '}
-                      <Link
-                        to="/mis-turnos"
-                        className="font-semibold text-brand-hover hover:underline"
-                      >
-                        Ver todos
-                      </Link>
-                    </p>
-                  )}
-                </DashboardSection>
-              )}
-
               {recientes.length > 0 && (
                 <DashboardSection
                   title="Pacientes recientes"

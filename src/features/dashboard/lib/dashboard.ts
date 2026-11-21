@@ -1,9 +1,10 @@
 import { awaitsPatientChoice, isActive } from '../../appointments/lib/myAppointments';
-import { formatDate } from '../../appointments/lib/weeks';
+import { formatDate, todayAR } from '../../appointments/lib/weeks';
 import type { Appointment, AppointmentParty } from '../../appointments/types/appointment';
 import type { PatientProfile } from '../../patient-profile/types/patientProfile';
 import type { ProfessionalProfile } from '../../profile/types/professionalProfile';
 import type { Schedule } from '../../schedule/types/schedule';
+import { firstJoinable, joinWindowFor } from '../../video/lib/joinWindow';
 
 /**
  * Lógica de los paneles por rol (ENG-44).
@@ -54,22 +55,115 @@ export function nextAppointment(
   return futuros[0] ?? null;
 }
 
-/** Consultas que ya se dieron. `COMPLETADO` lo marca el backend al cerrarlas. */
-export function completedCount(appointments: Appointment[]): number {
-  return appointments.filter((a) => a.status === 'COMPLETADO').length;
+/**
+ * La consulta en curso (sala abierta) o, si no hay, la próxima (ENG-207).
+ *
+ * `nextAppointment` solo mira turnos que todavía no empezaron: a las 10:05 la
+ * consulta de las 10:00 desaparecía del panel justo cuando hay que entrar. El
+ * menú lateral ya resolvía así su atajo a la videoconsulta.
+ */
+export function currentOrNextAppointment(
+  appointments: Appointment[],
+  now: Date = new Date(),
+): Appointment | null {
+  return firstJoinable(appointments, now) ?? nextAppointment(appointments, now);
+}
+
+/** Cuántos días mira el resumen de próximos turnos: hoy y los seis que siguen. */
+export const UPCOMING_DAYS = 7;
+
+export interface UpcomingDay {
+  /** `YYYY-MM-DD`, fecha local del turno. */
+  date: string;
+  /** "Hoy", "Mañana" o "jueves 20 de agosto". */
+  label: string;
+  appointments: Appointment[];
+}
+
+export interface UpcomingAgenda {
+  /** El pantallazo: turnos vigentes de hoy, de mañana y de los 7 días. */
+  counts: { today: number; tomorrow: number; week: number };
+  /** Los turnos de los 7 días agrupados por día. */
+  days: UpcomingDay[];
+  /** Turnos vigentes después de los 7 días. */
+  later: number;
+  /** Turnos que el profesional no pudo dar y esperan que el paciente elija
+   *  otro horario o el reembolso (ENG-204/237), del plazo más cercano al más
+   *  lejano. */
+  awaitingPatient: Appointment[];
+}
+
+function addDays(date: string, days: number): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
+
+/** "Hoy", "Mañana" o el día con nombre: "jueves 20 de agosto". */
+export function dayLabel(date: string, today: string): string {
+  if (date === today) return 'Hoy';
+  if (date === addDays(today, 1)) return 'Mañana';
+  return `${weekdayOf(date)} ${formatDate(date)}`;
 }
 
 /**
- * Turnos dentro de los próximos 7 días. En el panel del profesional es la carga
- * de la semana, que es lo que mira antes que nada.
+ * Los próximos turnos del profesional, para el panel (ENG-207).
+ *
+ * Un turno sigue "por venir" hasta que se cierra su sala, no hasta su horario de
+ * inicio: una consulta empezada hace cinco minutos todavía se atiende. Los días
+ * se cuentan en el calendario argentino, como la agenda del backend, para que
+ * "Hoy" no dependa del huso del navegador.
  */
-export function withinNextWeek(appointments: Appointment[], now: Date = new Date()): Appointment[] {
-  const limite = now.getTime() + 7 * 24 * 60 * 60_000;
+export function upcomingAgenda(
+  appointments: Appointment[],
+  now: Date = new Date(),
+): UpcomingAgenda {
+  const today = todayAR(now);
+  const tomorrow = addDays(today, 1);
+  const lastDay = addDays(today, UPCOMING_DAYS - 1);
 
-  return appointments.filter((a) => {
-    const t = new Date(a.scheduledAt).getTime();
-    return isActive(a) && t > now.getTime() && t <= limite;
-  });
+  const vigentes = appointments
+    .filter((a) => isActive(a) && joinWindowFor(a).closesAt.getTime() > now.getTime())
+    .sort((a, b) => Date.parse(a.scheduledAt) - Date.parse(b.scheduledAt));
+  const week = vigentes.filter((a) => a.date <= lastDay);
+
+  const days: UpcomingDay[] = [];
+  for (const a of week) {
+    let day = days.at(-1);
+    if (day?.date !== a.date) {
+      day = { date: a.date, label: dayLabel(a.date, today), appointments: [] };
+      days.push(day);
+    }
+    day.appointments.push(a);
+  }
+
+  // Con el plazo vencido el job ya lo reembolsa: no espera nada del paciente.
+  const awaitingPatient = appointments
+    .filter(
+      (a) =>
+        awaitsPatientChoice(a) &&
+        (!a.reprogramDeadline || Date.parse(a.reprogramDeadline) > now.getTime()),
+    )
+    .sort(
+      (a, b) =>
+        Date.parse(a.reprogramDeadline ?? a.scheduledAt) -
+        Date.parse(b.reprogramDeadline ?? b.scheduledAt),
+    );
+
+  return {
+    counts: {
+      today: week.filter((a) => a.date === today).length,
+      tomorrow: week.filter((a) => a.date === tomorrow).length,
+      week: week.length,
+    },
+    days,
+    later: vigentes.length - week.length,
+    awaitingPatient,
+  };
+}
+
+/** Consultas que ya se dieron. `COMPLETADO` lo marca el backend al cerrarlas. */
+export function completedCount(appointments: Appointment[]): number {
+  return appointments.filter((a) => a.status === 'COMPLETADO').length;
 }
 
 /**
@@ -206,15 +300,28 @@ export function professionalTasks(
 
 const WEEKDAYS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
+/** El día de la semana de una fecha local `YYYY-MM-DD`. */
+function weekdayOf(date: string): string {
+  const [y, m, d] = date.split('-').map(Number);
+  return WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+}
+
 /**
  * El subtítulo del panel: "Tu próxima consulta es el lunes 27 de octubre a las
- * 10:00", como en la app. El profesional suma con quién (`con`).
+ * 10:00", como en la app. El profesional suma con quién (`con`). Si ya empezó
+ * (la tarjeta muestra la consulta en curso, ENG-207) y se pasa `now`, lo dice.
  */
-export function nextPhrase(appointment: Appointment | null, con?: string | null): string {
+export function nextPhrase(
+  appointment: Appointment | null,
+  con?: string | null,
+  now?: Date,
+): string {
   if (!appointment) return 'No tenés consultas agendadas.';
-  const [y, m, d] = appointment.date.split('-').map(Number);
-  const weekday = WEEKDAYS[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
   const quien = con ? `, con ${con}` : '';
+  if (now && Date.parse(appointment.scheduledAt) <= now.getTime()) {
+    return `Tu consulta de las ${appointment.startTime}${con ? ` con ${con}` : ''} está en curso.`;
+  }
+  const weekday = weekdayOf(appointment.date);
   return `Tu próxima consulta es el ${weekday} ${formatDate(appointment.date)} a las ${appointment.startTime}${quien}.`;
 }
 
