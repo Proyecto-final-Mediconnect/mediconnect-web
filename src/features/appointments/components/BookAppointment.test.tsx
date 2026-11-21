@@ -287,6 +287,50 @@ describe('BookAppointment', () => {
       expect(await screen.findByRole('alert')).toHaveTextContent(/hasta 24 horas antes/);
     });
 
+    describe('desde un turno que canceló el profesional (ENG-203)', () => {
+      const A_REPROGRAMAR = {
+        ...PAID,
+        status: 'A_REPROGRAMAR',
+        cancelledBy: 'PROFESIONAL',
+        // Ya lo había reprogramado una vez: igual puede elegir.
+        rescheduledAt: '2026-08-10T12:00:00.000Z',
+        reprogramDeadline: '2026-08-19T12:00:00.000Z',
+      };
+
+      it('dice que no se vuelve a pagar, que no cuenta como reprogramación y el plazo', async () => {
+        mockApi({ mine: () => jsonResponse([A_REPROGRAMAR]) });
+        renderBooking(A_REPROGRAMAR.id);
+
+        await userEvent.click(await screen.findByLabelText(/10:30 .* disponible/i));
+
+        expect(screen.getByText('Turno cancelado')).toBeInTheDocument();
+        expect(screen.getByText(/canceló este turno/)).toHaveTextContent(
+          /sin volver a pagar.*no cuenta.*Tenés hasta el 19 de agosto/,
+        );
+        expect(screen.queryByText(/una sola vez/)).not.toBeInTheDocument();
+      });
+
+      it('confirmar lo reprograma y no ofrece pagar', async () => {
+        let sent: unknown = null;
+        mockApi({
+          mine: () => jsonResponse([A_REPROGRAMAR]),
+          reschedule: (body) => {
+            sent = body;
+            return jsonResponse({ ...A_REPROGRAMAR, startTime: '10:30', status: 'CONFIRMADO' });
+          },
+        });
+        renderBooking(A_REPROGRAMAR.id);
+
+        await userEvent.click(await screen.findByLabelText(/10:30 .* disponible/i));
+        await userEvent.click(screen.getByRole('button', { name: /confirmar nuevo horario/i }));
+
+        expect(await screen.findByText(/Movimos tu turno/)).toBeInTheDocument();
+        expect(sent).toEqual({ date: '2026-08-17', startTime: '10:30' });
+        expect(screen.queryByRole('link', { name: /pagar la consulta/i })).not.toBeInTheDocument();
+        expect(screen.getByRole('link', { name: /ver mis turnos/i })).toBeInTheDocument();
+      });
+    });
+
     it('un turno que no está en la lista no se convierte en una reserva nueva', async () => {
       mockApi({ mine: () => jsonResponse([]) });
       renderBooking('turno-que-no-existe');

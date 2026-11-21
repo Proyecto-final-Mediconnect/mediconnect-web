@@ -331,6 +331,12 @@ describe('AppointmentDetail (ENG-178)', () => {
       // No es un turno terminado: no se ofrece "volver a reservar".
       expect(screen.queryByRole('link', { name: /Volver a reservar/ })).not.toBeInTheDocument();
 
+      // ENG-203: la otra opción, elegir otro horario del mismo profesional.
+      expect(screen.getByRole('link', { name: 'Elegir otro horario' })).toHaveAttribute(
+        'href',
+        `/profesionales/${A_REPROGRAMAR.professional.id}/turnos?reprogramar=${A_REPROGRAMAR.id}`,
+      );
+
       await user.click(screen.getByRole('button', { name: 'Pedir el reembolso del 100 %' }));
       const dialog = await screen.findByRole('dialog');
       await user.click(within(dialog).getByRole('button', { name: 'Sí, quiero el reembolso' }));
