@@ -102,7 +102,7 @@ describe('upcomingAgenda', () => {
       ...extra,
     });
 
-  it('resume hoy, mañana y los 7 días y agrupa la lista por día, sin repetir la tarjeta', () => {
+  it('resume hoy, mañana y los 7 días y agrupa la lista por día', () => {
     const turnos = [
       en('manana', '2026-09-04', '10:00'),
       en('hoy-2', '2026-09-03', '15:00', { status: 'RESERVADO_SIN_PAGAR' }),
@@ -113,11 +113,11 @@ describe('upcomingAgenda', () => {
       en('cancelado', '2026-09-03', '12:00', { status: 'CANCELADO' }),
     ];
 
-    const agenda = upcomingAgenda(turnos, AHORA, 'hoy-1');
+    const agenda = upcomingAgenda(turnos, AHORA);
 
     expect(agenda.counts).toEqual({ today: 2, tomorrow: 1, week: 5 });
     expect(agenda.days.map((d) => [d.label, d.appointments.map((a) => a.id)])).toEqual([
-      ['Hoy', ['hoy-2']],
+      ['Hoy', ['hoy-1', 'hoy-2']],
       ['Mañana', ['manana']],
       ['sábado 5 de septiembre', ['sabado']],
       ['miércoles 9 de septiembre', ['ultimo-dia']],
@@ -136,9 +136,9 @@ describe('upcomingAgenda', () => {
     expect(agenda.counts.today).toBe(1);
   });
 
-  it('el turno de la tarjeta, si es de más adelante, no se cuenta como "más adelante"', () => {
-    const agenda = upcomingAgenda([en('lejos', '2026-09-20', '10:00')], AHORA, 'lejos');
-    expect(agenda).toMatchObject({ counts: { week: 0 }, days: [], later: 0 });
+  it('un turno de después de la semana solo cuenta como "más adelante"', () => {
+    const agenda = upcomingAgenda([en('lejos', '2026-09-20', '10:00')], AHORA);
+    expect(agenda).toMatchObject({ counts: { week: 0 }, days: [], later: 1 });
   });
 
   it('separa los que esperan que el paciente elija, por plazo, sin los vencidos', () => {

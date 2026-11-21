@@ -54,15 +54,15 @@ describe('Panel del profesional', () => {
     cleanup();
   });
 
-  it('el turno sin pagar no le ofrece pagarlo y el botón principal es la historia clínica', async () => {
+  it('el turno sin pagar no le ofrece pagarlo y tiene la historia clínica a un clic', async () => {
     renderWithRouter(<ProfessionalDashboardPage />);
 
-    expect(await screen.findByRole('link', { name: 'Ver historia clínica' })).toHaveAttribute(
+    const seccion = await screen.findByRole('region', { name: 'Próximos turnos' });
+    expect(within(seccion).getByRole('link', { name: 'Ver historia clínica' })).toHaveAttribute(
       'href',
       `/pacientes/${PATIENT_ID}/historia-clinica`,
     );
-    expect(screen.getByRole('link', { name: 'Ver el detalle' })).toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Pagar la consulta' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /Pagar/ })).not.toBeInTheDocument();
     expect(
       screen.getByText(
         /Tu próxima consulta es el martes 18 de agosto a las 10:00, con Juan Paciente/,
@@ -78,8 +78,8 @@ describe('Panel del profesional', () => {
           : resto(input, init),
       );
 
-    it('resume hoy, mañana y la semana, y lista por día sin repetir la tarjeta', async () => {
-      // NOW: lunes 17/08 a las 08:00. La tarjeta es la de las 09:00 de hoy.
+    it('pestañas con la cantidad de hoy, mañana y 7 días, y la próxima resaltada', async () => {
+      // NOW: lunes 17/08 a las 08:00.
       conTurnos([
         turno('hoy-1', '2026-08-17', '09:00'),
         turno('hoy-2', '2026-08-17', '11:30', { status: 'RESERVADO_SIN_PAGAR' }),
@@ -90,56 +90,58 @@ describe('Panel del profesional', () => {
       renderWithRouter(<ProfessionalDashboardPage />);
 
       const seccion = await screen.findByRole('region', { name: 'Próximos turnos' });
-      const resumen = within(seccion).getByLabelText('Resumen de tus turnos');
-      expect(resumen).toHaveTextContent('Hoy2');
-      expect(resumen).toHaveTextContent('Mañana1');
-      expect(resumen).toHaveTextContent('Próximos 7 días4');
+      const pestanas = within(seccion).getAllByRole('tab');
+      expect(pestanas.map((t) => t.textContent)).toEqual(['2Hoy', '1Mañana', '47 días']);
+      // Abre en Hoy porque hay turnos hoy.
+      expect(pestanas[0]).toHaveAttribute('aria-selected', 'true');
 
-      // La de las 09:00 está en la tarjeta: en la lista de hoy queda la otra.
-      const hoy = within(seccion).getByRole('list', { name: 'Hoy' });
-      expect(within(hoy).getAllByRole('listitem')).toHaveLength(1);
-      const fila = within(hoy).getByRole('link', { name: /11:30.*Juan Paciente/ });
-      expect(fila).toHaveAttribute('href', '/turnos/hoy-2');
-      expect(fila).toHaveTextContent('Videoconsulta · 30 min');
-      expect(fila).toHaveTextContent('Sin pagar');
-
-      expect(within(seccion).getByRole('list', { name: 'Mañana' })).toHaveTextContent('Pagado');
+      const hoy = within(seccion).getByRole('tabpanel');
+      const filas = within(hoy).getAllByRole('listitem');
+      expect(filas).toHaveLength(2);
+      // La próxima va resaltada, con la historia clínica.
+      expect(filas[0]).toHaveTextContent('Próximo · Videoconsulta · 30 min');
       expect(
-        within(seccion).getByRole('list', { name: 'jueves 20 de agosto' }),
+        within(filas[0]).getByRole('link', { name: 'Ver historia clínica' }),
       ).toBeInTheDocument();
+      const segunda = within(filas[1]).getByRole('link', { name: /11:30.*Juan Paciente/ });
+      expect(segunda).toHaveAttribute('href', '/turnos/hoy-2');
+      expect(segunda).toHaveTextContent('Sin pagar');
+
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      await user.click(pestanas[2]);
+      const semana = within(seccion).getByRole('tabpanel');
+      expect(within(semana).getByRole('list', { name: 'Mañana' })).toHaveTextContent('Pagado');
+      expect(within(semana).getByRole('list', { name: 'jueves 20 de agosto' })).toBeInTheDocument();
       expect(within(seccion).getByText(/Y 1 turno más adelante/)).toBeInTheDocument();
     });
 
+    it('sin turnos hoy abre en Mañana', async () => {
+      conTurnos([turno('man-1', '2026-08-18', '10:00')]);
+      renderWithRouter(<ProfessionalDashboardPage />);
+
+      const tab = await screen.findByRole('tab', { selected: true });
+      expect(tab).toHaveTextContent('Mañana');
+    });
+
     it('con muchos turnos muestra los primeros y deja ver el resto', async () => {
-      const horas = [
-        '09:00',
-        '09:30',
-        '10:00',
-        '10:30',
-        '11:00',
-        '11:30',
-        '12:00',
-        '12:30',
-        '13:00',
-      ];
+      const horas = ['09:00', '09:30', '10:00', '10:30', '11:00', '11:30', '12:00', '12:30'];
       conTurnos(horas.map((h, i) => turno(`t-${i}`, '2026-08-18', h)));
       renderWithRouter(<ProfessionalDashboardPage />);
 
       const seccion = await screen.findByRole('region', { name: 'Próximos turnos' });
-      const manana = within(seccion).getByRole('list', { name: 'Mañana' });
-      // 9 turnos: 1 en la tarjeta, 6 visibles y 2 más.
-      expect(within(manana).getAllByRole('listitem')).toHaveLength(6);
+      const panel = within(seccion).getByRole('tabpanel');
+      expect(within(panel).getAllByRole('listitem')).toHaveLength(6);
 
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
       await user.click(within(seccion).getByRole('button', { name: 'Mostrar 2 turnos más' }));
-      expect(within(manana).getAllByRole('listitem')).toHaveLength(8);
+      expect(within(panel).getAllByRole('listitem')).toHaveLength(8);
       expect(within(seccion).getByRole('button', { name: 'Mostrar menos' })).toHaveAttribute(
         'aria-expanded',
         'true',
       );
     });
 
-    it('la consulta en curso queda en la tarjeta y la que abre su sala ofrece entrar', async () => {
+    it('la consulta en curso va resaltada y con la sala abierta ofrece entrar', async () => {
       // 07:55 + 30 min: a las 08:00 está en curso. La de las 08:05 ya abrió la sala.
       conTurnos([
         turno('en-curso', '2026-08-17', '07:55'),
@@ -147,18 +149,34 @@ describe('Panel del profesional', () => {
       ]);
       renderWithRouter(<ProfessionalDashboardPage />);
 
-      const tarjeta = await screen.findByRole('region', { name: 'Tu consulta en curso' });
-      expect(
-        within(tarjeta).getByRole('link', { name: 'Ingresar a videoconsulta' }),
-      ).toHaveAttribute('href', '/turnos/en-curso/videoconsulta');
+      const seccion = await screen.findByRole('region', { name: 'Próximos turnos' });
+      const [enCurso, siguiente] = within(seccion).getAllByRole('listitem');
+      expect(enCurso).toHaveTextContent('En curso · Videoconsulta');
+      expect(within(enCurso).getByRole('link', { name: /^Entrar/ })).toHaveAttribute(
+        'href',
+        '/turnos/en-curso/videoconsulta',
+      );
+      expect(within(siguiente).getByRole('link', { name: /^Entrar/ })).toHaveAttribute(
+        'href',
+        '/turnos/siguiente/videoconsulta',
+      );
       expect(
         screen.getByText(/Tu consulta de las 07:55 con Juan Paciente está en curso/),
       ).toBeInTheDocument();
+    });
 
-      const seccion = screen.getByRole('region', { name: 'Próximos turnos' });
+    it('si el próximo es de después de la semana, lo muestra igual', async () => {
+      conTurnos([turno('lejos', '2026-09-01', '10:00')]);
+      renderWithRouter(<ProfessionalDashboardPage />);
+
+      const tab = await screen.findByRole('tab', { selected: true });
+      expect(tab).toHaveTextContent('07 días');
+      expect(screen.getByText('No tenés turnos en los próximos 7 días.')).toBeInTheDocument();
       expect(
-        within(seccion).getByRole('link', { name: 'Entrar a la videoconsulta con Juan Paciente' }),
-      ).toHaveAttribute('href', '/turnos/siguiente/videoconsulta');
+        within(screen.getByRole('list', { name: 'Tu próximo turno' })).getByRole('link', {
+          name: /Juan Paciente/,
+        }),
+      ).toHaveAttribute('href', '/turnos/lejos');
     });
 
     it('distingue los turnos que esperan que el paciente elija otro horario', async () => {
@@ -181,7 +199,7 @@ describe('Panel del profesional', () => {
     });
   });
 
-  it('sin turnos ofrece revisar la agenda y el perfil, y no muestra la semana', async () => {
+  it('sin turnos ofrece revisar la agenda y el perfil, sin pestañas vacías', async () => {
     api.mockImplementation((input, init) =>
       String(input).includes('/appointments/me')
         ? Promise.resolve(jsonResponse([]))
@@ -195,7 +213,7 @@ describe('Panel del profesional', () => {
       '/profesional/agenda',
     );
     expect(screen.getByRole('link', { name: 'Ver mi perfil público' })).toBeInTheDocument();
-    expect(screen.queryByRole('region', { name: 'Próximos turnos' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('tablist')).not.toBeInTheDocument();
   });
 
   it('"Mi actividad" reemplaza a "Tu semana" con los números del backend', async () => {

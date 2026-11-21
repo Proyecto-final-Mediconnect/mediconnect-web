@@ -8,7 +8,6 @@ import { useSession } from '../features/auth/hooks/useSession';
 import {
   DashboardSection,
   IconTile,
-  NextAppointmentCard,
   NoNextAppointment,
   PendingTaskList,
 } from '../features/dashboard/components/PanelPieces';
@@ -36,17 +35,13 @@ const clinicalRecordOf = (p: AppointmentParty) => `/pacientes/${p.id}/historia-c
  * validada, precio publicado y agenda cargada son condiciones del backend, y sin
  * ellas el profesional no aparece en el catálogo o no se le puede reservar.
  *
- * Después, lo que se mira todos los días: la consulta en curso o la próxima
- * (con la historia clínica a un clic, que es lo que se abre antes de atender) y,
- * debajo, los próximos turnos (ENG-207): el resumen de hoy, mañana y la semana,
- * los turnos por día y los que esperan que el paciente elija. Después, "Mi
- * actividad" (ENG-196) y los pacientes recientes. "Mi actividad": consultas, tasas de
- * cancelación y ausentismo, calificación y pacientes del período, con datos del
- * backend. Reemplaza a la vieja tarjeta "Tu semana", que contaba en el navegador
- * lo mismo que ya muestra la lista de los próximos siete días y un "Publicados"
- * (la oferta de la agenda) que se entendía mal. En la columna lateral, el
- * consultorio. El profesional no paga: la tarjeta no le ofrece el pago aunque
- * el turno esté sin pagar.
+ * Después, lo que se mira todos los días: los próximos turnos (ENG-207), con
+ * pestañas Hoy, Mañana y 7 días y la consulta en curso o la próxima resaltada
+ * (con la historia clínica a un clic, que es lo que se abre antes de atender).
+ * Debajo, "Mi actividad" (ENG-196): consultas, tasas de cancelación y
+ * ausentismo, calificación y pacientes del período, con datos del backend; y los
+ * pacientes recientes. En la columna lateral, el consultorio. El profesional no
+ * paga: el panel no le ofrece el pago aunque el turno esté sin pagar.
  */
 export function ProfessionalDashboardPage() {
   const { user } = useSession();
@@ -58,11 +53,7 @@ export function ProfessionalDashboardPage() {
   const lista = turnos.data ?? [];
   const proximo = currentOrNextAppointment(lista, now);
   const pacienteProximo = proximo ? counterpartOf(proximo, user?.id ?? null) : null;
-  const agendaProxima = upcomingAgenda(lista, now, proximo?.id ?? null);
-  const hayProximos =
-    agendaProxima.counts.week > 0 ||
-    agendaProxima.later > 0 ||
-    agendaProxima.awaitingPatient.length > 0;
+  const agendaProxima = upcomingAgenda(lista, now);
   const recientes = recentCounterparts(lista, now, (a) => a.patient);
   const tareas = professionalTasks(perfil.data, agenda.data);
 
@@ -93,27 +84,30 @@ export function ProfessionalDashboardPage() {
 
         <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_320px] xl:grid-cols-[minmax(0,1fr)_360px] 2xl:grid-cols-[minmax(0,1fr)_400px]">
           <div className="grid min-w-0 gap-8">
+            {/* Lo primero del panel (ENG-207): el pantallazo de lo que viene,
+                con la consulta en curso o la próxima resaltada adentro. Antes
+                era una tarjeta grande con un solo turno y la semana quedaba
+                abajo de todo. */}
             <DashboardSection
-              title={
-                proximo && Date.parse(proximo.scheduledAt) <= now.getTime()
-                  ? 'Tu consulta en curso'
-                  : 'Tu próxima consulta'
+              title="Próximos turnos"
+              action={
+                <Link
+                  to="/mis-turnos"
+                  className="text-sm font-semibold text-brand-hover hover:underline"
+                >
+                  Ver todos
+                </Link>
               }
             >
               {turnos.isPending ? (
                 <p role="status" aria-live="polite" className="text-sm text-muted">
                   Cargando tus consultas…
                 </p>
-              ) : proximo ? (
-                <NextAppointmentCard
-                  appointment={proximo}
-                  counterpartLabel="Paciente"
-                  counterpartName={pacienteProximo ? fullName(pacienteProximo) : null}
-                  primaryAction={
-                    pacienteProximo
-                      ? { to: clinicalRecordOf(pacienteProximo), label: 'Ver historia clínica' }
-                      : undefined
-                  }
+              ) : proximo || agendaProxima.awaitingPatient.length > 0 ? (
+                <UpcomingAppointments
+                  agenda={agendaProxima}
+                  highlight={proximo}
+                  userId={user?.id ?? null}
                 />
               ) : (
                 <NoNextAppointment
@@ -124,29 +118,6 @@ export function ProfessionalDashboardPage() {
                 />
               )}
             </DashboardSection>
-
-            {/* Pegado a la tarjeta: es el resto del día y de la semana. La lista
-                se corta en unos pocos turnos para no empujar "Mi actividad"
-                fuera de la pantalla. */}
-            {!turnos.isPending && hayProximos && (
-              <DashboardSection
-                title="Próximos turnos"
-                action={
-                  <Link
-                    to="/mis-turnos"
-                    className="text-sm font-semibold text-brand-hover hover:underline"
-                  >
-                    Ver todos
-                  </Link>
-                }
-              >
-                <UpcomingAppointments
-                  agenda={agendaProxima}
-                  userId={user?.id ?? null}
-                  hasNext={proximo !== null}
-                />
-              </DashboardSection>
-            )}
 
             <ActivitySection />
 

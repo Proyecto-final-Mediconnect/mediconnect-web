@@ -83,9 +83,9 @@ export interface UpcomingDay {
 export interface UpcomingAgenda {
   /** El pantallazo: turnos vigentes de hoy, de mañana y de los 7 días. */
   counts: { today: number; tomorrow: number; week: number };
-  /** Los turnos de los 7 días agrupados por día, sin el de la tarjeta. */
+  /** Los turnos de los 7 días agrupados por día. */
   days: UpcomingDay[];
-  /** Turnos vigentes después de los 7 días, sin el de la tarjeta. */
+  /** Turnos vigentes después de los 7 días. */
   later: number;
   /** Turnos que el profesional no pudo dar y esperan que el paciente elija
    *  otro horario o el reembolso (ENG-204/237), del plazo más cercano al más
@@ -112,14 +112,10 @@ export function dayLabel(date: string, today: string): string {
  * inicio: una consulta empezada hace cinco minutos todavía se atiende. Los días
  * se cuentan en el calendario argentino, como la agenda del backend, para que
  * "Hoy" no dependa del huso del navegador.
- *
- * `excludeId` es el turno de la tarjeta "Tu próxima consulta": se cuenta en el
- * resumen, pero no se repite en la lista.
  */
 export function upcomingAgenda(
   appointments: Appointment[],
   now: Date = new Date(),
-  excludeId: string | null = null,
 ): UpcomingAgenda {
   const today = todayAR(now);
   const tomorrow = addDays(today, 1);
@@ -132,7 +128,6 @@ export function upcomingAgenda(
 
   const days: UpcomingDay[] = [];
   for (const a of week) {
-    if (a.id === excludeId) continue;
     let day = days.at(-1);
     if (day?.date !== a.date) {
       day = { date: a.date, label: dayLabel(a.date, today), appointments: [] };
@@ -161,7 +156,7 @@ export function upcomingAgenda(
       week: week.length,
     },
     days,
-    later: vigentes.filter((a) => a.date > lastDay && a.id !== excludeId).length,
+    later: vigentes.length - week.length,
     awaitingPatient,
   };
 }
