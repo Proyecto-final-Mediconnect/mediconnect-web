@@ -10,6 +10,8 @@ const CHIPS: Record<string, { label: string; tone: 'ok' | 'warn' | 'neutral' | '
   CANCELADO: { label: 'Cancelado', tone: 'neutral' },
   LIBERADO: { label: 'Liberado', tone: 'neutral' },
   NO_ASISTIO: { label: 'No asistió', tone: 'bad' },
+  // ENG-204: el profesional canceló y el paciente tiene que elegir. Pide algo.
+  A_REPROGRAMAR: { label: 'A reprogramar', tone: 'warn' },
 };
 
 const TONES = {

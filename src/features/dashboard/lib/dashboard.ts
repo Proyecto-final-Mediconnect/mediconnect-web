@@ -1,4 +1,4 @@
-import { isActive } from '../../appointments/lib/myAppointments';
+import { awaitsPatientChoice, isActive } from '../../appointments/lib/myAppointments';
 import { formatDate } from '../../appointments/lib/weeks';
 import type { Appointment, AppointmentParty } from '../../appointments/types/appointment';
 import type { PatientProfile } from '../../patient-profile/types/patientProfile';
@@ -78,11 +78,14 @@ export function withinNextWeek(appointments: Appointment[], now: Date = new Date
  * Hoy es una sola cosa, pero devuelve lista porque el panel la renderiza igual
  * que la del profesional y porque ENG-59 (historia clínica) va a sumar la suya.
  */
-export function patientTasks(profile: PatientProfile | undefined): PendingTask[] {
-  if (!profile || profile.completed) return [];
+export function patientTasks(
+  profile: PatientProfile | undefined,
+  appointments: Appointment[] = [],
+): PendingTask[] {
+  const tasks: PendingTask[] = [];
 
-  return [
-    {
+  if (profile && !profile.completed) {
+    tasks.push({
       id: 'perfil',
       title: 'Completá tus datos personales',
       // No es una recomendación: la fila en `patients` nace al guardar este
@@ -91,8 +94,24 @@ export function patientTasks(profile: PatientProfile | undefined): PendingTask[]
       severity: 'blocker',
       to: '/perfil/paciente',
       cta: 'Completar perfil',
-    },
-  ];
+    });
+  }
+
+  // ENG-204: un turno que el profesional canceló espera que el paciente elija.
+  // Va arriba de todo en el panel: tiene plazo, y si vence se reembolsa solo.
+  for (const a of appointments.filter(awaitsPatientChoice)) {
+    const pro = a.professional ? `${a.professional.firstName} ${a.professional.lastName}` : null;
+    tasks.push({
+      id: `reprogramar-${a.id}`,
+      title: `${pro ?? 'Tu profesional'} canceló tu turno del ${formatDate(a.date)}`,
+      detail: 'Elegí qué hacer: podés pedir el reembolso del 100 %. No perdés lo que pagaste.',
+      severity: 'warning',
+      to: `/turnos/${a.id}`,
+      cta: 'Elegir',
+    });
+  }
+
+  return tasks;
 }
 
 /** Texto del estado de matrícula, cuando no está validada. */

@@ -233,3 +233,31 @@ describe('recentCounterparts', () => {
     ]);
   });
 });
+
+describe('patientTasks con turnos a reprogramar (ENG-204)', () => {
+  it('pide elegir por cada turno que canceló el profesional, aunque el perfil esté completo', () => {
+    const perfil = { completed: true } as PatientProfile;
+    const tareas = patientTasks(perfil, [
+      turno({
+        id: 'a',
+        status: 'A_REPROGRAMAR',
+        date: '2026-09-10',
+        professional: { id: 'pro', firstName: 'Ana', lastName: 'Pérez' },
+      }),
+      turno({ id: 'b', status: 'CONFIRMADO' }),
+    ]);
+
+    expect(tareas).toEqual([
+      expect.objectContaining({
+        id: 'reprogramar-a',
+        title: 'Ana Pérez canceló tu turno del 10 de septiembre',
+        to: '/turnos/a',
+        cta: 'Elegir',
+      }),
+    ]);
+  });
+
+  it('sin turnos a reprogramar y con el perfil completo no pide nada', () => {
+    expect(patientTasks({ completed: true } as PatientProfile, [turno({ id: 'b' })])).toEqual([]);
+  });
+});

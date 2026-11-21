@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  awaitsPatientChoice,
   canCancel,
+  canCancelAsProfessional,
   canMarkNoShow,
   counterpartOf,
   formatLongDate,
   isActive,
+  isSettled,
   relevantWithProfessional,
   splitByTime,
   statusLabel,
@@ -198,5 +201,54 @@ describe('relevantWithProfessional', () => {
   it('un liberado futuro no cuenta como próximo', () => {
     const { shown } = relevantWithProfessional([appointment({ status: 'LIBERADO' })], NOW);
     expect(shown).toEqual([]);
+  });
+});
+
+describe('turnos que canceló el profesional (ENG-204)', () => {
+  const NOW_204 = new Date('2026-10-22T15:00:00Z');
+  const turno = (overrides: Partial<Appointment> = {}): Appointment => ({
+    id: 't',
+    scheduledAt: '2026-10-28T13:30:00.000Z',
+    date: '2026-10-28',
+    startTime: '10:30',
+    durationMinutes: 30,
+    price: 15000,
+    currency: 'ARS',
+    status: 'CONFIRMADO',
+    professional: { id: 'pro', firstName: 'Ana', lastName: 'Pérez' },
+    patient: { id: 'pac', firstName: 'Julián', lastName: 'Paciente' },
+    ...overrides,
+  });
+
+  it('un turno a reprogramar espera la elección y no se muestra apagado', () => {
+    const a = turno({ status: 'A_REPROGRAMAR' });
+    expect(awaitsPatientChoice(a)).toBe(true);
+    expect(isActive(a)).toBe(false);
+    expect(isSettled(a)).toBe(false);
+    expect(statusLabel('A_REPROGRAMAR')).toBe('A reprogramar');
+  });
+
+  it('cancelado o liberado sí se muestra apagado', () => {
+    expect(isSettled(turno({ status: 'CANCELADO' }))).toBe(true);
+    expect(isSettled(turno({ status: 'LIBERADO' }))).toBe(true);
+    expect(isSettled(turno())).toBe(false);
+  });
+
+  it('el profesional puede cancelar su turno futuro, pagado o sin pagar', () => {
+    expect(canCancelAsProfessional(turno(), 'pro', NOW_204)).toBe(true);
+    expect(canCancelAsProfessional(turno({ status: 'RESERVADO_SIN_PAGAR' }), 'pro', NOW_204)).toBe(
+      true,
+    );
+  });
+
+  it.each([
+    ['el paciente', turno(), 'pac'],
+    ['otro profesional', turno(), 'otro'],
+    ['sin sesión', turno(), null],
+    ['un turno que ya empezó', turno({ scheduledAt: '2026-10-22T15:00:00.000Z' }), 'pro'],
+    ['un turno ya cancelado', turno({ status: 'CANCELADO' }), 'pro'],
+    ['un turno a reprogramar', turno({ status: 'A_REPROGRAMAR' }), 'pro'],
+  ])('no ofrece cancelar a/con %s', (_caso, a, userId) => {
+    expect(canCancelAsProfessional(a, userId, NOW_204)).toBe(false);
   });
 });

@@ -13,7 +13,7 @@ import {
   filterAgenda,
   type AgendaFilters,
 } from '../lib/agenda';
-import { canCancel, counterpartOf, formatLongDate, isActive } from '../lib/myAppointments';
+import { canCancel, counterpartOf, formatLongDate, isSettled } from '../lib/myAppointments';
 import { refundStep } from '../lib/timeline';
 import { formatPrice } from '../lib/weeks';
 import type { Appointment } from '../types/appointment';
@@ -427,7 +427,8 @@ function UpcomingCard({
 
 function HistoryRow({ appointment, userId, wide, selectedId, onSelect }: ListItemProps) {
   const name = personName(appointment, userId);
-  const muted = !isActive(appointment);
+  // Un turno a reprogramar (ENG-204) no terminó: espera que el paciente elija.
+  const muted = isSettled(appointment);
   const selected = wide && selectedId === appointment.id;
   // Lo que se devolvió de un turno caído se ve sin abrirlo (ENG-174). Solo al
   // paciente: es el único al que el backend le manda el reembolso.

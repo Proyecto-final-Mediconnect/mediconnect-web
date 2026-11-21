@@ -52,7 +52,7 @@ export function PatientDashboardPage() {
     .filter((a) => !isActive(a) || Date.parse(a.scheduledAt) <= now.getTime())
     .sort((a, b) => Date.parse(b.scheduledAt) - Date.parse(a.scheduledAt))
     .slice(0, 4);
-  const tareas = patientTasks(perfil.data);
+  const tareas = patientTasks(perfil.data, lista);
   const saludo = user?.firstName ? `Hola, ${user.firstName}.` : 'Hola.';
 
   return (

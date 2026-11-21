@@ -70,6 +70,13 @@ export interface Appointment {
    *  sin ellos el detalle del turno muestra los pasos sin hora. */
   createdAt?: string | null;
   cancelledAt?: string | null;
+  /** Quién canceló (ADR-018): `PACIENTE`, `PROFESIONAL` o `SISTEMA`. Falta con
+   *  un backend anterior a ENG-204. */
+  cancelledBy?: string | null;
+  /** El motivo que dio el profesional al cancelar (ENG-204). */
+  cancellationReason?: string | null;
+  /** Hasta cuándo el paciente puede elegir en un turno `A_REPROGRAMAR` (ISO-8601). */
+  reprogramDeadline?: string | null;
   /** En qué quedó el reembolso de un turno cancelado o liberado que estaba pago
    *  (ENG-174). `null` si no hubo; falta con un backend anterior. */
   refundState?: AppointmentRefundState | null;

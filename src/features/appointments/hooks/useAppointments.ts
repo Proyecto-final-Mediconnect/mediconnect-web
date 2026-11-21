@@ -3,10 +3,12 @@ import { isClientError } from '../../../shared/api/apiError';
 import {
   bookAppointment,
   cancelAppointment,
+  cancelAppointmentAsProfessional,
   completeAppointment,
   getAvailability,
   getMyAppointments,
   markAppointmentNoShow,
+  requestFullRefund,
   rescheduleAppointment,
 } from '../api/appointmentsApi';
 
@@ -93,6 +95,36 @@ export function useCancelAppointment() {
       // Cancelar libera el horario: la grilla de reserva vuelve a ofrecerlo.
       // Sin esto, el paciente cancela y sigue viendo su propio turno "ocupado".
       void queryClient.invalidateQueries({ queryKey: ['availability'] });
+    },
+  });
+}
+
+/**
+ * El profesional cancela un turno (ENG-204). Libera el horario: la grilla de
+ * reserva vuelve a ofrecerlo.
+ */
+export function useCancelAsProfessional() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: cancelAppointmentAsProfessional,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: MY_APPOINTMENTS_KEY });
+      void queryClient.invalidateQueries({ queryKey: ['availability'] });
+    },
+  });
+}
+
+/** El paciente elige el reembolso del 100 % de un turno a reprogramar (ENG-204). */
+export function useRequestFullRefund() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: requestFullRefund,
+    onSuccess: (_result, appointmentId) => {
+      void queryClient.invalidateQueries({ queryKey: MY_APPOINTMENTS_KEY });
+      // El detalle muestra el estado del pago: pasa a reembolsado.
+      void queryClient.invalidateQueries({ queryKey: ['payment', appointmentId] });
     },
   });
 }

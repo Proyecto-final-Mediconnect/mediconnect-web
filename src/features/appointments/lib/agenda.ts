@@ -8,7 +8,13 @@ import type { Appointment, AppointmentParty } from '../types/appointment';
  */
 
 export type Period = 'todos' | 'este-mes' | 'mes-pasado' | 'ultimos-3-meses' | 'este-anio';
-export type StatusFilter = 'todos' | 'confirmados' | 'sin-pagar' | 'completados' | 'cancelados';
+export type StatusFilter =
+  | 'todos'
+  | 'confirmados'
+  | 'sin-pagar'
+  | 'a-reprogramar'
+  | 'completados'
+  | 'cancelados';
 
 export interface AgendaFilters {
   search: string;
@@ -30,6 +36,7 @@ export const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
   todos: 'Todos los estados',
   confirmados: 'Confirmados',
   'sin-pagar': 'Sin pagar',
+  'a-reprogramar': 'A reprogramar',
   completados: 'Completados',
   cancelados: 'Cancelados o liberados',
 };
@@ -37,6 +44,7 @@ export const STATUS_FILTER_LABELS: Record<StatusFilter, string> = {
 const ESTADOS: Record<Exclude<StatusFilter, 'todos'>, string[]> = {
   confirmados: ['CONFIRMADO'],
   'sin-pagar': ['RESERVADO_SIN_PAGAR'],
+  'a-reprogramar': ['A_REPROGRAMAR'],
   completados: ['COMPLETADO', 'NO_ASISTIO'],
   cancelados: ['CANCELADO', 'LIBERADO'],
 };

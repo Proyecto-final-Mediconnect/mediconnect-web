@@ -246,7 +246,128 @@ describe('AppointmentDetail (ENG-178)', () => {
       'href',
       `/pacientes/${LATER.patient.id}/historia-clinica`,
     );
-    expect(screen.queryByRole('button', { name: 'Cancelar turno' })).not.toBeInTheDocument();
+  });
+
+  describe('el profesional cancela un turno (ENG-204)', () => {
+    it('pide el motivo, avisa qué le pasa al paciente y lo manda al backend', async () => {
+      const fetchSpy = mockApi({
+        session: () => jsonResponse(PRO_SESSION),
+        mine: () => jsonResponse(ALL),
+      });
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderDetail(LATER.id);
+
+      await user.click(await screen.findByRole('button', { name: /Cancelar turno/ }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText(/reembolso del 100 %/)).toBeInTheDocument();
+
+      // Sin motivo no se manda nada.
+      await user.click(within(dialog).getByRole('button', { name: 'Sí, cancelar el turno' }));
+      expect(within(dialog).getByText(/al menos 10 caracteres/)).toBeInTheDocument();
+      expect(
+        fetchSpy.mock.calls.some(([input]) => String(input).includes('/cancel-by-professional')),
+      ).toBe(false);
+
+      await user.type(within(dialog).getByLabelText('Motivo'), '  Tengo un congreso ese día.  ');
+      await user.click(within(dialog).getByRole('button', { name: 'Sí, cancelar el turno' }));
+
+      const llamada = fetchSpy.mock.calls.find(([input]) =>
+        String(input).includes(`/appointments/${LATER.id}/cancel-by-professional`),
+      );
+      expect(llamada?.[1]).toEqual(
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ reason: 'Tengo un congreso ese día.' }),
+        }),
+      );
+      expect(await screen.findByText(/Le avisamos a Juan/)).toBeInTheDocument();
+    });
+
+    it('si el backend lo rechaza, el diálogo sigue abierto con el motivo', async () => {
+      mockApi({
+        session: () => jsonResponse(PRO_SESSION),
+        mine: () => jsonResponse(ALL),
+        proCancel: () => jsonResponse({ message: 'Ese turno ya no está activo.' }, 409),
+      });
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderDetail(LATER.id);
+
+      await user.click(await screen.findByRole('button', { name: /Cancelar turno/ }));
+      const dialog = await screen.findByRole('dialog');
+      await user.type(within(dialog).getByLabelText('Motivo'), 'Tengo un congreso ese día.');
+      await user.click(within(dialog).getByRole('button', { name: 'Sí, cancelar el turno' }));
+
+      expect(await within(dialog).findByRole('alert')).toHaveTextContent('ya no está activo');
+    });
+
+    it('un turno que ya pasó no ofrece cancelar', async () => {
+      mockApi({ session: () => jsonResponse(PRO_SESSION), mine: () => jsonResponse(ALL) });
+      renderDetail(PAST.id);
+
+      await screen.findByRole('heading', { name: 'Juan Paciente' });
+      expect(screen.queryByRole('button', { name: /Cancelar turno/ })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('turno a reprogramar (ENG-204)', () => {
+    const A_REPROGRAMAR = {
+      ...LATER,
+      status: 'A_REPROGRAMAR',
+      cancelledBy: 'PROFESIONAL',
+      cancelledAt: '2026-08-17T10:00:00.000Z',
+      cancellationReason: 'Tengo un congreso ese día.',
+      reprogramDeadline: '2026-08-19T11:00:00.000Z',
+    };
+
+    it('el paciente ve quién canceló, el motivo, el plazo y pide el reembolso', async () => {
+      const fetchSpy = mockApi({ mine: () => jsonResponse([A_REPROGRAMAR]) });
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderDetail(A_REPROGRAMAR.id);
+
+      expect(await screen.findByText('Ana Médica no va a poder atenderte')).toBeInTheDocument();
+      expect(screen.getByText(/Tengo un congreso ese día/)).toBeInTheDocument();
+      expect(screen.getByText(/automáticamente/)).toBeInTheDocument();
+      expect(screen.getByText('A reprogramar')).toBeInTheDocument();
+      // No es un turno terminado: no se ofrece "volver a reservar".
+      expect(screen.queryByRole('link', { name: /Volver a reservar/ })).not.toBeInTheDocument();
+
+      await user.click(screen.getByRole('button', { name: 'Pedir el reembolso del 100 %' }));
+      const dialog = await screen.findByRole('dialog');
+      await user.click(within(dialog).getByRole('button', { name: 'Sí, quiero el reembolso' }));
+
+      const llamada = fetchSpy.mock.calls.find(([input]) =>
+        String(input).includes(`/appointments/${A_REPROGRAMAR.id}/full-refund`),
+      );
+      expect(llamada?.[1]).toEqual(expect.objectContaining({ method: 'PATCH' }));
+      expect(await screen.findByText(/Te devolvemos/)).toBeInTheDocument();
+    });
+
+    it('el profesional ve que el paciente tiene que elegir, sin botón de reembolso', async () => {
+      mockApi({
+        session: () => jsonResponse(PRO_SESSION),
+        mine: () => jsonResponse([A_REPROGRAMAR]),
+      });
+      renderDetail(A_REPROGRAMAR.id);
+
+      expect(
+        await screen.findByText('Cancelaste este turno. Juan tiene que elegir.'),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Pedir el reembolso del 100 %' }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Cancelar turno/ })).not.toBeInTheDocument();
+    });
+
+    it('un turno que canceló el profesional muestra el motivo', async () => {
+      mockApi({
+        mine: () =>
+          jsonResponse([{ ...A_REPROGRAMAR, status: 'CANCELADO', cancelledBy: 'SISTEMA' }]),
+      });
+      renderDetail(A_REPROGRAMAR.id);
+
+      expect(await screen.findByText(/Motivo de la cancelación/)).toBeInTheDocument();
+      expect(screen.getByText('Venció el plazo para elegir otro horario')).toBeInTheDocument();
+    });
   });
 
   describe('no asistió (ENG-189)', () => {

@@ -62,6 +62,17 @@ describe('agenda (ENG-178)', () => {
     ).toEqual(['b']);
   });
 
+  it('filtra los turnos a reprogramar (ENG-204) sin mezclarlos con los cancelados', () => {
+    const turnos = [
+      turno('a', '2026-10-30', 'A_REPROGRAMAR'),
+      turno('b', '2026-10-01', 'CANCELADO'),
+    ];
+    const ids = (status: 'a-reprogramar' | 'cancelados') =>
+      filterAgenda(turnos, { search: '', period: 'todos', status }, pro, NOW).map((t) => t.id);
+    expect(ids('a-reprogramar')).toEqual(['a']);
+    expect(ids('cancelados')).toEqual(['b']);
+  });
+
   it.each([
     ['este-mes', '2026-10-02', true],
     ['este-mes', '2026-09-30', false],

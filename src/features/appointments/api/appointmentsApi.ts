@@ -121,6 +121,66 @@ export async function getCancellationQuote(appointmentId: string): Promise<Cance
   return (await response.json()) as CancellationRefund;
 }
 
+/** Lo que devuelve la cancelación del profesional (ENG-204). */
+export interface ProfessionalCancellation {
+  id: string;
+  /** `A_REPROGRAMAR` si estaba pagado; `CANCELADO` si era una reserva sin pagar. */
+  status: 'A_REPROGRAMAR' | 'CANCELADO';
+  cancelledBy: 'PROFESIONAL';
+  reprogramDeadline: string | null;
+}
+
+/**
+ * El profesional cancela un turno futuro, con un motivo obligatorio (ENG-204,
+ * ADR-018). El paciente elige después otro horario o el reembolso del 100 %.
+ */
+export async function cancelAppointmentAsProfessional({
+  appointmentId,
+  reason,
+}: {
+  appointmentId: string;
+  reason: string;
+}): Promise<ProfessionalCancellation> {
+  const response = await apiFetch(
+    `/appointments/${encodeURIComponent(appointmentId)}/cancel-by-professional`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    },
+  );
+
+  if (!response.ok) {
+    throw await toApiError(response, 'No se pudo cancelar el turno.');
+  }
+
+  return (await response.json()) as ProfessionalCancellation;
+}
+
+/** Lo que devuelve pedir el reembolso total: el turno y qué pasó con la plata. */
+export interface FullRefundResult {
+  id: string;
+  status: 'CANCELADO';
+  refund: CancellationRefund;
+}
+
+/**
+ * El paciente elige el reembolso del 100 % de un turno que el profesional
+ * canceló (ENG-204). El turno queda cancelado.
+ */
+export async function requestFullRefund(appointmentId: string): Promise<FullRefundResult> {
+  const response = await apiFetch(
+    `/appointments/${encodeURIComponent(appointmentId)}/full-refund`,
+    { method: 'PATCH' },
+  );
+
+  if (!response.ok) {
+    throw await toApiError(response, 'No se pudo pedir el reembolso.');
+  }
+
+  return (await response.json()) as FullRefundResult;
+}
+
 /** Estado de un turno recién cerrado por el profesional (ENG-189). */
 export type ClosedAppointment = { id: string; status: 'COMPLETADO' | 'NO_ASISTIO' };
 
