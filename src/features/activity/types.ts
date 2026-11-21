@@ -19,6 +19,18 @@ export interface ProfessionalStats {
     /** Confirmados que todavía no llegaron. */
     porVenir: number;
   };
+  /**
+   * ENG-237 (ADR-018, caso 9): lo que le pasó al profesional en el período, por
+   * fecha del hecho. Falta con un backend anterior.
+   */
+  incidencias?: {
+    /** Turnos que canceló, a mano o con un bloqueo. */
+    cancelaciones: number;
+    /** Consultas a las que no se conectó. */
+    ausencias: number;
+    /** Consultas que informó como no realizadas por una falla técnica. */
+    fallasTecnicas: number;
+  };
   tasas: {
     /** Cancelados / (completados + no asistió + cancelados). `null` sin base. */
     cancelacion: StatsRate | null;

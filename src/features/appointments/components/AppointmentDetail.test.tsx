@@ -376,6 +376,84 @@ describe('AppointmentDetail (ENG-178)', () => {
     });
   });
 
+  describe('consultas que no se realizaron (ENG-237)', () => {
+    const SIN_PROFESIONAL = {
+      ...LATER,
+      status: 'A_REPROGRAMAR',
+      cancelledBy: 'PROFESIONAL',
+      cancelledAt: '2026-08-17T10:00:00.000Z',
+      cancellationReason: 'El profesional no se conectó a la consulta.',
+      reprogramDeadline: '2026-08-19T11:00:00.000Z',
+      reprogramCause: 'AUSENCIA_PROFESIONAL',
+    };
+    // Completado: empezó 2 h antes de NOW y duró 30 minutos.
+    const COMPLETADO = {
+      ...UPCOMING,
+      id: '88888888-8888-4888-8888-888888888888',
+      scheduledAt: '2026-08-17T09:00:00.000Z',
+      date: '2026-08-17',
+      status: 'COMPLETADO',
+    };
+
+    it('el paciente ve que el profesional no se conectó, sin repetir el motivo fijo', async () => {
+      mockApi({ mine: () => jsonResponse([SIN_PROFESIONAL]) });
+      renderDetail(SIN_PROFESIONAL.id);
+
+      expect(await screen.findByText('Ana Médica no se conectó a tu consulta')).toBeInTheDocument();
+      expect(screen.queryByText(/Motivo:/)).not.toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: 'Pedir el reembolso del 100 %' }),
+      ).toBeInTheDocument();
+    });
+
+    it('el profesional informa la falla técnica de una consulta completada, con motivo', async () => {
+      const fetchSpy = mockApi({
+        session: () => jsonResponse(PRO_SESSION),
+        mine: () => jsonResponse([COMPLETADO]),
+      });
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderDetail(COMPLETADO.id);
+
+      await user.click(await screen.findByRole('button', { name: /La consulta no se pudo hacer/ }));
+      const dialog = await screen.findByRole('dialog');
+      expect(within(dialog).getByText(/reembolso del 100 %/)).toBeInTheDocument();
+
+      // Sin motivo no se manda nada.
+      await user.click(within(dialog).getByRole('button', { name: 'Sí, informar la falla' }));
+      expect(within(dialog).getByText(/al menos 10 caracteres/)).toBeInTheDocument();
+      expect(
+        fetchSpy.mock.calls.some(([input]) => String(input).includes('/technical-failure')),
+      ).toBe(false);
+
+      await user.type(
+        within(dialog).getByLabelText('Qué pasó'),
+        'Se cortó la videollamada a los dos minutos.',
+      );
+      await user.click(within(dialog).getByRole('button', { name: 'Sí, informar la falla' }));
+
+      const llamada = fetchSpy.mock.calls.find(([input]) =>
+        String(input).includes(`/appointments/${COMPLETADO.id}/technical-failure`),
+      );
+      expect(llamada?.[1]).toEqual(
+        expect.objectContaining({
+          method: 'PATCH',
+          body: JSON.stringify({ reason: 'Se cortó la videollamada a los dos minutos.' }),
+        }),
+      );
+      expect(await screen.findByText(/Informaste la falla técnica/)).toBeInTheDocument();
+    });
+
+    it('el paciente no ve la opción de informar una falla', async () => {
+      mockApi({ mine: () => jsonResponse([COMPLETADO]) });
+      renderDetail(COMPLETADO.id);
+
+      await screen.findByRole('heading', { name: 'Ana Médica' });
+      expect(
+        screen.queryByRole('button', { name: /La consulta no se pudo hacer/ }),
+      ).not.toBeInTheDocument();
+    });
+  });
+
   describe('no asistió (ENG-189)', () => {
     // Confirmado, empezó hace 20 minutos.
     const EN_CURSO = {

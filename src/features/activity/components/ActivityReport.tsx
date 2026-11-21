@@ -107,6 +107,23 @@ export function ActivityReport({
               { concepto: 'Turnos cerrados', valor: String(cerrados), destacado: true },
               { concepto: 'Confirmados por venir', valor: String(turnos.porVenir) },
               { concepto: 'Reservas sin pagar liberadas', valor: String(turnos.liberados) },
+              // ENG-237: las incidencias propias del profesional (ADR-018, caso 9).
+              ...(datos.incidencias
+                ? [
+                    {
+                      concepto: 'Turnos que cancelaste',
+                      valor: String(datos.incidencias.cancelaciones),
+                    },
+                    {
+                      concepto: 'Consultas a las que no te conectaste',
+                      valor: String(datos.incidencias.ausencias),
+                    },
+                    {
+                      concepto: 'Fallas técnicas informadas',
+                      valor: String(datos.incidencias.fallasTecnicas),
+                    },
+                  ]
+                : []),
             ]}
           />
         </ReportBlock>

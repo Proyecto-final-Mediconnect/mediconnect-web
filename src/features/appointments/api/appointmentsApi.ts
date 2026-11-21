@@ -215,3 +215,37 @@ export async function markAppointmentNoShow(appointmentId: string): Promise<Clos
 
   return (await response.json()) as ClosedAppointment;
 }
+
+/** Resultado de informar una falla técnica (ENG-237). */
+export interface TechnicalFailureResult {
+  id: string;
+  status: 'A_REPROGRAMAR';
+  reprogramDeadline: string;
+}
+
+/**
+ * El profesional informa que una consulta completada no se pudo hacer por una
+ * falla técnica (ENG-237, ADR-018 caso 13). El turno queda a reprogramar.
+ */
+export async function reportTechnicalFailure({
+  appointmentId,
+  reason,
+}: {
+  appointmentId: string;
+  reason: string;
+}): Promise<TechnicalFailureResult> {
+  const response = await apiFetch(
+    `/appointments/${encodeURIComponent(appointmentId)}/technical-failure`,
+    {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reason }),
+    },
+  );
+
+  if (!response.ok) {
+    throw await toApiError(response, 'No se pudo informar la falla técnica.');
+  }
+
+  return (await response.json()) as TechnicalFailureResult;
+}

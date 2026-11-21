@@ -187,6 +187,20 @@ function Contenido({ datos }: { datos: ProfessionalStats }) {
             <Fila etiqueta="Turnos sin el paciente" valor={turnos.noAsistio} />
             <Fila etiqueta="Reservas sin pagar liberadas" valor={turnos.liberados} />
           </dl>
+          {/* ENG-237 (ADR-018, caso 9): lo que le pasó al profesional, a la vista. */}
+          {datos.incidencias && (
+            <dl
+              aria-label="Tus incidencias"
+              className="mt-4 grid gap-2 border-t border-line-soft pt-4 text-sm"
+            >
+              <Fila etiqueta="Turnos que cancelaste" valor={datos.incidencias.cancelaciones} />
+              <Fila etiqueta="Consultas sin conectarte" valor={datos.incidencias.ausencias} />
+              <Fila
+                etiqueta="Fallas técnicas informadas"
+                valor={datos.incidencias.fallasTecnicas}
+              />
+            </dl>
+          )}
         </div>
       </div>
     </>

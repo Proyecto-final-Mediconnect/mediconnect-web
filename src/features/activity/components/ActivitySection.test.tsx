@@ -109,6 +109,17 @@ describe('Mi actividad', () => {
     expect(screen.getByText('volvieron más de una vez').previousSibling).toHaveTextContent('4');
   });
 
+  it('muestra las cancelaciones, ausencias y fallas del profesional (ENG-237)', async () => {
+    renderSection(() =>
+      json({ ...STATS, incidencias: { cancelaciones: 2, ausencias: 1, fallasTecnicas: 0 } }),
+    );
+
+    const lista = await screen.findByLabelText('Tus incidencias');
+    expect(lista).toHaveTextContent('Turnos que cancelaste2');
+    expect(lista).toHaveTextContent('Consultas sin conectarte1');
+    expect(lista).toHaveTextContent('Fallas técnicas informadas0');
+  });
+
   it('pide por defecto los últimos 3 meses y, al cambiar, el rango nuevo', async () => {
     renderSection(() => json(STATS));
     await screen.findByRole('group', { name: 'Cancelaciones' });

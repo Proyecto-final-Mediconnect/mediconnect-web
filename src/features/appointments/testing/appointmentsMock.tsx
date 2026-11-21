@@ -95,6 +95,8 @@ export interface ApiHandlers {
   proCancel?: () => Response;
   /** El paciente pide el reembolso del 100 % (ENG-204). */
   fullRefund?: () => Response;
+  /** El profesional informa una falla técnica (ENG-237). */
+  technicalFailure?: () => Response;
 }
 
 export function mockApi(handlers: ApiHandlers = {}) {
@@ -102,6 +104,16 @@ export function mockApi(handlers: ApiHandlers = {}) {
     const url = String(input);
     const method = init?.method ?? 'GET';
 
+    if (method === 'PATCH' && url.includes('/technical-failure')) {
+      return Promise.resolve(
+        handlers.technicalFailure?.() ??
+          jsonResponse({
+            id: UPCOMING.id,
+            status: 'A_REPROGRAMAR',
+            reprogramDeadline: '2026-08-19T11:00:00.000Z',
+          }),
+      );
+    }
     if (method === 'PATCH' && url.includes('/no-show')) {
       return Promise.resolve(
         handlers.noShow?.() ?? jsonResponse({ id: UPCOMING.id, status: 'NO_ASISTIO' }),

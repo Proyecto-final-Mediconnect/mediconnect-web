@@ -21,10 +21,12 @@ import {
   canCancel,
   canCancelAsProfessional,
   canMarkNoShow,
+  canReportTechnicalFailure,
   counterpartOf,
   formatLongDate,
   isActive,
 } from '../lib/myAppointments';
+import { reprogramHeadline, showsReason } from '../lib/reprogramCause';
 import { appointmentTimeline, cuando, type TimelineStep } from '../lib/timeline';
 import { formatPrice } from '../lib/weeks';
 import type { Appointment } from '../types/appointment';
@@ -33,6 +35,7 @@ import { FullRefundDialog } from './agenda/FullRefundDialog';
 import { ProfessionalCancelDialog } from './agenda/ProfessionalCancelDialog';
 import { RefundOutcomeBanner } from './agenda/RefundOutcomeBanner';
 import { NoShowDialog } from './agenda/NoShowDialog';
+import { TechnicalFailureDialog } from './agenda/TechnicalFailureDialog';
 import { StatusChip } from './agenda/StatusChip';
 import { AppointmentReview } from '../../reviews/components/AppointmentReview';
 import { usePendingReviews } from '../../reviews/hooks/useReviews';
@@ -72,6 +75,7 @@ export function AppointmentDetail({
   const [toNoShow, setToNoShow] = useState<Appointment | null>(null);
   const [toProCancel, setToProCancel] = useState<Appointment | null>(null);
   const [toFullRefund, setToFullRefund] = useState<Appointment | null>(null);
+  const [toFailure, setToFailure] = useState<Appointment | null>(null);
   const [refundOutcome, setRefundOutcome] = useState<string | null>(null);
 
   const appointment = appointments.data?.find((a) => a.id === appointmentId) ?? null;
@@ -135,6 +139,8 @@ export function AppointmentDetail({
   const payable = isPatient && canPay(appointment, now);
   const cancellable = canCancel(appointment, userId, now);
   const noShowable = canMarkNoShow(appointment, userId, now);
+  // ENG-237: la consulta figura completada pero no se pudo hacer.
+  const failureReportable = canReportTechnicalFailure(appointment, userId, now);
   // ENG-204: el profesional cancela un turno suyo que todavía no empezó.
   const proCancellable = !isPatient && canCancelAsProfessional(appointment, userId, now);
   // ENG-204: el profesional canceló un turno pagado y falta que el paciente elija.
@@ -225,11 +231,14 @@ export function AppointmentDetail({
             className="grid gap-3 rounded-[12px] border border-tag-warm-dot/40 bg-tag-warm px-5 py-4 text-sm text-tag-warm-ink"
           >
             <p className="text-[15px] font-bold">
-              {isPatient
-                ? `${profesionalNombre} no va a poder atenderte`
-                : `Cancelaste este turno. ${person?.firstName ?? 'El paciente'} tiene que elegir.`}
+              {reprogramHeadline(
+                appointment,
+                isPatient,
+                profesionalNombre,
+                person?.firstName ?? 'El paciente',
+              )}
             </p>
-            {appointment.cancellationReason && (
+            {appointment.cancellationReason && showsReason(appointment) && (
               <p>
                 <span className="font-semibold">Motivo:</span> “{appointment.cancellationReason}”
               </p>
@@ -425,6 +434,15 @@ export function AppointmentDetail({
                     danger
                   />
                 )}
+                {failureReportable && (
+                  <Accion
+                    icon={<IconCruz />}
+                    titulo="La consulta no se pudo hacer"
+                    detalle="Por una falla técnica: el paciente elige otro horario o el reembolso."
+                    onClick={() => setToFailure(appointment)}
+                    danger
+                  />
+                )}
               </ul>
             ) : (
               <p className="px-6 pb-5 text-sm text-muted">
@@ -468,6 +486,12 @@ export function AppointmentDetail({
         appointment={toFullRefund}
         onClose={() => setToFullRefund(null)}
         onRefunded={setRefundOutcome}
+      />
+      <TechnicalFailureDialog
+        key={`falla-${toFailure?.id ?? 'cerrado'}`}
+        appointment={toFailure}
+        onClose={() => setToFailure(null)}
+        onReported={setRefundOutcome}
       />
     </div>
   );

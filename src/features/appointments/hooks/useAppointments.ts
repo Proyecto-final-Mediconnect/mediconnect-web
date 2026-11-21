@@ -8,6 +8,7 @@ import {
   getAvailability,
   getMyAppointments,
   markAppointmentNoShow,
+  reportTechnicalFailure,
   requestFullRefund,
   rescheduleAppointment,
 } from '../api/appointmentsApi';
@@ -111,6 +112,22 @@ export function useCancelAsProfessional() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: MY_APPOINTMENTS_KEY });
       void queryClient.invalidateQueries({ queryKey: ['availability'] });
+    },
+  });
+}
+
+/**
+ * El profesional informa una falla técnica (ENG-237): el turno vuelve a quedar
+ * a reprogramar y el horario no cambia la agenda, así que alcanza con "mis
+ * turnos".
+ */
+export function useReportTechnicalFailure() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: reportTechnicalFailure,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: MY_APPOINTMENTS_KEY });
     },
   });
 }
