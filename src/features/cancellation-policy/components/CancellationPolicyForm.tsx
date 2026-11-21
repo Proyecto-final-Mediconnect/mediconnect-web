@@ -1,6 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useMyCancellationPolicy, useSaveCancellationPolicy } from '../hooks/useCancellationPolicy';
-import { describePolicy, MAX_POLICY_HOURS, validatePolicy } from '../lib/policy';
+import {
+  describePolicy,
+  MAX_FULL_REFUND_HOURS,
+  MIN_PARTIAL_REFUND_PERCENT,
+  validatePolicy,
+} from '../lib/policy';
 import type { CancellationPolicy } from '../types/cancellationPolicy';
 
 /** Los inputs se editan como texto: un campo vacío tiene que poder existir
@@ -91,24 +96,28 @@ export function CancellationPolicyForm() {
     campo: keyof CancellationPolicy;
     etiqueta: string;
     sufijo: string;
+    min: number;
     max: number;
   }[] = [
     {
       campo: 'hoursFullRefund',
       etiqueta: 'Devolución total si cancela con al menos',
       sufijo: 'horas',
-      max: MAX_POLICY_HOURS,
+      min: 0,
+      max: MAX_FULL_REFUND_HOURS,
     },
     {
       campo: 'hoursPartialRefund',
       etiqueta: 'Devolución parcial si cancela con al menos',
       sufijo: 'horas',
-      max: MAX_POLICY_HOURS,
+      min: 0,
+      max: MAX_FULL_REFUND_HOURS,
     },
     {
       campo: 'partialRefundPercent',
       etiqueta: 'Porcentaje de la devolución parcial',
       sufijo: '%',
+      min: MIN_PARTIAL_REFUND_PERCENT,
       max: 100,
     },
   ];
@@ -135,18 +144,23 @@ export function CancellationPolicyForm() {
           Cuánto le devolvés a un paciente que cancela un turno pagado, según la anticipación. Los
           pacientes la ven antes de reservar y al cancelar.
         </p>
+        <p className="mt-1.5 text-[12px] leading-[1.6] text-muted-soft">
+          Límites de MediConnect: la devolución total aplica al menos desde {MAX_FULL_REFUND_HOURS}{' '}
+          horas antes del turno, y la parcial es de al menos el {MIN_PARTIAL_REFUND_PERCENT} %. Si
+          vos cancelás un turno, el paciente siempre recupera el 100 %.
+        </p>
       </header>
 
       <form onSubmit={handleSubmit} noValidate className="grid gap-5 px-6 py-[18px]">
         <div className="grid gap-4 sm:grid-cols-3">
-          {campos.map(({ campo, etiqueta, sufijo, max }) => (
+          {campos.map(({ campo, etiqueta, sufijo, min, max }) => (
             <label key={campo} className="text-[13px]">
               <span className="mb-1 block font-semibold text-muted">{etiqueta}</span>
               <span className="flex items-center gap-2">
                 <input
                   type="number"
                   inputMode="numeric"
-                  min={0}
+                  min={min}
                   max={max}
                   step={1}
                   value={valores[campo]}
