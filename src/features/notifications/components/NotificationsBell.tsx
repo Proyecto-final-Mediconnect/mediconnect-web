@@ -107,6 +107,11 @@ export function NotificationsBell() {
                           // se ve quién está mirando y se le puede cortar.
                           setOpen(false);
                           navigate('/medipass');
+                        } else if (n.appointmentId) {
+                          // ENG-208: un aviso de turno lleva a ese turno, donde
+                          // están el detalle y lo que se puede hacer.
+                          setOpen(false);
+                          navigate(`/turnos/${n.appointmentId}`);
                         }
                       }}
                       aria-label={`${unreadItem ? 'Sin leer: ' : ''}${n.title}. ${n.body}`}
