@@ -17,16 +17,20 @@ import { DeviceCheck } from '../../video/components/DeviceCheck';
 import { joinStateOf, timeUntilOpen } from '../../video/lib/joinWindow';
 import { useMyAppointments } from '../hooks/useAppointments';
 import {
+  awaitsPatientChoice,
   canCancel,
+  canCancelAsProfessional,
   canMarkNoShow,
   counterpartOf,
   formatLongDate,
   isActive,
 } from '../lib/myAppointments';
-import { appointmentTimeline, type TimelineStep } from '../lib/timeline';
+import { appointmentTimeline, cuando, type TimelineStep } from '../lib/timeline';
 import { formatPrice } from '../lib/weeks';
 import type { Appointment } from '../types/appointment';
 import { CancelAppointmentDialog } from './agenda/CancelAppointmentDialog';
+import { FullRefundDialog } from './agenda/FullRefundDialog';
+import { ProfessionalCancelDialog } from './agenda/ProfessionalCancelDialog';
 import { RefundOutcomeBanner } from './agenda/RefundOutcomeBanner';
 import { NoShowDialog } from './agenda/NoShowDialog';
 import { StatusChip } from './agenda/StatusChip';
@@ -66,6 +70,8 @@ export function AppointmentDetail({
   const now = useNow();
   const [toCancel, setToCancel] = useState<Appointment | null>(null);
   const [toNoShow, setToNoShow] = useState<Appointment | null>(null);
+  const [toProCancel, setToProCancel] = useState<Appointment | null>(null);
+  const [toFullRefund, setToFullRefund] = useState<Appointment | null>(null);
   const [refundOutcome, setRefundOutcome] = useState<string | null>(null);
 
   const appointment = appointments.data?.find((a) => a.id === appointmentId) ?? null;
@@ -129,6 +135,14 @@ export function AppointmentDetail({
   const payable = isPatient && canPay(appointment, now);
   const cancellable = canCancel(appointment, userId, now);
   const noShowable = canMarkNoShow(appointment, userId, now);
+  // ENG-204: el profesional cancela un turno suyo que todavía no empezó.
+  const proCancellable = !isPatient && canCancelAsProfessional(appointment, userId, now);
+  // ENG-204: el profesional canceló un turno pagado y falta que el paciente elija.
+  const choosing = awaitsPatientChoice(appointment);
+  const plazo = cuando(appointment.reprogramDeadline);
+  const profesionalNombre = appointment.professional
+    ? `${appointment.professional.firstName} ${appointment.professional.lastName}`
+    : 'Tu profesional';
   const reschedulable = cancellable && !appointment.rescheduledAt && appointment.professional;
   // Un turno pagado sólo se reprograma con la anticipación del reembolso total
   // (el backend lo rechaza si no). Se adelanta el aviso con la política del
@@ -138,9 +152,15 @@ export function AppointmentDetail({
     policy !== undefined &&
     refundPercentFor(policy, new Date(appointment.scheduledAt), now) < MAX_REFUND_PERCENT;
   const professionalId = appointment.professional?.id;
-  const rebookable = isPatient && !isActive(appointment) && Boolean(professionalId);
+  // Un turno a reprogramar no se "vuelve a reservar": se resuelve desde el aviso.
+  const rebookable = isPatient && !isActive(appointment) && !choosing && Boolean(professionalId);
   const hayAcciones =
-    rebookable || Boolean(reschedulable) || cancellable || noShowable || (!isPatient && !!person);
+    rebookable ||
+    Boolean(reschedulable) ||
+    cancellable ||
+    noShowable ||
+    proCancellable ||
+    (!isPatient && !!person);
   // Lo que importa al cancelar es cuánto vuelve hoy; solo si ya se pagó.
   const pctHoy =
     appointment.status === 'CONFIRMADO' && policy
@@ -198,6 +218,48 @@ export function AppointmentDetail({
           <Dato titulo="Modalidad">Videoconsulta</Dato>
           <Dato titulo="Precio">{formatPrice(appointment.price, appointment.currency)}</Dato>
         </dl>
+
+        {choosing && (
+          <div
+            role="status"
+            className="grid gap-3 rounded-[12px] border border-tag-warm-dot/40 bg-tag-warm px-5 py-4 text-sm text-tag-warm-ink"
+          >
+            <p className="text-[15px] font-bold">
+              {isPatient
+                ? `${profesionalNombre} no va a poder atenderte`
+                : `Cancelaste este turno. ${person?.firstName ?? 'El paciente'} tiene que elegir.`}
+            </p>
+            {appointment.cancellationReason && (
+              <p>
+                <span className="font-semibold">Motivo:</span> “{appointment.cancellationReason}”
+              </p>
+            )}
+            <p>
+              {isPatient
+                ? `No pagás nada más ni perdés lo que pagaste. Podés pedir el reembolso del 100 %${plazo ? `; si no elegís nada antes del ${plazo}, te lo devolvemos igual, automáticamente` : ''}.`
+                : `Puede elegir otro horario tuyo sin volver a pagar o el reembolso del 100 %${plazo ? `. Si no elige antes del ${plazo}, se le devuelve automáticamente` : ''}.`}
+            </p>
+            {isPatient && (
+              <div className="flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={() => setToFullRefund(appointment)}
+                  className="inline-flex items-center justify-center rounded-[10px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                >
+                  Pedir el reembolso del 100 %
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {appointment.status === 'CANCELADO' &&
+          appointment.cancelledBy !== 'PACIENTE' &&
+          appointment.cancellationReason && (
+            <p className="text-sm text-muted">
+              <span className="font-semibold text-ink">Motivo de la cancelación:</span> “
+              {appointment.cancellationReason}”
+            </p>
+          )}
 
         {(join.kind === 'OPEN' || payable) && (
           <div className="flex flex-wrap gap-3">
@@ -325,6 +387,19 @@ export function AppointmentDetail({
                     danger
                   />
                 )}
+                {proCancellable && (
+                  <Accion
+                    icon={<IconCruz />}
+                    titulo="Cancelar turno"
+                    detalle={
+                      appointment.status === 'CONFIRMADO'
+                        ? 'El paciente elige otro horario o el reembolso del 100 %.'
+                        : 'La reserva no está paga: se cancela y se le avisa.'
+                    }
+                    onClick={() => setToProCancel(appointment)}
+                    danger
+                  />
+                )}
                 {!isPatient && person && (
                   <Accion
                     icon={<IconHistoria />}
@@ -375,6 +450,17 @@ export function AppointmentDetail({
         onCancelled={setRefundOutcome}
       />
       <NoShowDialog appointment={toNoShow} onClose={() => setToNoShow(null)} />
+      <ProfessionalCancelDialog
+        key={toProCancel?.id ?? 'cerrado'}
+        appointment={toProCancel}
+        onClose={() => setToProCancel(null)}
+        onCancelled={setRefundOutcome}
+      />
+      <FullRefundDialog
+        appointment={toFullRefund}
+        onClose={() => setToFullRefund(null)}
+        onRefunded={setRefundOutcome}
+      />
     </div>
   );
 }

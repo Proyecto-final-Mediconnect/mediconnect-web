@@ -91,6 +91,10 @@ export interface ApiHandlers {
   reviews?: () => Response;
   noShow?: () => Response;
   pending?: () => Response;
+  /** El profesional cancela (ENG-204). */
+  proCancel?: () => Response;
+  /** El paciente pide el reembolso del 100 % (ENG-204). */
+  fullRefund?: () => Response;
 }
 
 export function mockApi(handlers: ApiHandlers = {}) {
@@ -101,6 +105,28 @@ export function mockApi(handlers: ApiHandlers = {}) {
     if (method === 'PATCH' && url.includes('/no-show')) {
       return Promise.resolve(
         handlers.noShow?.() ?? jsonResponse({ id: UPCOMING.id, status: 'NO_ASISTIO' }),
+      );
+    }
+    // Antes que "/cancel", que también la matchea.
+    if (method === 'PATCH' && url.includes('/cancel-by-professional')) {
+      return Promise.resolve(
+        handlers.proCancel?.() ??
+          jsonResponse({
+            id: UPCOMING.id,
+            status: 'A_REPROGRAMAR',
+            cancelledBy: 'PROFESIONAL',
+            reprogramDeadline: '2026-08-19T11:00:00.000Z',
+          }),
+      );
+    }
+    if (method === 'PATCH' && url.includes('/full-refund')) {
+      return Promise.resolve(
+        handlers.fullRefund?.() ??
+          jsonResponse({
+            id: UPCOMING.id,
+            status: 'CANCELADO',
+            refund: { percent: 100, amount: 15000, status: 'PROCESADO' },
+          }),
       );
     }
     if (method === 'PATCH' && url.includes('/cancel')) {

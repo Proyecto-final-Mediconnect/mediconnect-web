@@ -27,6 +27,7 @@ const STATUS_LABELS: Record<string, string> = {
   COMPLETADO: 'Completado',
   NO_ASISTIO: 'No asistió',
   LIBERADO: 'Liberado por falta de pago',
+  A_REPROGRAMAR: 'A reprogramar',
 };
 
 export function statusLabel(status: string): string {
@@ -36,6 +37,20 @@ export function statusLabel(status: string): string {
 /** Un turno cancelado o liberado se muestra apagado, no como uno vigente. */
 export function isActive(appointment: Appointment): boolean {
   return ACTIVE_STATUSES.includes(appointment.status);
+}
+
+/**
+ * Un turno pagado que el profesional canceló y espera que el paciente elija otro
+ * horario o el reembolso (ENG-204, ADR-018). No ocupa el horario, pero tampoco
+ * terminó: no se muestra apagado.
+ */
+export function awaitsPatientChoice(appointment: Appointment): boolean {
+  return appointment.status === 'A_REPROGRAMAR';
+}
+
+/** Si la fila se muestra apagada: ni vigente ni esperando una elección. */
+export function isSettled(appointment: Appointment): boolean {
+  return !isActive(appointment) && !awaitsPatientChoice(appointment);
 }
 
 export interface SplitAppointments {
@@ -96,6 +111,24 @@ export function canCancel(
   return (
     userId !== null &&
     appointment.patient?.id === userId &&
+    isActive(appointment) &&
+    new Date(appointment.scheduledAt).getTime() > now.getTime()
+  );
+}
+
+/**
+ * Si el profesional puede cancelar este turno (ENG-204): suyo, activo y que
+ * todavía no empezó. Un turno que ya empezó es otro camino (ENG-237). Decide si
+ * se dibuja el botón; el backend revalida lo mismo.
+ */
+export function canCancelAsProfessional(
+  appointment: Appointment,
+  userId: string | null,
+  now: Date = new Date(),
+): boolean {
+  return (
+    userId !== null &&
+    appointment.professional?.id === userId &&
     isActive(appointment) &&
     new Date(appointment.scheduledAt).getTime() > now.getTime()
   );

@@ -183,3 +183,85 @@ describe('appointmentTimeline (ENG-178)', () => {
     expect(titulos({ ...BASE, status: 'COMPLETADO' })).toContain('Tuviste la consulta');
   });
 });
+
+describe('appointmentTimeline cuando cancela el profesional (ENG-204)', () => {
+  const PRO = { id: 'pro', firstName: 'Ana', lastName: 'Pérez' };
+  const PAC = { id: 'pac', firstName: 'Julián', lastName: 'Paciente' };
+  const CANCELADO_POR_PRO: Appointment = {
+    ...BASE,
+    professional: PRO,
+    patient: PAC,
+    status: 'A_REPROGRAMAR',
+    cancelledBy: 'PROFESIONAL',
+    cancelledAt: '2026-10-22T14:00:00.000Z',
+    cancellationReason: 'Congreso',
+    reprogramDeadline: '2026-10-24T14:00:00.000Z',
+  };
+
+  it('a reprogramar, visto por el paciente: quién canceló y qué tiene que elegir', () => {
+    const pasos = appointmentTimeline(CANCELADO_POR_PRO, null, NOW);
+    expect(pasos.map((p) => p.title)).toEqual([
+      'Reservaste el turno',
+      'Pagaste $15.000 con MercadoPago',
+      'Quedó confirmado',
+      'Ana Pérez canceló el turno',
+      'Elegí otro horario o pedí el reembolso del 100 % (hasta el 24 de octubre · 11:00)',
+    ]);
+    expect(pasos.at(-1)?.tone).toBe('current');
+    expect(pasos.at(-2)?.when).toBe('22 de octubre · 11:00');
+  });
+
+  it('a reprogramar, visto por el profesional', () => {
+    const titulos = appointmentTimeline(CANCELADO_POR_PRO, null, NOW, 'PROFESIONAL').map(
+      (p) => p.title,
+    );
+    expect(titulos).toContain('Cancelaste el turno');
+    expect(titulos.at(-1)).toBe(
+      'Julián tiene que elegir otro horario o el reembolso (hasta el 24 de octubre · 11:00)',
+    );
+  });
+
+  it('el paciente eligió el reembolso', () => {
+    const titulos = appointmentTimeline(
+      {
+        ...CANCELADO_POR_PRO,
+        status: 'CANCELADO',
+        refundState: { amount: 15000, status: 'PROCESADO' },
+      },
+      null,
+      NOW,
+    ).map((p) => p.title);
+    expect(titulos.slice(-3)).toEqual([
+      'Ana Pérez canceló el turno',
+      'Elegiste el reembolso del 100 %',
+      'Te devolvimos $15.000',
+    ]);
+  });
+
+  it('venció el plazo y el sistema devolvió el 100 %', () => {
+    const titulos = appointmentTimeline(
+      {
+        ...CANCELADO_POR_PRO,
+        status: 'CANCELADO',
+        cancelledBy: 'SISTEMA',
+        refundState: { amount: 15000, status: 'PROCESADO' },
+      },
+      null,
+      NOW,
+    ).map((p) => p.title);
+    expect(titulos.slice(-3)).toEqual([
+      'Ana Pérez canceló el turno',
+      'Venció el plazo para elegir otro horario',
+      'Te devolvimos $15.000',
+    ]);
+  });
+
+  it('una cancelación del paciente sigue diciendo "Se canceló el turno"', () => {
+    const titulos = appointmentTimeline(
+      { ...BASE, status: 'CANCELADO', cancelledBy: 'PACIENTE' },
+      null,
+      NOW,
+    ).map((p) => p.title);
+    expect(titulos.at(-1)).toBe('Se canceló el turno');
+  });
+});
