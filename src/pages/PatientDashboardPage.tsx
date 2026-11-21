@@ -13,7 +13,7 @@ import {
   PendingTaskList,
 } from '../features/dashboard/components/PanelPieces';
 import {
-  nextAppointment,
+  currentOrNextAppointment,
   nextPhrase,
   patientTasks,
   recentCounterparts,
@@ -42,7 +42,7 @@ export function PatientDashboardPage() {
   const now = useNow();
 
   const lista = turnos.data ?? [];
-  const proximo = nextAppointment(lista, now);
+  const proximo = currentOrNextAppointment(lista, now);
   const despues = lista
     .filter((a) => isActive(a) && Date.parse(a.scheduledAt) > now.getTime() && a.id !== proximo?.id)
     .sort((a, b) => Date.parse(a.scheduledAt) - Date.parse(b.scheduledAt))
@@ -59,7 +59,7 @@ export function PatientDashboardPage() {
     <DashboardLayout
       barTitle="Panel"
       greeting={saludo}
-      subtitle={turnos.isPending ? ' ' : nextPhrase(proximo)}
+      subtitle={turnos.isPending ? ' ' : nextPhrase(proximo, null, now)}
     >
       <div className="grid gap-8">
         {tareas.length > 0 && <PendingTaskList tasks={tareas} />}
