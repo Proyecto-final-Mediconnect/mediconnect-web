@@ -129,3 +129,19 @@ describe('refundOutcomeText (ENG-65)', () => {
     expect(refundOutcomeText(undefined, monto)).toBeNull();
   });
 });
+
+describe('validatePolicy con los límites de MediConnect (ENG-205)', () => {
+  it('rechaza un total que exige más de 24 h', () => {
+    expect(validatePolicy({ ...DEFAULT, hoursFullRefund: 48 })).toMatch(/24 horas/);
+  });
+
+  it('rechaza un parcial menor al 30 %', () => {
+    expect(validatePolicy({ ...DEFAULT, partialRefundPercent: 20 })).toMatch(/30 %/);
+  });
+
+  it('acepta los límites exactos', () => {
+    expect(
+      validatePolicy({ hoursFullRefund: 24, hoursPartialRefund: 6, partialRefundPercent: 30 }),
+    ).toBeNull();
+  });
+});

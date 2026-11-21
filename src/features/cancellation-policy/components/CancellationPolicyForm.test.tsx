@@ -87,7 +87,7 @@ describe('CancellationPolicyForm', () => {
 
     const total = await campo(/devolución total/i);
     await user.clear(total);
-    await user.type(total, '48');
+    await user.type(total, '20');
     const pct = screen.getByRole('spinbutton', { name: /porcentaje/i });
     await user.clear(pct);
     await user.type(pct, '30');
@@ -95,9 +95,24 @@ describe('CancellationPolicyForm', () => {
 
     expect(await screen.findByRole('status')).toHaveTextContent('Guardamos tu política.');
     expect(putBodies).toEqual([
-      { hoursFullRefund: 48, hoursPartialRefund: 6, partialRefundPercent: 30 },
+      { hoursFullRefund: 20, hoursPartialRefund: 6, partialRefundPercent: 30 },
     ]);
     expect(screen.queryByText('Por defecto')).not.toBeInTheDocument();
+  });
+
+  it('no deja pasar los límites de MediConnect (ENG-205)', async () => {
+    const user = userEvent.setup();
+    mockFetch();
+    renderForm();
+
+    expect(await screen.findByText(/Límites de MediConnect/)).toBeInTheDocument();
+    const total = await campo(/devolución total/i);
+    await user.clear(total);
+    await user.type(total, '48');
+    await user.click(screen.getByRole('button', { name: /guardar política/i }));
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/al menos desde 24 horas/);
+    expect(putBodies).toEqual([]);
   });
 
   it('no manda nada si la ventana parcial es más lejana que la total', async () => {

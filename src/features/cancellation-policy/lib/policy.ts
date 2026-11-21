@@ -5,6 +5,14 @@ export const MAX_POLICY_HOURS = 720;
 export const MAX_REFUND_PERCENT = 100;
 
 /**
+ * Límites de plataforma (ENG-205): la devolución total aplica al menos desde
+ * 24 h antes del turno y la parcial es de al menos el 30 %. Espejan
+ * `MAX_FULL_REFUND_HOURS` y `MIN_PARTIAL_REFUND_PERCENT` del backend.
+ */
+export const MAX_FULL_REFUND_HOURS = 24;
+export const MIN_PARTIAL_REFUND_PERCENT = 30;
+
+/**
  * Valida la política antes de mandarla. Devuelve el primer problema o `null`.
  *
  * Repite las reglas del backend para que el profesional vea el error sin ir y
@@ -29,6 +37,13 @@ export function validatePolicy(policy: CancellationPolicy): string | null {
   }
   if (partialRefundPercent < 0 || partialRefundPercent > MAX_REFUND_PERCENT) {
     return 'El porcentaje tiene que estar entre 0 y 100.';
+  }
+
+  if (hoursFullRefund > MAX_FULL_REFUND_HOURS) {
+    return `La devolución total tiene que aplicar al menos desde ${MAX_FULL_REFUND_HOURS} horas antes del turno: podés pedir menos anticipación, no más.`;
+  }
+  if (partialRefundPercent < MIN_PARTIAL_REFUND_PERCENT) {
+    return `La devolución parcial tiene que ser de al menos el ${MIN_PARTIAL_REFUND_PERCENT} %.`;
   }
 
   if (hoursFullRefund < hoursPartialRefund) {
