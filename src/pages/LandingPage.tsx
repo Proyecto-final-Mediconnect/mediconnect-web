@@ -19,7 +19,23 @@ import { PUBLIC_SHELL as SHELL, PublicHeader } from '../shared/ui/PublicHeader';
  * 3. **Alternancia de fondos.** Claro, claro teñido y oscuro se turnan para
  *    marcar el ritmo. Los dos bloques `night` son los que cargan el argumento
  *    emocional (el hero y MediPass) y el cierre.
+ *
+ * **Todo lo que dice tiene que poder verificarse en la app** (ENG-225). Cada
+ * promesa está contrastada con lo que hace hoy; si una funcionalidad cambia, el
+ * texto cambia con ella. Las ilustraciones del MediPass llevan el rótulo
+ * "Ejemplo" y no tienen datos que parezcan de una persona real.
  */
+
+/**
+ * Los datos de la ilustración del MediPass. El código tiene el formato real (8
+ * caracteres del alfabeto sin vocales, que rota cada 5 minutos, ENG-72); el
+ * nombre deja claro que es un ejemplo.
+ */
+const EJEMPLO = {
+  nombre: 'Paciente de ejemplo',
+  edad: 41,
+  codigo: 'BKTR-7M4Q',
+} as const;
 
 const PARA_PACIENTES = [
   {
@@ -52,7 +68,7 @@ const PARA_PROFESIONALES = [
   {
     titulo: 'Historia clínica seria',
     texto:
-      'Registros firmados que no se pueden alterar, con corrección trazable si hace falta rectificar algo.',
+      'Cada registro queda a tu nombre y no se puede alterar. Si hay que rectificar algo, la corrección queda vinculada a la original.',
   },
   {
     titulo: 'Seguimiento por mensajes',
@@ -84,18 +100,20 @@ const PASOS = [
     n: '04',
     titulo: 'Te queda todo registrado',
     texto:
-      'Diagnóstico, indicaciones y medicación quedan en tu historia clínica y en tu MediPass, para siempre.',
+      'Diagnóstico, indicaciones y medicación quedan en tu historia clínica, y la podés ver cuando quieras.',
   },
 ];
 
 const GARANTIAS = [
   {
     titulo: 'Vos sos el dueño de tu historia clínica',
-    texto: 'Podés verla completa, descargarla en PDF y llevártela cuando quieras.',
+    texto: 'Podés verla completa, guardarla en PDF y llevártela cuando quieras.',
   },
   {
     titulo: 'Cada acceso queda registrado',
-    texto: 'Sabés qué profesional la abrió, cuándo y qué parte miró.',
+    // Se audita la lectura de la historia entera, no por entrada (ENG-165): no se
+    // promete "qué parte miró".
+    texto: 'Sabés qué profesional la abrió y cuándo.',
   },
   {
     titulo: 'Nada se borra ni se edita a escondidas',
@@ -104,11 +122,12 @@ const GARANTIAS = [
   },
   {
     titulo: 'Verificamos a cada profesional',
-    texto: 'Nadie publica su perfil sin que su matrícula esté controlada y vigente.',
+    texto: 'Revisamos la matrícula de cada profesional antes de que aparezca en el catálogo.',
   },
   {
-    titulo: 'Cumplimos la ley argentina de salud digital',
-    texto: 'Teleconsulta, derechos del paciente y protección de datos personales.',
+    titulo: 'Tus datos, según la ley argentina',
+    texto:
+      'Tu historia clínica sigue la Ley 26.529 de derechos del paciente, y tus datos, la Ley 25.326 de protección de datos personales.',
   },
 ];
 
@@ -123,7 +142,7 @@ const FAQS = [
   },
   {
     q: '¿Puedo cancelar un turno?',
-    a: 'Sí. Cada profesional define cuánto se devuelve según la anticipación; lo ves antes de reservar.',
+    a: 'Sí. Cada profesional define cuánto se devuelve según la anticipación, y lo ves antes de reservar. Si el profesional cancela un turno que ya pagaste, elegís otro horario sin pagar de nuevo o te devolvemos el 100 %.',
   },
   {
     q: '¿Quién puede ver mi historia clínica?',
@@ -131,11 +150,11 @@ const FAQS = [
   },
   {
     q: '¿Qué pasa si mi médico deja de atender en la plataforma?',
-    a: 'Tu historia clínica es tuya y sigue en tu cuenta. El próximo profesional con el que saques un turno la va a poder ver, y también podés descargarla en PDF.',
+    a: 'Tu historia clínica es tuya y sigue en tu cuenta. El próximo profesional con el que saques un turno la va a poder ver, y también podés guardarla en PDF.',
   },
   {
     q: '¿Necesito instalar algo?',
-    a: 'No para usarlo desde la computadora. También hay una app para el celular con tus turnos, tu historia y tu MediPass.',
+    a: 'No para usarlo desde la computadora. También hay una app para celulares Android con tus turnos, tu historia y tu MediPass.',
   },
 ];
 
@@ -270,8 +289,9 @@ function Hero() {
 /**
  * Vista previa del MediPass en el hero.
  *
- * Es una ilustración de producto, no un pase real: el QR es decorativo y los
- * datos son de una paciente de ejemplo. MediPass es Release 3.
+ * Es una ilustración, no un pase real, y lo dice: lleva el rótulo "Ejemplo".
+ * El QR lleva a la vista de emergencia sin código. Los datos de abajo son los
+ * del MediPass de verdad: el código rota cada 5 minutos y cada acceso dura 30.
  */
 function MediPassCard() {
   return (
@@ -280,18 +300,19 @@ function MediPassCard() {
         <span className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted">
           Tu MediPass
         </span>
-        <span className="flex items-center gap-1.5 text-[10px] font-bold tracking-[0.1em] text-brand-hover">
-          <span className="h-1.5 w-1.5 rounded-full bg-brand" />
-          AL DÍA
+        <span className="rounded-full bg-surface-teal px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] text-brand-hover">
+          Ejemplo
         </span>
       </div>
 
       <div className="grid items-center gap-5 border-b border-line-soft px-5 py-[22px] sm:grid-cols-[118px_1fr]">
         <MediPassQr size={118} className="rounded-md" />
         <div className="grid gap-[7px]">
-          <span className="text-[19px] font-bold text-brand-deep">Marina Sosa · 41</span>
-          <span className="text-[11px] font-semibold tracking-[0.06em] text-brand-hover">
-            MP-AR-8F42-91C7-D0A3
+          <span className="text-[19px] font-bold text-brand-deep">
+            {EJEMPLO.nombre} · {EJEMPLO.edad}
+          </span>
+          <span className="font-mono text-[13px] font-bold tracking-[0.12em] text-brand-hover">
+            {EJEMPLO.codigo}
           </span>
           <span className="text-[13px] font-medium leading-[1.5] text-muted">
             Grupo 0 Rh+ · toma anticoagulantes
@@ -304,15 +325,15 @@ function MediPassCard() {
       <div className="grid grid-cols-2">
         <div className="border-r border-line-soft px-5 py-4">
           <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-soft">
-            Consultas guardadas
+            El código cambia
           </div>
-          <div className="mt-[7px] text-[15px] font-bold text-brand-deep">14 registros</div>
+          <div className="mt-[7px] text-[15px] font-bold text-brand-deep">Cada 5 minutos</div>
         </div>
         <div className="px-5 py-4">
           <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-soft">
-            Quién puede verla
+            Cada acceso dura
           </div>
-          <div className="mt-[7px] text-[15px] font-bold text-brand-deep">Solo vos y 2 más</div>
+          <div className="mt-[7px] text-[15px] font-bold text-brand-deep">30 minutos</div>
         </div>
       </div>
     </div>
@@ -392,9 +413,9 @@ function MediPass() {
             Si te pasa algo lejos de casa, tu información llega antes que vos.
           </h2>
           <p className="mt-5 max-w-[520px] text-[17px] leading-[1.7] text-on-night text-pretty">
-            MediPass es tu pasaporte médico: un código que mostrás desde la app. Un médico de
-            guardia lo escanea con su celular, sin instalar nada, y ve al instante tus alergias, tu
-            medicación y tus condiciones.
+            MediPass es tu pasaporte médico: un código que mostrás desde la app o la web. Un
+            médico de guardia lo escanea con su celular, sin instalar nada, y ve al instante tus
+            alergias, tu medicación y tus condiciones.
           </p>
 
           <ul className="mt-[30px] grid max-w-[520px] gap-3.5">
@@ -424,9 +445,12 @@ function MediPass() {
           <div className="grid max-w-[330px] justify-items-center gap-4 rounded-[18px] bg-white p-[22px] shadow-[0_40px_80px_-40px_rgba(0,0,0,0.5)]">
             <MediPassQr size={230} />
             <div className="text-center">
-              <div className="text-[15px] font-bold text-brand-deep">Marina Sosa</div>
-              <div className="mt-1 text-[11px] font-semibold tracking-[0.08em] text-brand-hover">
-                MP-AR-8F42-91C7-D0A3
+              <div className="text-[10px] font-bold uppercase tracking-[0.12em] text-muted">
+                Ejemplo
+              </div>
+              <div className="mt-1 text-[15px] font-bold text-brand-deep">{EJEMPLO.nombre}</div>
+              <div className="mt-1 font-mono text-[13px] font-bold tracking-[0.12em] text-brand-hover">
+                {EJEMPLO.codigo}
               </div>
             </div>
           </div>
@@ -465,11 +489,11 @@ function TusDatos() {
         <div>
           <SectionLabel n="05">Tus datos son tuyos</SectionLabel>
           <h2 className="font-display mt-6 text-[30px] leading-[1.15] text-brand-deep lg:text-[38px]">
-            Nadie entra a tu historia clínica sin que vos lo autorices.
+            Tu historia clínica la ven solo vos y los profesionales con los que sacás turno.
           </h2>
           <p className="mt-4 text-base leading-[1.7] text-muted text-pretty">
-            Cada vez que alguien la abre queda registrado quién fue, cuándo y qué miró. Y ningún
-            registro se puede borrar ni modificar después de firmado.
+            Cada vez que un profesional la abre queda registrado quién fue y cuándo, y lo ves en tu
+            cuenta. Y ningún registro se puede borrar ni modificar después de cargado.
           </p>
         </div>
 

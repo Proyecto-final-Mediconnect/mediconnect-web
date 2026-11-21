@@ -30,7 +30,7 @@ type AuthLayoutProps = {
 const PUNTOS_POR_DEFECTO = [
   {
     titulo: 'Tu historia clínica es tuya',
-    texto: 'Podés verla completa, descargarla y llevártela cuando quieras.',
+    texto: 'Podés verla completa, guardarla en PDF y llevártela cuando quieras.',
   },
   {
     titulo: 'Cada acceso queda registrado',
@@ -40,7 +40,7 @@ const PUNTOS_POR_DEFECTO = [
   },
   {
     titulo: 'Matrículas verificadas',
-    texto: 'Nadie publica su perfil sin que su matrícula esté controlada y vigente.',
+    texto: 'Revisamos la matrícula de cada profesional antes de que aparezca en el catálogo.',
   },
 ];
 
