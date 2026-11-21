@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { isClientError } from '../../../shared/api/apiError';
 import {
   createBlock,
+  previewBlock,
   deleteBlock,
   getMySchedule,
   saveMySchedule,
@@ -28,8 +29,7 @@ export function useSaveSchedule() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: saveMySchedule,
-    onSuccess: (schedule: Schedule) =>
-      queryClient.setQueryData(SCHEDULE_KEY, schedule),
+    onSuccess: (schedule: Schedule) => queryClient.setQueryData(SCHEDULE_KEY, schedule),
   });
 }
 
@@ -39,8 +39,20 @@ export function useCreateBlock() {
     mutationFn: createBlock,
     // El POST devuelve solo el bloqueo creado, no la agenda entera: se invalida
     // para que la lista se reordene por fecha del lado del servidor.
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: SCHEDULE_KEY }),
+    onSuccess: (created) => {
+      void queryClient.invalidateQueries({ queryKey: SCHEDULE_KEY });
+      // ENG-206: si canceló turnos, la agenda y la grilla de reserva cambian.
+      if (created.cancelledAppointments?.length) {
+        void queryClient.invalidateQueries({ queryKey: ['appointments', 'me'] });
+        void queryClient.invalidateQueries({ queryKey: ['availability'] });
+      }
+    },
   });
+}
+
+/** Qué turnos pisaría un bloqueo (ENG-206). Es una consulta, no cambia nada. */
+export function usePreviewBlock() {
+  return useMutation({ mutationFn: previewBlock });
 }
 
 export function useDeleteBlock() {

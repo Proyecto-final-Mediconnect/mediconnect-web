@@ -1,10 +1,11 @@
 import { apiFetch } from '../../../shared/api/apiFetch';
 import { toApiError } from '../../../shared/api/apiError';
 import type {
+  AffectedAppointment,
   CreateBlockPayload,
+  CreatedBlock,
   SaveSchedulePayload,
   Schedule,
-  ScheduleBlock,
 } from '../types/schedule';
 
 const BASE = '/professionals/me/schedule';
@@ -25,9 +26,7 @@ export async function getMySchedule(): Promise<Schedule> {
  * backend corre con `forbidNonWhitelisted`, así que un `id` de más haría fallar
  * el request entero con un 400.
  */
-export async function saveMySchedule(
-  payload: SaveSchedulePayload,
-): Promise<Schedule> {
+export async function saveMySchedule(payload: SaveSchedulePayload): Promise<Schedule> {
   const response = await apiFetch(BASE, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -41,9 +40,31 @@ export async function saveMySchedule(
   return (await response.json()) as Schedule;
 }
 
-export async function createBlock(
+/**
+ * Qué turnos pisaría un bloqueo, sin crearlo (ENG-206). Es lo que se le muestra
+ * al profesional antes de confirmar.
+ */
+export async function previewBlock(
   payload: CreateBlockPayload,
-): Promise<ScheduleBlock> {
+): Promise<{ affected: AffectedAppointment[] }> {
+  const response = await apiFetch(`${BASE}/blocks/preview`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    throw await toApiError(response, 'No pudimos revisar tus turnos de ese horario.');
+  }
+
+  return (await response.json()) as { affected: AffectedAppointment[] };
+}
+
+/**
+ * Crea el bloqueo. Con turnos tomados el backend exige `cancelAffected` y
+ * `cancellationReason`; sin eso responde 409 con la lista (ENG-206).
+ */
+export async function createBlock(payload: CreateBlockPayload): Promise<CreatedBlock> {
   const response = await apiFetch(`${BASE}/blocks`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -54,7 +75,7 @@ export async function createBlock(
     throw await toApiError(response, 'No se pudo guardar el bloqueo.');
   }
 
-  return (await response.json()) as ScheduleBlock;
+  return (await response.json()) as CreatedBlock;
 }
 
 export async function deleteBlock(blockId: string): Promise<void> {

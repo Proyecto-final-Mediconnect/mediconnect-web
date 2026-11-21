@@ -1,7 +1,13 @@
 import { useState, type FormEvent } from 'react';
-import { useCreateBlock, useDeleteBlock } from '../hooks/useSchedule';
+import { useCreateBlock, useDeleteBlock, usePreviewBlock } from '../hooks/useSchedule';
 import { todayLocal } from '../lib/generateSlots';
-import { createBlockSchema, type ScheduleBlock } from '../types/schedule';
+import {
+  createBlockSchema,
+  type AffectedAppointment,
+  type CreateBlockPayload,
+  type ScheduleBlock,
+} from '../types/schedule';
+import { BlockAppointmentsDialog } from './BlockAppointmentsDialog';
 import { TimeSelect } from '../../../shared/ui/TimeSelect';
 import { formatDate } from '../../appointments/lib/weeks';
 
@@ -28,8 +34,36 @@ const CAMPO =
 export function ScheduleBlocks({ blocks }: ScheduleBlocksProps) {
   const [form, setForm] = useState(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  /** ENG-206: el bloqueo pendiente de confirmar, con los turnos que pisa. */
+  const [pending, setPending] = useState<{
+    payload: CreateBlockPayload;
+    affected: AffectedAppointment[];
+  } | null>(null);
   const createBlock = useCreateBlock();
   const deleteBlock = useDeleteBlock();
+  const preview = usePreviewBlock();
+
+  function crear(payload: CreateBlockPayload) {
+    createBlock.mutate(payload, {
+      onSuccess: (created) => {
+        setForm(EMPTY_FORM);
+        setPending(null);
+        const n = created.cancelledAppointments?.length ?? 0;
+        setNotice(
+          n === 0
+            ? 'Bloqueo agregado.'
+            : n === 1
+              ? 'Bloqueo agregado. Cancelamos 1 turno y le avisamos al paciente.'
+              : `Bloqueo agregado. Cancelamos ${n} turnos y les avisamos a los pacientes.`,
+        );
+      },
+      onError: (err: Error) => {
+        // El diálogo muestra su propio error; sin diálogo, va abajo del formulario.
+        if (!pending) setError(err.message);
+      },
+    });
+  }
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -49,9 +83,15 @@ export function ScheduleBlocks({ blocks }: ScheduleBlocksProps) {
       setError(parsed.error.issues[0].message);
       return;
     }
+    setNotice(null);
 
-    createBlock.mutate(parsed.data, {
-      onSuccess: () => setForm(EMPTY_FORM),
+    // ENG-206: antes de bloquear se mira si el horario tiene turnos tomados. Si
+    // los tiene, el profesional los ve y confirma; si no, se bloquea directo.
+    preview.mutate(parsed.data, {
+      onSuccess: ({ affected }) => {
+        if (affected.length === 0) crear(parsed.data);
+        else setPending({ payload: parsed.data, affected });
+      },
       onError: (err: Error) => setError(err.message),
     });
   }
@@ -69,8 +109,8 @@ export function ScheduleBlocks({ blocks }: ScheduleBlocksProps) {
           Bloqueos puntuales
         </h2>
         <p className="mt-2 text-[13px] leading-[1.6] text-muted">
-          Feriados, licencias o un rato del día que no vas a atender. Sin horario se
-          bloquea el día completo.
+          Feriados, licencias o un rato del día que no vas a atender. Sin horario se bloquea el día
+          completo.
         </p>
       </header>
 
@@ -123,12 +163,25 @@ export function ScheduleBlocks({ blocks }: ScheduleBlocksProps) {
 
         <button
           type="submit"
-          disabled={createBlock.isPending}
+          disabled={createBlock.isPending || preview.isPending}
           className="rounded-[9px] border border-line-strong bg-white py-2.5 text-[13px] font-bold text-brand-deep transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
         >
-          {createBlock.isPending ? 'Agregando…' : 'Agregar bloqueo'}
+          {preview.isPending
+            ? 'Revisando tus turnos…'
+            : createBlock.isPending
+              ? 'Agregando…'
+              : 'Agregar bloqueo'}
         </button>
       </form>
+
+      {notice && (
+        <p
+          role="status"
+          className="mx-5 mb-4 rounded-[10px] border border-brand/30 bg-surface-teal px-4 py-2.5 text-[13px] text-brand-deep"
+        >
+          {notice}
+        </p>
+      )}
 
       {error && (
         <p
@@ -151,9 +204,7 @@ export function ScheduleBlocks({ blocks }: ScheduleBlocksProps) {
               className="flex items-center justify-between gap-3 px-5 py-3 text-[13px]"
             >
               <span className="min-w-0 text-ink">
-                <strong className="font-bold text-brand-deep">
-                  {formatDate(block.blockDate)}
-                </strong>{' '}
+                <strong className="font-bold text-brand-deep">{formatDate(block.blockDate)}</strong>{' '}
                 {block.startTime && block.endTime
                   ? `de ${block.startTime} a ${block.endTime}`
                   : 'día completo'}
@@ -172,9 +223,7 @@ export function ScheduleBlocks({ blocks }: ScheduleBlocksProps) {
                 }}
                 // Solo se deshabilita el botón del bloqueo que se está
                 // borrando, no todos los de la lista.
-                disabled={
-                  deleteBlock.isPending && deleteBlock.variables === block.id
-                }
+                disabled={deleteBlock.isPending && deleteBlock.variables === block.id}
                 aria-label={`Quitar el bloqueo del ${formatDate(block.blockDate)}`}
               >
                 Quitar
@@ -183,6 +232,23 @@ export function ScheduleBlocks({ blocks }: ScheduleBlocksProps) {
           ))}
         </ul>
       )}
+
+      <BlockAppointmentsDialog
+        key={
+          pending ? `${pending.payload.blockDate}-${pending.payload.startTime ?? 'dia'}` : 'cerrado'
+        }
+        affected={pending?.affected ?? null}
+        pendiente={createBlock.isPending}
+        error={pending && createBlock.isError ? createBlock.error.message : null}
+        onCancel={() => {
+          createBlock.reset();
+          setPending(null);
+        }}
+        onConfirm={(cancellationReason) => {
+          if (!pending) return;
+          crear({ ...pending.payload, cancelAffected: true, cancellationReason });
+        }}
+      />
     </section>
   );
 }
