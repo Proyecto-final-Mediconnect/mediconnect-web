@@ -236,15 +236,23 @@ export function AppointmentDetail({
             )}
             <p>
               {isPatient
-                ? `No pagás nada más ni perdés lo que pagaste. Podés pedir el reembolso del 100 %${plazo ? `; si no elegís nada antes del ${plazo}, te lo devolvemos igual, automáticamente` : ''}.`
+                ? `No pagás nada más ni perdés lo que pagaste: elegí otro horario de ${appointment.professional?.firstName ?? 'tu profesional'} o pedí el reembolso del 100 %${plazo ? `. Si no elegís nada antes del ${plazo}, te lo devolvemos igual, automáticamente` : ''}.`
                 : `Puede elegir otro horario tuyo sin volver a pagar o el reembolso del 100 %${plazo ? `. Si no elige antes del ${plazo}, se le devuelve automáticamente` : ''}.`}
             </p>
             {isPatient && (
               <div className="flex flex-wrap gap-3">
+                {professionalId && (
+                  <Link
+                    to={`/profesionales/${professionalId}/turnos?reprogramar=${appointment.id}`}
+                    className="inline-flex items-center justify-center rounded-[10px] bg-brand px-5 py-3 text-sm font-bold text-ink-deep transition-colors hover:bg-brand-bright focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                  >
+                    Elegir otro horario
+                  </Link>
+                )}
                 <button
                   type="button"
                   onClick={() => setToFullRefund(appointment)}
-                  className="inline-flex items-center justify-center rounded-[10px] bg-brand-deep px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+                  className="inline-flex items-center justify-center rounded-[10px] border border-tag-warm-ink/30 bg-white px-5 py-3 text-sm font-bold text-tag-warm-ink transition-colors hover:bg-tag-warm focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
                 >
                   Pedir el reembolso del 100 %
                 </button>

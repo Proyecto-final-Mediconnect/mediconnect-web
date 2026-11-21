@@ -208,6 +208,17 @@ export function appointmentTimeline(
     return pasos;
   }
 
+  // ENG-203: el profesional lo canceló y el paciente eligió otro horario. El
+  // turno vuelve a estar vigente, pero la historia cuenta lo que pasó.
+  if (appointment.cancelledBy === 'PROFESIONAL') {
+    pasos.push(canceloElProfesional, {
+      key: 'nuevo-horario',
+      title: paciente ? 'Elegiste otro horario' : `${pacienteNombre} eligió otro horario`,
+      when: null,
+      tone: 'done',
+    });
+  }
+
   if (status !== 'RESERVADO_SIN_PAGAR') {
     pasos.push({ key: 'confirmado', title: 'Quedó confirmado', when: null, tone: 'done' });
   }

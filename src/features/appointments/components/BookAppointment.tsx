@@ -7,6 +7,7 @@ import {
   useRescheduleAppointment,
 } from '../hooks/useAppointments';
 import { relevantWithProfessional, statusLabel } from '../lib/myAppointments';
+import { cuando } from '../lib/timeline';
 import {
   BOOKING_HORIZON_DAYS,
   MAX_PAGE,
@@ -366,7 +367,10 @@ function PanelRevision({
   // Al reprogramar, el precio es el que quedó congelado en el turno, no el
   // vigente del profesional: no se vuelve a cobrar.
   const total = rescheduling ? rescheduling.price : price;
-  const pagado = rescheduling?.status === 'CONFIRMADO';
+  // ENG-203: el turno que canceló el profesional también está pagado.
+  const desdeCancelacion = rescheduling?.status === 'A_REPROGRAMAR';
+  const pagado = rescheduling?.status === 'CONFIRMADO' || desdeCancelacion;
+  const plazo = desdeCancelacion ? cuando(rescheduling?.reprogramDeadline) : null;
   // Recién reservado ya no hay horario elegido, pero el resumen sigue mostrando
   // el turno que quedó (ENG-199: antes volvía a "—").
   const turno = selected ?? booked;
@@ -382,7 +386,7 @@ function PanelRevision({
       <dl className="grid gap-[11px] border-b border-line-soft px-[22px] py-[18px] text-sm font-medium text-ink">
         <Fila titulo="Profesional">{fullName}</Fila>
         {rescheduling && (
-          <Fila titulo="Turno actual">
+          <Fila titulo={desdeCancelacion ? 'Turno cancelado' : 'Turno actual'}>
             {formatDate(rescheduling.date)} · {rescheduling.startTime}
           </Fila>
         )}
@@ -396,11 +400,18 @@ function PanelRevision({
       <div className="grid gap-3.5 px-[22px] py-[18px]">
         {/* El estado inicial no es un detalle que se pueda ocultar: el turno
             queda reservado pero sin pagar hasta que se pague (ENG-63). */}
-        {rescheduling ? (
+        {desdeCancelacion ? (
+          <p className="rounded-[10px] border border-brand/30 bg-surface-teal px-4 py-3 text-[13px] leading-[1.6] text-brand-deep">
+            {fullName} canceló este turno: elegís el horario nuevo{' '}
+            <strong className="font-bold">sin volver a pagar</strong>, con el mismo precio, y{' '}
+            <strong className="font-bold">no cuenta</strong> como tu reprogramación.
+            {plazo ? ` Tenés hasta el ${plazo}.` : ''}
+          </p>
+        ) : rescheduling ? (
           <p className="rounded-[10px] border border-brand/30 bg-surface-teal px-4 py-3 text-[13px] leading-[1.6] text-brand-deep">
             Es el <strong className="font-bold">mismo turno</strong> en otro horario:{' '}
             {pagado
-              ? 'ya está pagado y no se vuelve a cobrar.'
+              ? 'ya está pagado y no se vuelve a cobrar, con el mismo precio.'
               : 'lo seguís pagando con el mismo plazo de 15 minutos desde que lo reservaste.'}{' '}
             Un turno se puede reprogramar una sola vez.
           </p>

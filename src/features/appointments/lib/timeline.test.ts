@@ -256,6 +256,30 @@ describe('appointmentTimeline cuando cancela el profesional (ENG-204)', () => {
     ]);
   });
 
+  it('el paciente eligió otro horario (ENG-203): vuelve a confirmado y lo cuenta', () => {
+    const titulos = appointmentTimeline(
+      { ...CANCELADO_POR_PRO, status: 'CONFIRMADO', reprogramDeadline: null },
+      null,
+      NOW,
+    ).map((p) => p.title);
+    expect(titulos).toEqual([
+      'Reservaste el turno',
+      'Pagaste $15.000 con MercadoPago',
+      'Ana Pérez canceló el turno',
+      'Elegiste otro horario',
+      'Quedó confirmado',
+      'Consulta',
+    ]);
+    expect(
+      appointmentTimeline(
+        { ...CANCELADO_POR_PRO, status: 'CONFIRMADO' },
+        null,
+        NOW,
+        'PROFESIONAL',
+      ).map((p) => p.title),
+    ).toContain('Julián eligió otro horario');
+  });
+
   it('una cancelación del paciente sigue diciendo "Se canceló el turno"', () => {
     const titulos = appointmentTimeline(
       { ...BASE, status: 'CANCELADO', cancelledBy: 'PACIENTE' },
