@@ -143,6 +143,23 @@ export const MANUAL_CLOSE_HOURS_AFTER = 24;
  * turno confirmado, desde la hora del turno hasta 24 h después del final.
  * Decide si se dibuja el botón; el backend revalida lo mismo.
  */
+/**
+ * Si el profesional puede informar que una consulta completada no se pudo hacer
+ * por una falla técnica (ENG-237, caso 13): es suya, está completada y no
+ * pasaron más de {@link MANUAL_CLOSE_HOURS_AFTER} horas del final. El backend
+ * revalida lo mismo.
+ */
+export function canReportTechnicalFailure(
+  appointment: Appointment,
+  userId: string | null,
+  now: Date = new Date(),
+): boolean {
+  if (userId === null || appointment.professional?.id !== userId) return false;
+  if (appointment.status !== 'COMPLETADO') return false;
+  const end = new Date(appointment.scheduledAt).getTime() + appointment.durationMinutes * 60_000;
+  return now.getTime() <= end + MANUAL_CLOSE_HOURS_AFTER * 3_600_000;
+}
+
 export function canMarkNoShow(
   appointment: Appointment,
   userId: string | null,

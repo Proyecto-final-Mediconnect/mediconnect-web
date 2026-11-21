@@ -402,9 +402,12 @@ function PanelRevision({
             queda reservado pero sin pagar hasta que se pague (ENG-63). */}
         {desdeCancelacion ? (
           <p className="rounded-[10px] border border-brand/30 bg-surface-teal px-4 py-3 text-[13px] leading-[1.6] text-brand-deep">
-            {fullName} canceló este turno: elegís el horario nuevo{' '}
-            <strong className="font-bold">sin volver a pagar</strong>, con el mismo precio, y{' '}
-            <strong className="font-bold">no cuenta</strong> como tu reprogramación.
+            {rescheduling?.reprogramCause
+              ? 'Esta consulta no se realizó'
+              : `${fullName} canceló este turno`}
+            : elegís el horario nuevo <strong className="font-bold">sin volver a pagar</strong>, con
+            el mismo precio, y <strong className="font-bold">no cuenta</strong> como tu
+            reprogramación.
             {plazo ? ` Tenés hasta el ${plazo}.` : ''}
           </p>
         ) : rescheduling ? (

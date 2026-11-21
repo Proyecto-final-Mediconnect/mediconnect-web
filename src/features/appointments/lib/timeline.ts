@@ -1,4 +1,5 @@
 import type { PaymentStatusView } from '../../payments/types/payment';
+import { reprogramStepTitle } from './reprogramCause';
 import type { Appointment } from '../types/appointment';
 import { isActive } from './myAppointments';
 import { formatDate, formatPrice } from './weeks';
@@ -146,7 +147,8 @@ export function appointmentTimeline(
   const pacienteNombre = appointment.patient?.firstName ?? 'El paciente';
   const canceloElProfesional = {
     key: 'cancelado',
-    title: paciente ? `${profesional} canceló el turno` : 'Cancelaste el turno',
+    // ENG-237: una consulta a la que no se conectó, o que falló, no se "canceló".
+    title: reprogramStepTitle(appointment, paciente, profesional),
     when: cuando(appointment.cancelledAt),
     tone: 'bad' as const,
   };

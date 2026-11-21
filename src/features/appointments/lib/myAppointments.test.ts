@@ -4,6 +4,7 @@ import {
   canCancel,
   canCancelAsProfessional,
   canMarkNoShow,
+  canReportTechnicalFailure,
   counterpartOf,
   formatLongDate,
   isActive,
@@ -250,5 +251,24 @@ describe('turnos que canceló el profesional (ENG-204)', () => {
     ['un turno a reprogramar', turno({ status: 'A_REPROGRAMAR' }), 'pro'],
   ])('no ofrece cancelar a/con %s', (_caso, a, userId) => {
     expect(canCancelAsProfessional(a, userId, NOW_204)).toBe(false);
+  });
+});
+
+describe('canReportTechnicalFailure (ENG-237)', () => {
+  // Turno completado de 30 minutos a las 13:00 UTC: termina 13:30.
+  const completado = appointment({ status: 'COMPLETADO' });
+  const at = (minutes: number) => new Date(Date.parse('2026-08-17T13:00:00Z') + minutes * 60_000);
+
+  it('el profesional puede hasta 24 h después del final', () => {
+    expect(canReportTechnicalFailure(completado, PRO_ID, at(30 + 24 * 60))).toBe(true);
+    expect(canReportTechnicalFailure(completado, PRO_ID, at(31 + 24 * 60))).toBe(false);
+  });
+
+  it('solo de una consulta completada y solo el profesional', () => {
+    expect(canReportTechnicalFailure(appointment({ status: 'NO_ASISTIO' }), PRO_ID, at(60))).toBe(
+      false,
+    );
+    expect(canReportTechnicalFailure(completado, PATIENT_ID, at(60))).toBe(false);
+    expect(canReportTechnicalFailure(completado, null, at(60))).toBe(false);
   });
 });

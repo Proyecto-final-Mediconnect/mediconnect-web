@@ -289,3 +289,40 @@ describe('appointmentTimeline cuando cancela el profesional (ENG-204)', () => {
     expect(titulos.at(-1)).toBe('Se canceló el turno');
   });
 });
+
+describe('appointmentTimeline de una consulta que no se realizó (ENG-237)', () => {
+  const PRO = { id: 'pro', firstName: 'Ana', lastName: 'Pérez' };
+  const PAC = { id: 'pac', firstName: 'Julián', lastName: 'Paciente' };
+  const SIN_PROFESIONAL: Appointment = {
+    ...BASE,
+    professional: PRO,
+    patient: PAC,
+    status: 'A_REPROGRAMAR',
+    cancelledBy: 'PROFESIONAL',
+    cancelledAt: '2026-10-22T14:00:00.000Z',
+    cancellationReason: 'El profesional no se conectó a la consulta.',
+    reprogramDeadline: '2026-10-24T14:00:00.000Z',
+    reprogramCause: 'AUSENCIA_PROFESIONAL',
+  };
+
+  it('no dice "canceló" si el profesional no se conectó', () => {
+    const paciente = appointmentTimeline(SIN_PROFESIONAL, null, NOW).map((p) => p.title);
+    expect(paciente).toContain('Ana Pérez no se conectó a la consulta');
+    expect(paciente.join(' ')).not.toContain('canceló');
+
+    const profesional = appointmentTimeline(SIN_PROFESIONAL, null, NOW, 'PROFESIONAL').map(
+      (p) => p.title,
+    );
+    expect(profesional).toContain('No te conectaste a la consulta');
+  });
+
+  it('la falla técnica se cuenta como tal, también después de elegir otro horario', () => {
+    const titulos = appointmentTimeline(
+      { ...SIN_PROFESIONAL, status: 'CONFIRMADO', reprogramCause: 'FALLA_TECNICA' },
+      null,
+      NOW,
+    ).map((p) => p.title);
+    expect(titulos).toContain('Ana Pérez informó una falla técnica');
+    expect(titulos).toContain('Elegiste otro horario');
+  });
+});
