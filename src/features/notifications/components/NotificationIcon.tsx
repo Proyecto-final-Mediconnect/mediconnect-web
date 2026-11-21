@@ -56,8 +56,14 @@ const ICONS: Record<string, (p: IconProps) => React.JSX.Element> = {
   TURNO_RESERVADO: IconTurnos,
   TURNO_REPROGRAMADO: IconTurnos,
   TURNO_CANCELADO: IconCancelado,
+  TURNO_CANCELADO_PROFESIONAL: IconCancelado,
+  CANCELACION_CONFIRMADA: IconCancelado,
+  REEMBOLSO_TOTAL: IconPago,
+  REEMBOLSO_ACTUALIZADO: IconPago,
+  TURNO_REEMBOLSADO: IconPago,
   RECORDATORIO_24H: IconAgenda,
   RECORDATORIO_1H: IconAgenda,
+  PLAZO_REPROGRAMACION_POR_VENCER: IconAgenda,
   RESENA_MODERADA: IconResenas,
 };
 

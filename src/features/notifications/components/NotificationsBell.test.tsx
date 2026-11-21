@@ -65,6 +65,15 @@ function renderBell(initial: InAppInbox = INBOX) {
           <Route path="/paciente" element={<NotificationsBell />} />
           <Route path="/mensajes/:conversationId" element={<p>Pantalla del chat</p>} />
           <Route path="/medipass" element={<p>Pantalla del MediPass</p>} />
+          <Route
+            path="/turnos/:appointmentId"
+            element={
+              <>
+                <p>Pantalla del turno</p>
+                <NotificationsBell />
+              </>
+            }
+          />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -136,6 +145,16 @@ describe('NotificationsBell', () => {
     await user.click(screen.getByRole('button', { name: /^Sin leer: Abrieron tu MediPass/ }));
 
     expect(await screen.findByText('Pantalla del MediPass')).toBeInTheDocument();
+  });
+
+  it('un aviso de turno lleva a ese turno (ENG-208)', async () => {
+    const user = userEvent.setup();
+    renderBell();
+
+    await user.click(await screen.findByRole('button', { name: 'Avisos, 1 sin leer' }));
+    await user.click(screen.getByRole('button', { name: /^Turno cancelado/ }));
+
+    expect(await screen.findByText('Pantalla del turno')).toBeInTheDocument();
   });
 
   it('tocar uno ya leído no vuelve a pedir nada', async () => {
