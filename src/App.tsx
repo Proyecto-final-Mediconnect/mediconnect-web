@@ -6,8 +6,6 @@ import { AppointmentDetailPage } from './pages/AppointmentDetailPage';
 import { BookAppointmentPage } from './pages/BookAppointmentPage';
 import { CatalogPage } from './pages/CatalogPage';
 import { EmergencyViewPage } from './pages/EmergencyViewPage';
-import { GuardiaFichaPage } from './pages/GuardiaFichaPage';
-import { GuardiaJuegoPage } from './pages/GuardiaJuegoPage';
 import { MediPassPage } from './pages/MediPassPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { MessagesPage } from './pages/MessagesPage';
@@ -33,7 +31,6 @@ import { PatientProfessionalProfilePage } from './pages/PatientProfessionalProfi
 import { PatientProfilePage } from './pages/PatientProfilePage';
 import { RegisterPage } from './pages/RegisterPage';
 import { ResetPasswordPage } from './pages/ResetPasswordPage';
-import { SpikeDailyPage } from './pages/SpikeDailyPage';
 import { VideoConsultationPage } from './pages/VideoConsultationPage';
 
 function App() {
@@ -92,17 +89,6 @@ function App() {
         element={
           <RequireAuth allow={['PROFESIONAL']}>
             <ProfessionalDashboardPage />
-          </RequireAuth>
-        }
-      />
-      {/* Banco de pruebas del spike de Daily (ENG-51). No es producto: se borra
-          cuando ENG-56 implemente la videoconsulta desde un turno confirmado.
-          Va con sesión igual, porque crear salas consume cuota de Daily. */}
-      <Route
-        path="/spike/daily"
-        element={
-          <RequireAuth allow={['PACIENTE', 'PROFESIONAL']}>
-            <SpikeDailyPage />
           </RequireAuth>
         }
       />
@@ -220,10 +206,6 @@ function App() {
           </RequireAuth>
         }
       />
-      {/* Juego del stand para la jornada del 06/10: pacientes ficticios, sin
-          backend. La notebook muestra la guardia y el celular abre la ficha. */}
-      <Route path="/juego/guardia" element={<GuardiaJuegoPage />} />
-      <Route path="/juego/guardia/ficha" element={<GuardiaFichaPage />} />
       {/* Pago del turno con MercadoPago (ENG-63) y confirmación (ENG-64). Solo
           PACIENTE: el que paga la consulta es quien la reservó. La ruta de pago es
           también la vuelta desde MercadoPago (`?resultado=…`). */}

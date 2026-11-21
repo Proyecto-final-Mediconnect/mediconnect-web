@@ -17,7 +17,7 @@ vi.mock('@daily-co/daily-js', () => ({
 import { splitRoomUrl } from '../lib/splitRoomUrl';
 import { DailyPrebuiltFrame } from './DailyPrebuiltFrame';
 
-const ROOM_URL = 'https://mediconnect.daily.co/spike-eng51-a1b2c3d4?t=token';
+const ROOM_URL = 'https://mediconnect.daily.co/consulta-a1b2c3d4e5f6?t=token';
 
 beforeEach(() => {
   daily.createFrame
@@ -33,7 +33,7 @@ afterEach(cleanup);
 describe('splitRoomUrl', () => {
   it('separa el meeting token de la URL de la sala', () => {
     expect(splitRoomUrl(ROOM_URL)).toEqual({
-      url: 'https://mediconnect.daily.co/spike-eng51-a1b2c3d4',
+      url: 'https://mediconnect.daily.co/consulta-a1b2c3d4e5f6',
       token: 'token',
     });
   });
@@ -56,7 +56,7 @@ describe('DailyPrebuiltFrame', () => {
       expect.objectContaining({ showLeaveButton: false }),
     );
     expect(daily.join).toHaveBeenCalledWith({
-      url: 'https://mediconnect.daily.co/spike-eng51-a1b2c3d4',
+      url: 'https://mediconnect.daily.co/consulta-a1b2c3d4e5f6',
       token: 'token',
     });
   });
