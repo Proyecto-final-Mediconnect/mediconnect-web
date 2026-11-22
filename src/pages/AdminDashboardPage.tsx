@@ -67,6 +67,34 @@ export function AdminDashboardPage() {
               ›
             </span>
           </Link>
+          <Link
+            to="/admin/profesionales"
+            className="flex max-w-[520px] items-center justify-between gap-4 rounded-[14px] border border-line bg-white px-5 py-4 transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            <span>
+              <span className="block text-[15px] font-bold text-brand-deep">Profesionales</span>
+              <span className="block text-sm text-muted">
+                Todos los profesionales, su actividad, y suspenderlos o reactivarlos.
+              </span>
+            </span>
+            <span aria-hidden="true" className="text-muted-soft">
+              ›
+            </span>
+          </Link>
+          <Link
+            to="/admin/plataforma"
+            className="flex max-w-[520px] items-center justify-between gap-4 rounded-[14px] border border-line bg-white px-5 py-4 transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            <span>
+              <span className="block text-[15px] font-bold text-brand-deep">Plataforma</span>
+              <span className="block text-sm text-muted">
+                Cómo se usa MediConnect y si la historia clínica sigue íntegra.
+              </span>
+            </span>
+            <span aria-hidden="true" className="text-muted-soft">
+              ›
+            </span>
+          </Link>
         </div>
       )}
     </DashboardLayout>

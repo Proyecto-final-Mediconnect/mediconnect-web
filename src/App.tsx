@@ -3,6 +3,7 @@ import { RequireAuth } from './features/auth/components/RequireAuth';
 import { VideoConsultationPreviewPage } from './dev/VideoConsultationPreviewPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { AdminLicensesPage } from './pages/AdminLicensesPage';
+import { AdminPlatformPage } from './pages/AdminPlatformPage';
 import { AdminProfessionalDetailPage } from './pages/AdminProfessionalDetailPage';
 import { AdminProfessionalsPage } from './pages/AdminProfessionalsPage';
 import { AppointmentConfirmedPage } from './pages/AppointmentConfirmedPage';
@@ -119,6 +120,15 @@ function App() {
         element={
           <RequireAuth allow={['ADMINISTRADOR']}>
             <AdminProfessionalDetailPage />
+          </RequireAuth>
+        }
+      />
+      {/* Métricas de la plataforma e integridad de la historia clínica (ENG-195). */}
+      <Route
+        path="/admin/plataforma"
+        element={
+          <RequireAuth allow={['ADMINISTRADOR']}>
+            <AdminPlatformPage />
           </RequireAuth>
         }
       />

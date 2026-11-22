@@ -189,3 +189,52 @@ export async function changeAccountStatus(
     cancelled?: number;
   };
 }
+
+/** La última verificación de la cadena de hash de la historia clínica (ENG-85). */
+export interface IntegritySummary {
+  at: string;
+  /** `OK`, `INCONSISTENT`, `ANCHOR_REGRESSION` o `ERROR`. */
+  status: string;
+  inconsistencies: number;
+  patientsChecked: number | null;
+  entriesChecked: number | null;
+}
+
+/** Las métricas de la plataforma (ENG-195): solo agregados, nunca datos de una persona. */
+export interface PlatformStats {
+  from: string;
+  to: string;
+  usuarios: { pacientes: number; profesionales: number; nuevos: number };
+  profesionales: {
+    validados: number;
+    pendientes: number;
+    rechazados: number;
+    suspendidos: number;
+    porEspecialidad: { especialidad: string; profesionales: number }[];
+  };
+  turnos: {
+    total: number;
+    completados: number;
+    cancelados: number;
+    noAsistio: number;
+    liberados: number;
+    pendientes: number;
+    porMes: { mes: string; turnos: number; completados: number }[];
+  };
+  cobros: { moneda: 'ARS'; cobrado: number; reembolsado: number; neto: number; pagos: number };
+  resenas: { cantidad: number; promedio: number | null };
+  integridad: IntegritySummary | null;
+}
+
+/** `GET /admin/stats?from=&to=` (ENG-195). */
+export async function getPlatformStats(range: {
+  from: string;
+  to: string;
+}): Promise<PlatformStats> {
+  const params = new URLSearchParams(range);
+  const response = await apiFetch(`/admin/stats?${params.toString()}`);
+  if (!response.ok) {
+    throw await toApiError(response, 'No pudimos cargar las métricas de la plataforma.');
+  }
+  return (await response.json()) as PlatformStats;
+}
