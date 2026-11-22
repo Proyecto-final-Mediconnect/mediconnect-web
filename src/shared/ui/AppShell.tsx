@@ -121,9 +121,19 @@ const NAV_PROFESIONAL: NavItem[][] = [
   ],
 ];
 
+/**
+ * El administrador (ENG-240) es del equipo de MediConnect: no atiende ni se
+ * atiende, así que no tiene turnos, historia ni mensajes. Su menú crece con la
+ * gestión de médicos (ENG-220).
+ */
+const NAV_ADMINISTRADOR: NavItem[][] = [
+  [{ to: '/admin', label: 'Panel', end: true, Icon: IconPanel }],
+];
+
 const NAV_POR_ROL: Record<string, NavItem[][]> = {
   PACIENTE: NAV_PACIENTE,
   PROFESIONAL: NAV_PROFESIONAL,
+  ADMINISTRADOR: NAV_ADMINISTRADOR,
 };
 
 /**
@@ -209,8 +219,9 @@ export function AppShell({ title, displayTitle = false, children }: AppShellProp
    *  trabajo en curso, y en un turno o una consulta abierta eso duele. */
   const [confirmandoSalida, setConfirmandoSalida] = useState(false);
 
-  /** Los turnos se piden recién cuando la sesión resolvió (`user` no nulo). */
-  const tieneTurnos = user != null;
+  /** Los turnos se piden recién cuando la sesión resolvió (`user` no nulo). El
+   *  administrador no tiene turnos: no se le piden. */
+  const tieneTurnos = user != null && user.role !== 'ADMINISTRADOR';
 
   // La consulta a la que se puede entrar ahora. Comparte queryKey con "Mis
   // turnos", así que estar en el menú de todas las pantallas privadas no agrega
@@ -224,8 +235,8 @@ export function AppShell({ title, displayTitle = false, children }: AppShellProp
 
   // Mapa explícito por rol. Mientras la sesión no cargó se cae al de paciente,
   // que es el rol más común; el guard de la ruta es RequireAuth, no esto.
-  // Un rol desconocido (MODERADOR residual en la base) no hereda el menú de
-  // paciente: queda sin secciones (RequireAuth ya lo frena antes).
+  // Un rol desconocido (p. ej. MODERADOR con un backend anterior a ENG-240) no
+  // hereda el menú de paciente: queda sin secciones (RequireAuth ya lo frena antes).
   const grupos: NavItem[][] =
     user && !isKnownRole(user.role) ? [] : (NAV_POR_ROL[user?.role ?? ''] ?? NAV_PACIENTE);
   // Los mismos helpers que usa la barra pública: el nombre y las iniciales de

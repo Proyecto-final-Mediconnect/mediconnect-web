@@ -1,6 +1,6 @@
-/** Roles de dominio de MediConnect. `user_role` en la base conserva MODERADOR,
- *  pero no se usa: no hay moderación (las reseñas se publican en el acto). */
-export type UserRole = 'PACIENTE' | 'PROFESIONAL';
+/** Roles de dominio de MediConnect. ADMINISTRADOR es el equipo de MediConnect,
+ *  que administra a los profesionales (ENG-240): nadie se registra con ese rol. */
+export type UserRole = 'PACIENTE' | 'PROFESIONAL' | 'ADMINISTRADOR';
 
 /** Perfil del usuario autenticado, tal como lo devuelve `GET /me`.
  *  El `role` viene de `profiles.role` (base), no del JWT. */
@@ -23,6 +23,7 @@ export interface SessionUser {
 export const ROLE_LABEL: Record<UserRole, string> = {
   PACIENTE: 'Paciente',
   PROFESIONAL: 'Profesional',
+  ADMINISTRADOR: 'Administrador',
 };
 
 /** Iniciales para el avatar. Cae al email cuando el perfil todavía no tiene
@@ -42,10 +43,12 @@ export function displayNameOf(user: SessionUser): string {
 export const DASHBOARD_BY_ROLE: Record<UserRole, string> = {
   PACIENTE: '/paciente',
   PROFESIONAL: '/profesional',
+  ADMINISTRADOR: '/admin',
 };
 
-/** `GET /me` puede devolver un rol que el tipo ya no admite (MODERADOR sigue en
- *  `user_role` de la base). Sin esto, ni el menú ni los guards saben qué hacer. */
+/** `GET /me` puede devolver un rol que esta versión de la web no conoce (por
+ *  ejemplo, MODERADOR con un backend anterior a ENG-240). Sin esto, ni el menú
+ *  ni los guards saben qué hacer. */
 export function isKnownRole(role: string | undefined): role is UserRole {
   return role !== undefined && Object.prototype.hasOwnProperty.call(DASHBOARD_BY_ROLE, role);
 }
