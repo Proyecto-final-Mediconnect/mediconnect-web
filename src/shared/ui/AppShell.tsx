@@ -22,6 +22,7 @@ import {
   IconMensajes,
   IconMediPass,
   IconPacientes,
+  IconPlataforma,
   IconPanel,
   IconPerfil,
   IconResenas,
@@ -132,6 +133,7 @@ const NAV_ADMINISTRADOR: NavItem[][] = [
     { to: '/admin', label: 'Panel', end: true, Icon: IconPanel },
     { to: '/admin/profesionales', label: 'Profesionales', Icon: IconPacientes },
     { to: '/admin/matriculas', label: 'Matrículas', Icon: IconMatriculas },
+    { to: '/admin/plataforma', label: 'Plataforma', Icon: IconPlataforma },
   ],
 ];
 

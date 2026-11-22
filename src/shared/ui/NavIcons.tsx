@@ -183,3 +183,15 @@ export function IconMatriculas(p: IconProps) {
     </Svg>
   );
 }
+
+/** Plataforma (ENG-195): barras de un gráfico, las métricas de uso. */
+export function IconPlataforma(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <path d="M4 20h16" />
+      <rect x="5.5" y="11" width="3" height="6" rx="0.5" />
+      <rect x="10.5" y="6" width="3" height="11" rx="0.5" />
+      <rect x="15.5" y="9" width="3" height="8" rx="0.5" />
+    </Svg>
+  );
+}

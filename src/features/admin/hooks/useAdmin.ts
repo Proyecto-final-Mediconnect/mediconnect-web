@@ -6,6 +6,7 @@ import {
   getAdminProfessionals,
   getAdminProfile,
   getLicenseQueue,
+  getPlatformStats,
   getSuspensionPreview,
   type LicenseDecision,
   type LicenseQueueStatus,
@@ -90,5 +91,15 @@ export function useChangeAccountStatus() {
         queryClient.invalidateQueries({ queryKey: PROFESSIONALS_KEY }),
         queryClient.invalidateQueries({ queryKey: LICENSES_KEY }),
       ]),
+  });
+}
+
+/** Las métricas de la plataforma de un período (ENG-195). */
+export function usePlatformStats(range: { from: string; to: string }) {
+  return useQuery({
+    queryKey: ['admin', 'stats', range.from, range.to],
+    queryFn: () => getPlatformStats(range),
+    retry: false,
+    placeholderData: (previous) => previous,
   });
 }
