@@ -106,6 +106,23 @@ describe('AppShell', () => {
     expect(screen.queryByRole('link', { name: 'Buscar profesionales' })).not.toBeInTheDocument();
   });
 
+  it('al administrador le ofrece solo su panel, sin pedir turnos (ENG-240)', async () => {
+    renderShell(
+      { id: 'u3', email: 'admin@test.com', role: 'ADMINISTRADOR', firstName: null, lastName: null },
+      '/admin',
+    );
+    await screen.findByText('admin@test.com');
+
+    expect(screen.getByText('Administrador')).toBeVisible();
+    expect(menu().getByRole('link', { name: 'Panel' })).toHaveAttribute('href', '/admin');
+    expect(menu().queryByRole('link', { name: 'Mis turnos' })).not.toBeInTheDocument();
+    expect(menu().queryByRole('link', { name: 'Buscar profesionales' })).not.toBeInTheDocument();
+    // No atiende ni se atiende: no tiene turnos que pedir.
+    expect(
+      vi.mocked(globalThis.fetch).mock.calls.some(([u]) => String(u).includes('/appointments/me')),
+    ).toBe(false);
+  });
+
   it('al profesional le ofrece las suyas, que no son las mismas', async () => {
     renderShell(PROFESIONAL, '/profesional');
     await screen.findByText('Valeria Ocampo');

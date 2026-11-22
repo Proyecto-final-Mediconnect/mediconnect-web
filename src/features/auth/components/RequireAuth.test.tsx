@@ -77,6 +77,17 @@ describe('RequireAuth (ENG-44)', () => {
     expect(screen.queryByText('CONTENIDO PRIVADO')).not.toBeInTheDocument();
   });
 
+  it('el administrador entra a lo suyo y un paciente no (ENG-240)', async () => {
+    renderGuarded({ status: 200, body: { ...PACIENTE, role: 'ADMINISTRADOR' } }, ['ADMINISTRADOR']);
+    expect(await screen.findByText('CONTENIDO PRIVADO')).toBeInTheDocument();
+    cleanup();
+    vi.restoreAllMocks();
+
+    renderGuarded({ status: 200, body: PACIENTE }, ['ADMINISTRADOR']);
+    expect(await screen.findByText('DASHBOARD PACIENTE')).toBeInTheDocument();
+    expect(screen.queryByText('CONTENIDO PRIVADO')).not.toBeInTheDocument();
+  });
+
   it('con un rol que ya no existe (MODERADOR) no entra a la app: ofrece cerrar sesión', async () => {
     renderGuarded({ status: 200, body: { ...PACIENTE, role: 'MODERADOR' } });
 

@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from './features/auth/components/RequireAuth';
 import { VideoConsultationPreviewPage } from './dev/VideoConsultationPreviewPage';
+import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { AppointmentConfirmedPage } from './pages/AppointmentConfirmedPage';
 import { AppointmentDetailPage } from './pages/AppointmentDetailPage';
 import { BookAppointmentPage } from './pages/BookAppointmentPage';
@@ -89,6 +90,15 @@ function App() {
         element={
           <RequireAuth allow={['PROFESIONAL']}>
             <ProfessionalDashboardPage />
+          </RequireAuth>
+        }
+      />
+      {/* Panel del administrador (ENG-240): el equipo de MediConnect. */}
+      <Route
+        path="/admin"
+        element={
+          <RequireAuth allow={['ADMINISTRADOR']}>
+            <AdminDashboardPage />
           </RequireAuth>
         }
       />
