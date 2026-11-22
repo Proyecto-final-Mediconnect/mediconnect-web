@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import { RequireAuth } from './features/auth/components/RequireAuth';
 import { VideoConsultationPreviewPage } from './dev/VideoConsultationPreviewPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
+import { AdminLicensesPage } from './pages/AdminLicensesPage';
 import { AppointmentConfirmedPage } from './pages/AppointmentConfirmedPage';
 import { AppointmentDetailPage } from './pages/AppointmentDetailPage';
 import { BookAppointmentPage } from './pages/BookAppointmentPage';
@@ -99,6 +100,15 @@ function App() {
         element={
           <RequireAuth allow={['ADMINISTRADOR']}>
             <AdminDashboardPage />
+          </RequireAuth>
+        }
+      />
+      {/* Validar o rechazar matrículas (ENG-192). */}
+      <Route
+        path="/admin/matriculas"
+        element={
+          <RequireAuth allow={['ADMINISTRADOR']}>
+            <AdminLicensesPage />
           </RequireAuth>
         }
       />

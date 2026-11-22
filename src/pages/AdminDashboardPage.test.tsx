@@ -20,6 +20,9 @@ function renderPage(adminMe: () => Response) {
   vi.spyOn(globalThis, 'fetch').mockImplementation((input) => {
     const url = String(input);
     if (url.includes('/admin/me')) return Promise.resolve(adminMe());
+    if (url.includes('/admin/professionals/licenses')) {
+      return Promise.resolve(json([{ id: 'p1' }, { id: 'p2' }]));
+    }
     if (url.includes('/notifications/me')) {
       return Promise.resolve(json({ unreadCount: 0, notifications: [] }));
     }
@@ -49,6 +52,16 @@ describe('Panel del administrador', () => {
     expect(await screen.findByText(/Entraste como/)).toHaveTextContent(
       'Entraste como admin@test.com.',
     );
+  });
+
+  it('muestra cuántos profesionales esperan la validación, con el link (ENG-192)', async () => {
+    renderPage(() => json(ADMIN));
+
+    const link = await screen.findByRole('link', { name: /esperan la validación/ });
+    expect(link).toHaveAttribute('href', '/admin/matriculas');
+    expect(
+      await screen.findByText('2 profesionales esperan la validación de su matrícula.'),
+    ).toBeInTheDocument();
   });
 
   it('si el backend no lo deja entrar, lo dice y deja reintentar', async () => {

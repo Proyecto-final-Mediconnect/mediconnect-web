@@ -18,6 +18,7 @@ import {
   IconAgenda,
   IconBuscar,
   IconHistoria,
+  IconMatriculas,
   IconMensajes,
   IconMediPass,
   IconPacientes,
@@ -127,7 +128,10 @@ const NAV_PROFESIONAL: NavItem[][] = [
  * gestión de médicos (ENG-220).
  */
 const NAV_ADMINISTRADOR: NavItem[][] = [
-  [{ to: '/admin', label: 'Panel', end: true, Icon: IconPanel }],
+  [
+    { to: '/admin', label: 'Panel', end: true, Icon: IconPanel },
+    { to: '/admin/matriculas', label: 'Matrículas', Icon: IconMatriculas },
+  ],
 ];
 
 const NAV_POR_ROL: Record<string, NavItem[][]> = {
