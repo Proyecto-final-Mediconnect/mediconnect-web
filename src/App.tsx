@@ -3,6 +3,8 @@ import { RequireAuth } from './features/auth/components/RequireAuth';
 import { VideoConsultationPreviewPage } from './dev/VideoConsultationPreviewPage';
 import { AdminDashboardPage } from './pages/AdminDashboardPage';
 import { AdminLicensesPage } from './pages/AdminLicensesPage';
+import { AdminProfessionalDetailPage } from './pages/AdminProfessionalDetailPage';
+import { AdminProfessionalsPage } from './pages/AdminProfessionalsPage';
 import { AppointmentConfirmedPage } from './pages/AppointmentConfirmedPage';
 import { AppointmentDetailPage } from './pages/AppointmentDetailPage';
 import { BookAppointmentPage } from './pages/BookAppointmentPage';
@@ -100,6 +102,23 @@ function App() {
         element={
           <RequireAuth allow={['ADMINISTRADOR']}>
             <AdminDashboardPage />
+          </RequireAuth>
+        }
+      />
+      {/* Listado y detalle de profesionales; suspender y reactivar (ENG-241). */}
+      <Route
+        path="/admin/profesionales"
+        element={
+          <RequireAuth allow={['ADMINISTRADOR']}>
+            <AdminProfessionalsPage />
+          </RequireAuth>
+        }
+      />
+      <Route
+        path="/admin/profesionales/:professionalId"
+        element={
+          <RequireAuth allow={['ADMINISTRADOR']}>
+            <AdminProfessionalDetailPage />
           </RequireAuth>
         }
       />

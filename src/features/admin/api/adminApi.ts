@@ -1,5 +1,6 @@
 import { apiFetch } from '../../../shared/api/apiFetch';
 import { toApiError } from '../../../shared/api/apiError';
+import type { ProfessionalStats } from '../../activity/types';
 
 /** Quién administra, como lo devuelve `GET /admin/me` (ENG-240). */
 export interface AdminProfile {
@@ -70,4 +71,121 @@ export async function decideLicense(
     throw await toApiError(response, 'No pudimos guardar la decisión. Probá de nuevo.');
   }
   return (await response.json()) as { id: string; status: LicenseDecision };
+}
+
+/** Los estados de un profesional (ENG-241). */
+export type ProfessionalStatus =
+  | 'PENDIENTE_VALIDACION_MATRICULA'
+  | 'VALIDADO'
+  | 'RECHAZADO'
+  | 'SUSPENDIDO';
+
+/** Un profesional en el listado del administrador (ENG-241). */
+export interface AdminProfessionalRow {
+  id: string;
+  firstName: string;
+  lastName: string;
+  licenseNumber: string;
+  specialties: string[];
+  status: ProfessionalStatus;
+  registeredAt: string;
+  /** Los últimos 3 meses; la calificación es de todas sus reseñas publicadas. */
+  activity: { completed: number; incidents: number; rating: number | null; reviews: number };
+}
+
+export interface AdminProfessionalPage {
+  items: AdminProfessionalRow[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+/** El detalle de un profesional, con la actividad de "Mi actividad". */
+export interface AdminProfessionalDetail {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  licenseNumber: string;
+  specialties: string[];
+  status: ProfessionalStatus;
+  registeredAt: string;
+  consultationPrice: number | null;
+  currency: string;
+  stats: ProfessionalStats;
+}
+
+/** Lo que resolvería suspenderlo: turnos pagados a reembolsar e impagos a cancelar. */
+export interface SuspensionImpact {
+  paid: number;
+  unpaid: number;
+}
+
+export interface ProfessionalsFilter {
+  status?: ProfessionalStatus;
+  q?: string;
+  page?: number;
+}
+
+/** `GET /admin/professionals?status=&q=&page=` (ENG-241). */
+export async function getAdminProfessionals(
+  filter: ProfessionalsFilter,
+): Promise<AdminProfessionalPage> {
+  const params = new URLSearchParams();
+  if (filter.status) params.set('status', filter.status);
+  if (filter.q?.trim()) params.set('q', filter.q.trim());
+  if (filter.page && filter.page > 1) params.set('page', String(filter.page));
+  const query = params.toString();
+  const response = await apiFetch(`/admin/professionals${query ? `?${query}` : ''}`);
+  if (!response.ok) {
+    throw await toApiError(response, 'No pudimos cargar los profesionales.');
+  }
+  return (await response.json()) as AdminProfessionalPage;
+}
+
+/** `GET /admin/professionals/:id` (ENG-241). */
+export async function getAdminProfessional(id: string): Promise<AdminProfessionalDetail> {
+  const response = await apiFetch(`/admin/professionals/${encodeURIComponent(id)}`);
+  if (!response.ok) {
+    throw await toApiError(response, 'No pudimos cargar el profesional.');
+  }
+  return (await response.json()) as AdminProfessionalDetail;
+}
+
+/** `GET /admin/professionals/:id/suspension-preview` (ENG-241). */
+export async function getSuspensionPreview(id: string): Promise<SuspensionImpact> {
+  const response = await apiFetch(
+    `/admin/professionals/${encodeURIComponent(id)}/suspension-preview`,
+  );
+  if (!response.ok) {
+    throw await toApiError(response, 'No pudimos calcular qué turnos se verían afectados.');
+  }
+  return (await response.json()) as SuspensionImpact;
+}
+
+/** `PATCH /admin/professionals/:id/suspension` o `/reactivation` (ENG-241). */
+export async function changeAccountStatus(
+  id: string,
+  action: 'suspension' | 'reactivation',
+  reason: string,
+): Promise<{ id: string; status: ProfessionalStatus; refunded?: number; cancelled?: number }> {
+  const response = await apiFetch(`/admin/professionals/${encodeURIComponent(id)}/${action}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reason }),
+  });
+  if (!response.ok) {
+    throw await toApiError(
+      response,
+      action === 'suspension'
+        ? 'No pudimos suspender al profesional. Probá de nuevo.'
+        : 'No pudimos reactivar al profesional. Probá de nuevo.',
+    );
+  }
+  return (await response.json()) as {
+    id: string;
+    status: ProfessionalStatus;
+    refunded?: number;
+    cancelled?: number;
+  };
 }
