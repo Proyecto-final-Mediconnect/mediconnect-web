@@ -130,6 +130,7 @@ const NAV_PROFESIONAL: NavItem[][] = [
 const NAV_ADMINISTRADOR: NavItem[][] = [
   [
     { to: '/admin', label: 'Panel', end: true, Icon: IconPanel },
+    { to: '/admin/profesionales', label: 'Profesionales', Icon: IconPacientes },
     { to: '/admin/matriculas', label: 'Matrículas', Icon: IconMatriculas },
   ],
 ];
