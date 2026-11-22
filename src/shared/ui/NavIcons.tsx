@@ -171,3 +171,15 @@ export function IconPacientes(p: IconProps) {
     </Svg>
   );
 }
+
+/** Matrículas (ENG-192): una credencial con una tilde, la de la validación. */
+export function IconMatriculas(p: IconProps) {
+  return (
+    <Svg {...p}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <circle cx="8.5" cy="11" r="2" />
+      <path d="M5.5 16a3 3 0 0 1 6 0" />
+      <path d="m14 12 1.75 1.75L19 10.5" />
+    </Svg>
+  );
+}

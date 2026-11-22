@@ -1,4 +1,5 @@
-import { useAdminProfile } from '../features/admin/hooks/useAdmin';
+import { Link } from 'react-router-dom';
+import { useAdminProfile, useLicenseQueue } from '../features/admin/hooks/useAdmin';
 import { DashboardLayout } from './DashboardLayout';
 
 /**
@@ -12,6 +13,8 @@ import { DashboardLayout } from './DashboardLayout';
  */
 export function AdminDashboardPage() {
   const admin = useAdminProfile();
+  const pendientes = useLicenseQueue('PENDIENTE_VALIDACION_MATRICULA');
+  const cuantos = pendientes.data?.length ?? 0;
 
   return (
     <DashboardLayout
@@ -38,9 +41,33 @@ export function AdminDashboardPage() {
           </button>
         </div>
       ) : (
-        <p className="text-sm text-muted">
-          Entraste como <span className="font-semibold text-brand-deep">{admin.data.email}</span>.
-        </p>
+        <div className="grid gap-5">
+          <p className="text-sm text-muted">
+            Entraste como <span className="font-semibold text-brand-deep">{admin.data.email}</span>.
+          </p>
+          {/* Lo que espera una acción: un profesional pendiente no aparece en el
+              catálogo hasta que se valida su matrícula (ENG-192). */}
+          <Link
+            to="/admin/matriculas"
+            className="flex max-w-[520px] items-center justify-between gap-4 rounded-[14px] border border-line bg-white px-5 py-4 transition-colors hover:border-brand focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+          >
+            <span>
+              <span className="block text-[15px] font-bold text-brand-deep">Matrículas</span>
+              <span className="block text-sm text-muted">
+                {pendientes.isPending
+                  ? 'Cargando…'
+                  : cuantos === 0
+                    ? 'No hay profesionales esperando validación.'
+                    : cuantos === 1
+                      ? '1 profesional espera la validación de su matrícula.'
+                      : `${cuantos} profesionales esperan la validación de su matrícula.`}
+              </span>
+            </span>
+            <span aria-hidden="true" className="text-muted-soft">
+              ›
+            </span>
+          </Link>
+        </div>
       )}
     </DashboardLayout>
   );
