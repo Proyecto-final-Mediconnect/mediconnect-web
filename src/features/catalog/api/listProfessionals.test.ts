@@ -22,6 +22,7 @@ describe('buildCatalogQuery', () => {
     expect(query).not.toContain('specialtyId');
     expect(query).not.toContain('minPrice');
     expect(query).not.toContain('maxPrice');
+    expect(query).not.toContain('search');
   });
 
   it('incluye los filtros cargados', () => {
@@ -30,6 +31,7 @@ describe('buildCatalogQuery', () => {
         specialtyIds: ['33333333-3333-4333-8333-333333333333'],
         minPrice: '5000',
         maxPrice: '15000',
+        search: 'martín',
       },
       3,
     );
@@ -40,6 +42,7 @@ describe('buildCatalogQuery', () => {
       specialtyId: '33333333-3333-4333-8333-333333333333',
       minPrice: '5000',
       maxPrice: '15000',
+      search: 'martín',
     });
   });
 
@@ -55,6 +58,7 @@ describe('buildCatalogQuery', () => {
         ],
         minPrice: '',
         maxPrice: '',
+        search: '',
       },
       1,
     );
@@ -82,5 +86,12 @@ describe('buildCatalogQuery', () => {
     const query = buildCatalogQuery({ ...EMPTY_FILTERS, maxPrice: '   ' }, 1);
 
     expect(query).not.toContain('maxPrice');
+  });
+
+  it('manda la búsqueda recortada, y sin texto no la manda (ENG-233)', () => {
+    expect(params(buildCatalogQuery({ ...EMPTY_FILTERS, search: '  pediatría ' }, 1)).search).toBe(
+      'pediatría',
+    );
+    expect(buildCatalogQuery({ ...EMPTY_FILTERS, search: '   ' }, 1)).not.toContain('search');
   });
 });

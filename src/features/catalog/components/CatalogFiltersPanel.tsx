@@ -1,9 +1,4 @@
 import { useSpecialties } from '../hooks/useSpecialties';
-import {
-  EMPTY_LOCAL_FILTERS,
-  hasLocalFilters,
-  type LocalCatalogFilters,
-} from '../lib/localCatalogFilters';
 import { EMPTY_FILTERS, hasAnyFilter, type CatalogFilters } from '../types/catalog';
 
 type Props = {
@@ -11,13 +6,6 @@ type Props = {
   onChange: (filters: CatalogFilters) => void;
   /** Rango inválido detectado en el padre (ver lib/priceRange). */
   priceRangeError?: string;
-  /**
-   * Filtros que resuelve el cliente porque el backend no los soporta. Hoy es
-   * solo la búsqueda por texto, que vive en otro componente: llega acá para que
-   * "Limpiar" la cuente y la borre junto con el resto.
-   */
-  localFilters: LocalCatalogFilters;
-  onLocalChange: (filters: LocalCatalogFilters) => void;
 };
 
 /**
@@ -44,15 +32,11 @@ const SECTION_TITLE = 'text-[11px] font-semibold uppercase tracking-[0.12em] tex
 const PRICE_FIELD =
   'w-full rounded-[9px] border border-line-strong bg-white px-3 py-2.5 text-sm font-medium text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/25';
 
-export function CatalogFiltersPanel({
-  filters,
-  onChange,
-  priceRangeError,
-  localFilters,
-  onLocalChange,
-}: Props) {
+export function CatalogFiltersPanel({ filters, onChange, priceRangeError }: Props) {
   const { data: specialties, isError: specialtiesFailed } = useSpecialties();
-  const hasFilters = hasAnyFilter(filters) || hasLocalFilters(localFilters);
+  // Incluye la búsqueda por texto, que se escribe en otro componente: "Limpiar"
+  // la cuenta y la borra junto con el resto.
+  const hasFilters = hasAnyFilter(filters);
 
   const update = (patch: Partial<CatalogFilters>) => onChange({ ...filters, ...patch });
 
@@ -85,10 +69,7 @@ export function CatalogFiltersPanel({
         {hasFilters && (
           <button
             type="button"
-            onClick={() => {
-              onChange(EMPTY_FILTERS);
-              onLocalChange(EMPTY_LOCAL_FILTERS);
-            }}
+            onClick={() => onChange(EMPTY_FILTERS)}
             className="text-[13px] font-semibold text-brand-hover underline-offset-2 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
           >
             Limpiar

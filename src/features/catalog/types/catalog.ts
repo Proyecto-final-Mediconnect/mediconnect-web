@@ -87,15 +87,26 @@ export type CatalogFilters = {
   specialtyIds: string[];
   minPrice: string;
   maxPrice: string;
+  /**
+   * Texto libre: nombre, apellido o especialidad. Lo resuelve el backend
+   * (`search`, ENG-233) sobre el catálogo entero, sin mayúsculas ni tildes.
+   */
+  search: string;
 };
 
 export const EMPTY_FILTERS: CatalogFilters = {
   specialtyIds: [],
   minPrice: '',
   maxPrice: '',
+  search: '',
 };
 
 /** `true` si hay al menos un filtro puesto. */
 export function hasAnyFilter(filters: CatalogFilters): boolean {
-  return filters.specialtyIds.length > 0 || filters.minPrice !== '' || filters.maxPrice !== '';
+  return (
+    filters.specialtyIds.length > 0 ||
+    filters.minPrice !== '' ||
+    filters.maxPrice !== '' ||
+    filters.search.trim() !== ''
+  );
 }

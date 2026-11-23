@@ -23,6 +23,7 @@ export function buildCatalogQuery(filters: CatalogFilters, page: number): string
   }
   if (filters.minPrice.trim()) params.set('minPrice', filters.minPrice.trim());
   if (filters.maxPrice.trim()) params.set('maxPrice', filters.maxPrice.trim());
+  if (filters.search.trim()) params.set('search', filters.search.trim());
 
   return params.toString();
 }

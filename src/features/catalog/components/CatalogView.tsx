@@ -3,12 +3,6 @@ import { CatalogFiltersPanel } from './CatalogFiltersPanel';
 import { CatalogSearchBox } from './CatalogSearchBox';
 import { ProfessionalsList } from './ProfessionalsList';
 import { useProfessionalsCatalog } from '../hooks/useProfessionalsCatalog';
-import {
-  applyLocalFilters,
-  EMPTY_LOCAL_FILTERS,
-  hasLocalFilters,
-  type LocalCatalogFilters,
-} from '../lib/localCatalogFilters';
 import { validatePriceRange } from '../lib/priceRange';
 import { EMPTY_FILTERS, hasAnyFilter, type CatalogFilters } from '../types/catalog';
 import { useDebouncedValue } from '../../../shared/hooks/useDebouncedValue';
@@ -36,7 +30,7 @@ export function CatalogView({ basePath }: CatalogViewProps) {
   const [filters, setFilters] = useState<CatalogFilters>(EMPTY_FILTERS);
   const priceRangeError = validatePriceRange(filters);
 
-  // Debounce sobre los inputs de precio; con un rango inválido no se pide nada
+  // Debounce sobre el buscador y los inputs de precio; con un rango inválido no se pide nada
   // nuevo y sigue en pantalla el último resultado válido. Ojo: NO se cae a
   // EMPTY_FILTERS, porque eso mostraría el catálogo entero (sin siquiera la
   // especialidad elegida) apenas se tipea el primer dígito del precio máximo.
@@ -50,15 +44,7 @@ export function CatalogView({ basePath }: CatalogViewProps) {
     setAppliedFilters(debouncedFilters);
   }
 
-  // Búsqueda por texto: el backend no la soporta, así que se resuelve sobre lo
-  // ya cargado (ver localCatalogFilters).
-  const [localFilters, setLocalFilters] = useState<LocalCatalogFilters>(EMPTY_LOCAL_FILTERS);
-
   const catalog = useProfessionalsCatalog(appliedFilters);
-  const visible = applyLocalFilters(catalog.professionals, localFilters);
-  const localActive = hasLocalFilters(localFilters);
-
-  const hasFilters = hasAnyFilter(appliedFilters) || localActive;
 
   return (
     <>
@@ -70,22 +56,18 @@ export function CatalogView({ basePath }: CatalogViewProps) {
           filters={filters}
           onChange={setFilters}
           priceRangeError={priceRangeError}
-          localFilters={localFilters}
-          onLocalChange={setLocalFilters}
         />
 
         <div className="grid gap-4">
           <CatalogSearchBox
-            value={localFilters.query}
-            onChange={(query) => setLocalFilters({ ...localFilters, query })}
+            value={filters.search}
+            onChange={(search) => setFilters({ ...filters, search })}
           />
 
           <ProfessionalsList
             basePath={basePath}
-            professionals={visible}
-            // Con un filtro local activo, el total del backend ya no describe
-            // lo que se ve en pantalla.
-            total={localActive ? visible.length : catalog.total}
+            professionals={catalog.professionals}
+            total={catalog.total}
             isLoading={catalog.isLoading}
             isFiltering={catalog.isFiltering}
             isError={catalog.isError}
@@ -94,7 +76,8 @@ export function CatalogView({ basePath }: CatalogViewProps) {
             hasNextPage={catalog.hasNextPage}
             isFetchingNextPage={catalog.isFetchingNextPage}
             onLoadMore={() => void catalog.fetchNextPage()}
-            hasFilters={hasFilters}
+            hasFilters={hasAnyFilter(appliedFilters)}
+            search={appliedFilters.search.trim()}
           />
         </div>
       </div>

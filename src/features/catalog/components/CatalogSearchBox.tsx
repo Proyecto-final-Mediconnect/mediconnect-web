@@ -3,14 +3,16 @@ type Props = {
   onChange: (value: string) => void;
 };
 
+/** Largo máximo que acepta el backend en `search`: más largo respondería 400. */
+const MAX_SEARCH_LENGTH = 80;
+
 /**
  * Buscador por texto del catálogo.
  *
- * Filtra **sobre los resultados ya cargados**, no contra el catálogo entero: el
- * endpoint no acepta un parámetro de búsqueda todavía (ver
- * `lib/localCatalogFilters`). Por eso no hay botón "Buscar" como en el canvas —
- * sería un botón que no dispara nada, porque el filtrado es inmediato mientras
- * se escribe.
+ * Busca en el catálogo entero: el texto viaja al backend como `search`
+ * (ENG-233), con el mismo debounce que los filtros de precio. Por eso no hay
+ * botón "Buscar" como en el canvas: la búsqueda sale sola cuando se deja de
+ * escribir.
  *
  * El `<form>` con `onSubmit` que no hace nada más que evitar el reload existe
  * para que Enter no rompa la página: en un campo de búsqueda es el gesto que
@@ -32,6 +34,7 @@ export function CatalogSearchBox({ value, onChange }: Props) {
           id="catalogo-busqueda"
           type="search"
           value={value}
+          maxLength={MAX_SEARCH_LENGTH}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Especialidad o nombre del profesional"
           className="min-w-[240px] flex-1 rounded-[10px] border border-line-strong px-4 py-3.5 text-[15px] font-medium text-ink outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/25"

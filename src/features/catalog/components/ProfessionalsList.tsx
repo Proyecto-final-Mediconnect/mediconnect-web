@@ -18,6 +18,8 @@ type Props = {
   onLoadMore: () => void;
   /** Hay algún filtro aplicado: cambia el mensaje del estado vacío. */
   hasFilters: boolean;
+  /** El texto buscado, ya recortado. Vacío = sin búsqueda. */
+  search: string;
 };
 
 export function ProfessionalsList({
@@ -33,6 +35,7 @@ export function ProfessionalsList({
   isFetchingNextPage,
   onLoadMore,
   hasFilters,
+  search,
 }: Props) {
   const sentinelRef = useInfiniteScrollSentinel({
     hasNextPage,
@@ -64,7 +67,9 @@ export function ProfessionalsList({
       <div className="rounded-[14px] border border-dashed border-line-strong bg-white p-10 text-center">
         <p className="text-lg font-semibold text-brand-deep">No encontramos profesionales</p>
         <p className="mt-2 text-muted">
-          {hasFilters
+          {search
+            ? `No hay resultados para “${search}”. Revisá cómo está escrito o probá con otra especialidad.`
+            : hasFilters
             ? 'Ningún profesional coincide con los filtros que aplicaste. Probá ampliar el rango de precio o elegir otra especialidad.'
             : 'Todavía no hay profesionales verificados en el catálogo. Volvé a intentarlo más tarde.'}
         </p>
