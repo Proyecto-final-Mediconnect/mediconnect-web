@@ -3,6 +3,7 @@ import { render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { vi } from 'vitest';
+import { withDeadlines } from './withDeadlines';
 
 export const PATIENT_ID = '11111111-1111-4111-8111-111111111111';
 export const PRO_ID = '22222222-2222-4222-8222-222222222222';
@@ -79,6 +80,22 @@ export function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: { 'Content-Type': 'application/json' },
   });
+}
+
+/**
+ * Completa los plazos de los turnos de una respuesta (ENG-229) como lo hace el
+ * backend: los datos de arriba son los de la base, y la API los devuelve con
+ * `paymentDueAt`, `joinOpensAt`… Lo que un test ya trae no se pisa.
+ */
+export async function withAppointmentDeadlines(response: Response): Promise<Response> {
+  if (!response.ok) return response;
+  const body = (await response.json()) as unknown;
+  return jsonResponse(
+    Array.isArray(body)
+      ? body.map((a) => withDeadlines(a as Parameters<typeof withDeadlines>[0]))
+      : body,
+    response.status,
+  );
 }
 
 export interface ApiHandlers {
@@ -165,7 +182,7 @@ export function mockApi(handlers: ApiHandlers = {}) {
       return Promise.resolve(handlers.reviews?.() ?? jsonResponse([]));
     }
     if (url.includes('/appointments/me')) {
-      return Promise.resolve(handlers.mine?.() ?? jsonResponse([PAST, UPCOMING]));
+      return withAppointmentDeadlines(handlers.mine?.() ?? jsonResponse([PAST, UPCOMING]));
     }
     if (url.includes('/me')) {
       return Promise.resolve(handlers.session?.() ?? jsonResponse(PATIENT_SESSION));

@@ -7,10 +7,8 @@ import {
   useRescheduleAppointment,
 } from '../hooks/useAppointments';
 import { relevantWithProfessional, statusLabel } from '../lib/myAppointments';
-import { cuando } from '../lib/timeline';
+import { cuando, horaAR } from '../lib/timeline';
 import {
-  BOOKING_HORIZON_DAYS,
-  MAX_PAGE,
   daysOfPage,
   firstAvailableIndex,
   formatDate,
@@ -18,8 +16,10 @@ import {
   formatRange,
   horizonRange,
   indexOfDate,
+  lastPageFor,
   pageOfIndex,
 } from '../lib/weeks';
+import { usePublicConfig } from '../../../shared/config/publicConfig';
 import { DateJumper } from './DateJumper';
 import type { Appointment, AvailabilitySlot } from '../types/appointment';
 import { PASO_HORARIO, PASO_LISTO, PASO_REVISION } from '../lib/bookingSteps';
@@ -69,11 +69,17 @@ export function BookAppointment({ professionalId, rescheduleId }: BookAppointmen
   const [selected, setSelected] = useState<SelectedSlot | null>(null);
   const [booked, setBooked] = useState<Appointment | null>(null);
 
-  // Los 28 días de una sola vez. Paginar en el cliente hace que las flechas sean
-  // instantáneas y, sobre todo, permite saber en qué página está el primer día
-  // con lugar antes de que el paciente la abra.
-  const { from, to } = useMemo(() => horizonRange(), []);
-  const availability = useAvailability(professionalId, from, to);
+  // Todo el horizonte de una sola vez. Paginar en el cliente hace que las flechas
+  // sean instantáneas y, sobre todo, permite saber en qué página está el primer
+  // día con lugar antes de que el paciente la abra. El horizonte lo informa el
+  // backend (ENG-229): hasta tenerlo, la disponibilidad espera.
+  const config = usePublicConfig();
+  const horizonDays = config?.booking.horizonDays;
+  const { from, to } = useMemo(
+    () => (horizonDays === undefined ? { from: '', to: '' } : horizonRange(horizonDays)),
+    [horizonDays],
+  );
+  const availability = useAvailability(professionalId, from, to, horizonDays !== undefined);
 
   const todosLosDias = useMemo(() => availability.data?.days ?? [], [availability.data]);
 
@@ -236,6 +242,7 @@ export function BookAppointment({ professionalId, rescheduleId }: BookAppointmen
   }
 
   const diasVisibles = daysOfPage(todosLosDias, page);
+  const lastPage = lastPageFor(todosLosDias.length);
   const fechas = todosLosDias.map((d) => d.date);
 
   /**
@@ -309,12 +316,12 @@ export function BookAppointment({ professionalId, rescheduleId }: BookAppointmen
             setDiaAbierto(null);
           }}
           canGoBack={page > 0}
-          canGoForward={page < MAX_PAGE}
+          canGoForward={page < lastPage}
         />
 
-        {page >= MAX_PAGE && (
+        {page >= lastPage && horizonDays !== undefined && (
           <p className="text-xs text-muted">
-            La agenda se publica hasta {BOOKING_HORIZON_DAYS} días adelante.
+            La agenda se publica hasta {horizonDays} días adelante.
           </p>
         )}
 
@@ -362,7 +369,8 @@ function PanelRevision({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
-  const currency = rescheduling?.currency ?? professional?.currency ?? 'ARS';
+  const platformCurrency = usePublicConfig()?.currency;
+  const currency = rescheduling?.currency ?? professional?.currency ?? platformCurrency ?? '';
   const fullName = professional ? `${professional.firstName} ${professional.lastName}` : '—';
   // Al reprogramar, el precio es el que quedó congelado en el turno, no el
   // vigente del profesional: no se vuelve a cobrar.
@@ -415,7 +423,11 @@ function PanelRevision({
             Es el <strong className="font-bold">mismo turno</strong> en otro horario:{' '}
             {pagado
               ? 'ya está pagado y no se vuelve a cobrar, con el mismo precio.'
-              : 'lo seguís pagando con el mismo plazo de 15 minutos desde que lo reservaste.'}{' '}
+              : `lo seguís pagando con el mismo plazo${
+                  rescheduling.paymentDueAt
+                    ? `: tenés hasta las ${horaAR(rescheduling.paymentDueAt)}`
+                    : ''
+                }.`}{' '}
             Un turno se puede reprogramar una sola vez.
           </p>
         ) : (

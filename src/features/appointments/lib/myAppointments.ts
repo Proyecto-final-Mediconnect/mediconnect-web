@@ -134,20 +134,11 @@ export function canCancelAsProfessional(
   );
 }
 
-/** Horas después del final del turno en que el profesional todavía lo puede
- *  cerrar a mano. Espeja `MANUAL_CLOSE_HOURS_AFTER` del backend (ENG-189). */
-export const MANUAL_CLOSE_HOURS_AFTER = 24;
-
-/**
- * Si el profesional puede marcar que el paciente no se presentó (ENG-189):
- * turno confirmado, desde la hora del turno hasta 24 h después del final.
- * Decide si se dibuja el botón; el backend revalida lo mismo.
- */
 /**
  * Si el profesional puede informar que una consulta completada no se pudo hacer
- * por una falla técnica (ENG-237, caso 13): es suya, está completada y no
- * pasaron más de {@link MANUAL_CLOSE_HOURS_AFTER} horas del final. El backend
- * revalida lo mismo.
+ * por una falla técnica (ENG-237, caso 13): es suya, está completada y no pasó
+ * el plazo para cerrarla a mano (`manualCloseUntil`, que calcula el backend).
+ * El backend revalida lo mismo.
  */
 export function canReportTechnicalFailure(
   appointment: Appointment,
@@ -156,10 +147,14 @@ export function canReportTechnicalFailure(
 ): boolean {
   if (userId === null || appointment.professional?.id !== userId) return false;
   if (appointment.status !== 'COMPLETADO') return false;
-  const end = new Date(appointment.scheduledAt).getTime() + appointment.durationMinutes * 60_000;
-  return now.getTime() <= end + MANUAL_CLOSE_HOURS_AFTER * 3_600_000;
+  return now.getTime() <= new Date(appointment.manualCloseUntil).getTime();
 }
 
+/**
+ * Si el profesional puede marcar que el paciente no se presentó (ENG-189):
+ * turno confirmado, desde la hora del turno hasta `manualCloseUntil`. Decide si
+ * se dibuja el botón; el backend revalida lo mismo.
+ */
 export function canMarkNoShow(
   appointment: Appointment,
   userId: string | null,
@@ -168,8 +163,9 @@ export function canMarkNoShow(
   if (userId === null || appointment.professional?.id !== userId) return false;
   if (appointment.status !== 'CONFIRMADO') return false;
   const start = new Date(appointment.scheduledAt).getTime();
-  const until = start + appointment.durationMinutes * 60_000 + MANUAL_CLOSE_HOURS_AFTER * 3_600_000;
-  return now.getTime() >= start && now.getTime() <= until;
+  return (
+    now.getTime() >= start && now.getTime() <= new Date(appointment.manualCloseUntil).getTime()
+  );
 }
 
 /**

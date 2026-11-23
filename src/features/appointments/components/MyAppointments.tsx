@@ -194,7 +194,6 @@ export function MyAppointments() {
 
       <CancelAppointmentDialog
         appointment={toCancel}
-        now={now}
         onClose={() => setToCancel(null)}
         onCancelled={setRefundOutcome}
       />

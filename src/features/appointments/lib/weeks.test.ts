@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { TEST_PUBLIC_CONFIG } from '../../../shared/config/testPublicConfig';
 import {
-  BOOKING_HORIZON_DAYS,
-  BOOKING_PAGES,
-  MAX_PAGE,
   PAGE_DAYS,
   daysOfPage,
   firstAvailableIndex,
@@ -15,8 +13,12 @@ import {
   todayAR,
   indexOfDate,
   monthsInWindow,
+  lastPageFor,
   pageOfIndex,
 } from './weeks';
+
+/** El horizonte que informa hoy el backend (`GET /config`). */
+const HORIZON = TEST_PUBLIC_CONFIG.booking.horizonDays;
 
 /** Día con la forma mínima que mira `firstAvailableIndex`. */
 const dia = (...estados: string[]) => ({ slots: estados.map((status) => ({ status })) });
@@ -25,31 +27,32 @@ describe('horizonRange', () => {
   it('arranca HOY, no el lunes de la semana en curso', () => {
     // El bug que motivó el cambio: un sábado, cinco de las siete tarjetas eran
     // días que ya habían pasado.
-    expect(horizonRange('2026-08-22')).toEqual({
+    expect(horizonRange(HORIZON, '2026-08-22')).toEqual({
       from: '2026-08-22',
       to: '2026-10-20',
     });
   });
 
-  it('cubre exactamente el horizonte que publica el backend', () => {
-    const { from, to } = horizonRange('2026-08-19');
+  it('cubre exactamente el horizonte que informa el backend', () => {
+    const { from, to } = horizonRange(HORIZON, '2026-08-19');
     const dias = (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000 + 1;
 
-    expect(dias).toBe(BOOKING_HORIZON_DAYS);
+    expect(dias).toBe(HORIZON);
   });
 
-  /**
-   * El backend publica 60 días y su tope por consulta es 62 (`MAX_RANGE_DAYS`),
-   * justamente para que la pantalla pueda pedir el horizonte entero de una vez.
-   * Si el horizonte creciera sin mover el tope, esa consulta sería un 400 — este
-   * test fija el número de este lado para que la desincronización se note acá.
-   */
-  it('el horizonte son dos meses y se pagina de a siete días', () => {
-    expect(BOOKING_HORIZON_DAYS).toBe(60);
+  it('con otro horizonte, otro rango: no hay un número fijo de este lado', () => {
+    expect(horizonRange(14, '2026-08-19')).toEqual({ from: '2026-08-19', to: '2026-09-01' });
+  });
+});
+
+describe('lastPageFor', () => {
+  it('se pagina de a siete días y la última página corta también cuenta', () => {
     // 60 no es múltiplo de 7: la última página queda con 4 días, y tiene que
     // existir igual o esos días serían inalcanzables.
-    expect(BOOKING_PAGES).toBe(9);
-    expect(MAX_PAGE).toBe(8);
+    expect(lastPageFor(60)).toBe(8);
+    expect(lastPageFor(56)).toBe(7);
+    expect(lastPageFor(1)).toBe(0);
+    expect(lastPageFor(0)).toBe(0);
   });
 });
 
@@ -68,7 +71,7 @@ describe('daysOfPage', () => {
   /** 60 días no dan nueve páginas completas: la última tiene cuatro. Se devuelve
    *  corta en vez de rellenar, y la grilla dibuja las tarjetas que hay. */
   it('la última página queda corta y no se rellena', () => {
-    expect(daysOfPage(todos, MAX_PAGE)).toHaveLength(4);
+    expect(daysOfPage(todos, lastPageFor(todos.length))).toHaveLength(4);
   });
 });
 

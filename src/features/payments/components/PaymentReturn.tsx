@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import type { Appointment } from '../../appointments/types/appointment';
+import { horaAR } from '../../appointments/lib/timeline';
 import { usePaymentStatus } from '../hooks/usePayment';
 import { paymentOutcomeOf } from '../lib/checkout';
 import type { CheckoutResult } from '../types/payment';
@@ -112,7 +113,11 @@ export function PaymentReturn({
       </h2>
       <p className="mt-2.5 text-sm leading-[1.6] text-muted">
         {resultado === 'pendiente'
-          ? 'Pasa cuando MercadoPago deja la tarjeta en revisión. El turno queda confirmado solo cuando nos avise que se acreditó, y tenés 15 minutos desde que lo reservaste antes de que el horario se libere.'
+          ? `Pasa cuando MercadoPago deja la tarjeta en revisión. El turno queda confirmado solo cuando nos avise que se acreditó${
+              appointment.paymentDueAt
+                ? `, y tiene que acreditarse antes de las ${horaAR(appointment.paymentDueAt)}: después el horario se libera.`
+                : '.'
+            }`
           : 'Volviste de MercadoPago y en unos segundos nos llega el aviso del pago. No cierres esta pantalla.'}
       </p>
 

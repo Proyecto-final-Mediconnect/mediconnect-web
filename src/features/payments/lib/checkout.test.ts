@@ -1,3 +1,4 @@
+import { withDeadlines } from '../../appointments/testing/withDeadlines';
 import { describe, expect, it } from 'vitest';
 import {
   amountLinesFor,
@@ -14,7 +15,7 @@ import type { PaymentStatusView } from '../types/payment';
 const AHORA = new Date('2026-09-03T12:00:00Z');
 
 function turno(overrides: Partial<Appointment> = {}): Appointment {
-  return {
+  return withDeadlines({
     id: 'a1',
     scheduledAt: '2026-09-10T12:00:00Z',
     date: '2026-09-10',
@@ -26,7 +27,7 @@ function turno(overrides: Partial<Appointment> = {}): Appointment {
     professional: null,
     patient: null,
     ...overrides,
-  };
+  });
 }
 
 describe('payabilityOf', () => {

@@ -4,17 +4,14 @@ import { Link } from 'react-router-dom';
 import { useNow } from '../../../shared/hooks/useNow';
 import { IconHistoria, IconTurnos } from '../../../shared/ui/NavIcons';
 import { useSession } from '../../auth/hooks/useSession';
-import {
-  describePolicy,
-  MAX_REFUND_PERCENT,
-  refundPercentFor,
-} from '../../cancellation-policy/lib/policy';
+import { describePolicy } from '../../cancellation-policy/lib/policy';
 import { usePublicProfile } from '../../catalog/hooks/usePublicProfile';
 import { getPaymentStatus } from '../../payments/api/paymentsApi';
 import { PaymentReceipt } from '../../payments/components/PaymentReceipt';
 import { canPay } from '../../payments/lib/checkout';
 import { DeviceCheck } from '../../video/components/DeviceCheck';
 import { joinStateOf, timeUntilOpen } from '../../video/lib/joinWindow';
+import { getCancellationQuote } from '../api/appointmentsApi';
 import { useMyAppointments } from '../hooks/useAppointments';
 import {
   awaitsPatientChoice,
@@ -98,6 +95,21 @@ export function AppointmentDetail({
       ? (appointment.professional?.id ?? '')
       : '',
   ).data?.cancellationPolicy;
+  // Cuánto vuelve si cancela hoy un turno pagado: lo calcula el backend con la
+  // política congelada en el turno (ENG-65); la web no repite la cuenta (ENG-229).
+  const quote = useQuery({
+    queryKey: ['appointments', appointment?.id, 'cancellation-quote'],
+    queryFn: () => getCancellationQuote(appointment!.id),
+    enabled:
+      appointment != null &&
+      appointment.status === 'CONFIRMADO' &&
+      isPatient &&
+      canCancel(appointment, userId, now),
+    retry: false,
+    // Depende de la hora: con el tiempo el porcentaje baja.
+    staleTime: 0,
+    gcTime: 0,
+  });
 
   if (appointments.isPending) {
     return (
@@ -151,12 +163,12 @@ export function AppointmentDetail({
     : 'Tu profesional';
   const reschedulable = cancellable && !appointment.rescheduledAt && appointment.professional;
   // Un turno pagado sólo se reprograma con la anticipación del reembolso total
-  // (el backend lo rechaza si no). Se adelanta el aviso con la política del
-  // perfil público; el backend sigue siendo la fuente de verdad (ENG-66).
+  // (ENG-66). Hasta cuándo lo dice el turno (`fullRefundUntil`, ENG-229), con la
+  // política congelada al reservar; el backend lo revalida igual.
   const reprogramacionCerrada =
     appointment.status === 'CONFIRMADO' &&
-    policy !== undefined &&
-    refundPercentFor(policy, new Date(appointment.scheduledAt), now) < MAX_REFUND_PERCENT;
+    appointment.fullRefundUntil !== null &&
+    now.getTime() > new Date(appointment.fullRefundUntil).getTime();
   const professionalId = appointment.professional?.id;
   // Un turno a reprogramar no se "vuelve a reservar": se resuelve desde el aviso.
   const rebookable = isPatient && !isActive(appointment) && !choosing && Boolean(professionalId);
@@ -168,10 +180,7 @@ export function AppointmentDetail({
     proCancellable ||
     (!isPatient && !!person);
   // Lo que importa al cancelar es cuánto vuelve hoy; solo si ya se pagó.
-  const pctHoy =
-    appointment.status === 'CONFIRMADO' && policy
-      ? refundPercentFor(policy, new Date(appointment.scheduledAt), now)
-      : null;
+  const pctHoy = quote.data?.percent ?? null;
   const devolucionAhora =
     pctHoy === null
       ? null
@@ -385,13 +394,14 @@ export function AppointmentDetail({
                     to={`/profesionales/${professionalId}/turnos?reprogramar=${appointment.id}`}
                   />
                 )}
-                {reschedulable && reprogramacionCerrada && policy && (
+                {reschedulable && reprogramacionCerrada && (
                   <li className="flex items-center gap-3 px-6 py-3.5">
                     <Burbuja>
                       <IconTurnos />
                     </Burbuja>
                     <p className="text-[13px] leading-normal text-muted">
-                      Con menos de {policy.hoursFullRefund} horas ya no se puede reprogramar.
+                      Se podía reprogramar hasta el {cuando(appointment.fullRefundUntil)}: ya no se
+                      puede.
                     </p>
                   </li>
                 )}
@@ -471,7 +481,6 @@ export function AppointmentDetail({
 
       <CancelAppointmentDialog
         appointment={toCancel}
-        now={now}
         onClose={() => setToCancel(null)}
         onCancelled={setRefundOutcome}
       />

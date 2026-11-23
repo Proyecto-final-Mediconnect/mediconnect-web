@@ -27,21 +27,20 @@ import { addDays, weekdayOf } from '../../schedule/lib/generateSlots';
  * exactamente el horizonte del backend, sin desperdiciar ninguno.
  */
 
-/**
- * Días que publica el backend, contando hoy. Espeja `BOOKING_HORIZON_DAYS` de
- * `appointments.service.ts`; si cambia una, tiene que cambiar la otra.
- */
-export const BOOKING_HORIZON_DAYS = 60;
-
 /** Cuántos días muestra una página del calendario. */
 export const PAGE_DAYS = 7;
 
-/** Con 60 días la última página queda corta (60 = 8×7 + 4). Se redondea para
- *  arriba: esos cuatro días también son reservables y tienen que ser
- *  alcanzables. `daysOfPage` devuelve lo que haya, sin rellenar. */
-export const BOOKING_PAGES = Math.ceil(BOOKING_HORIZON_DAYS / PAGE_DAYS);
-
-export const MAX_PAGE = BOOKING_PAGES - 1;
+/**
+ * La última página para `dayCount` días. Con 60 días la última queda corta
+ * (60 = 8×7 + 4): se redondea para arriba, porque esos cuatro días también son
+ * reservables. `daysOfPage` devuelve lo que haya, sin rellenar.
+ *
+ * Se cuenta sobre los días que devolvió el backend, no sobre una constante: el
+ * horizonte lo decide él (ENG-229).
+ */
+export function lastPageFor(dayCount: number): number {
+  return Math.max(0, Math.ceil(dayCount / PAGE_DAYS) - 1);
+}
 
 export interface DateRange {
   /** `YYYY-MM-DD`. */
@@ -59,14 +58,12 @@ export interface DateRange {
  * con lugar sin haberla pedido antes. Con los 60 días en memoria, saltar al
  * primer día disponible es mirar un array.
  *
- * Entra en una sola consulta: el backend publica 60 días (`BOOKING_HORIZON_DAYS`)
- * y acepta hasta 62 por consulta (`MAX_RANGE_DAYS`, definido como el horizonte
- * más dos justamente para que esto entre), así que `to` cae en el último día
- * publicado. El test `'el horizonte son dos meses…'` fija los números de este
- * lado para que la desincronización se note acá y no con un 400 en producción.
+ * Entra en una sola consulta: `horizonDays` es el horizonte que informa el
+ * backend (`GET /config`, ENG-229), que acepta hasta el horizonte más dos días
+ * por consulta (`MAX_RANGE_DAYS`), así que `to` cae en el último día publicado.
  */
-export function horizonRange(today = todayAR()): DateRange {
-  return { from: today, to: addDays(today, BOOKING_HORIZON_DAYS - 1) };
+export function horizonRange(horizonDays: number, today = todayAR()): DateRange {
+  return { from: today, to: addDays(today, horizonDays - 1) };
 }
 
 /**

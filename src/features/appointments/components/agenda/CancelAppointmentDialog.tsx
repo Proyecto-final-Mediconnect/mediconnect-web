@@ -13,12 +13,10 @@ import { ConfirmDialog } from '../../../../shared/ui/ConfirmDialog';
  */
 export function CancelAppointmentDialog({
   appointment,
-  now,
   onClose,
   onCancelled,
 }: {
   appointment: Appointment | null;
-  now: Date;
   onClose: () => void;
   onCancelled: (refundOutcome: string | null) => void;
 }) {
@@ -62,10 +60,7 @@ export function CancelAppointmentDialog({
             <RefundEstimate
               appointmentId={appointment.id}
               professionalId={appointment.professional.id}
-              scheduledAt={appointment.scheduledAt}
-              price={appointment.price}
               currency={appointment.currency}
-              now={now}
               className="mt-3 text-ink"
             />
           )}

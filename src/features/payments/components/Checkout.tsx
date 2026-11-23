@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { counterpartOf, formatLongDate } from '../../appointments/lib/myAppointments';
 import { formatPrice } from '../../appointments/lib/weeks';
 import type { Appointment } from '../../appointments/types/appointment';
+import { horaAR } from '../../appointments/lib/timeline';
 import { useSession } from '../../auth/hooks/useSession';
 import { useStartCheckout } from '../hooks/usePayment';
 import { amountLinesFor, PAYMENT_METHODS, payabilityOf } from '../lib/checkout';
@@ -298,10 +299,17 @@ export function Checkout({
           </Link>
 
           <p className="text-xs leading-[1.6] text-muted-soft">
-            Tenés <strong className="font-semibold">15 minutos</strong> desde que reservaste para
-            pagarlo: después el horario se libera y vuelve a estar disponible para otra persona. Vas
-            a poder cancelarlo desde “Mis turnos”. El plazo y el reembolso los define cada
-            profesional.
+            {appointment.paymentDueAt ? (
+              <>
+                Tenés hasta las{' '}
+                <strong className="font-semibold">{horaAR(appointment.paymentDueAt)}</strong> para
+                pagarlo
+              </>
+            ) : (
+              'Tenés un plazo corto para pagarlo'
+            )}
+            : después el horario se libera y vuelve a estar disponible para otra persona. Vas a
+            poder cancelarlo desde “Mis turnos”. El reembolso lo define cada profesional.
           </p>
         </div>
       </aside>

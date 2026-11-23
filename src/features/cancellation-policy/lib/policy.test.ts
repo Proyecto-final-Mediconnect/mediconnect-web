@@ -1,28 +1,21 @@
 import { describe, expect, it } from 'vitest';
-import {
-  describePolicy,
-  refundOutcomeText,
-  refundPercentFor,
-  refundQuoteText,
-  validatePolicy,
-} from './policy';
+import { TEST_PUBLIC_CONFIG } from '../../../shared/config/testPublicConfig';
+import { describePolicy, refundOutcomeText, refundQuoteText, validatePolicy } from './policy';
+
+/** Los límites que informa hoy el backend (`GET /config`). */
+const LIMITS = TEST_PUBLIC_CONFIG.cancellationPolicy;
 
 const DEFAULT = { hoursFullRefund: 24, hoursPartialRefund: 6, partialRefundPercent: 50 };
-const NOW = new Date('2026-10-22T12:00:00.000Z');
-
-function enHoras(h: number): Date {
-  return new Date(NOW.getTime() + h * 3_600_000);
-}
 
 describe('validatePolicy', () => {
   it('acepta la política por defecto', () => {
-    expect(validatePolicy(DEFAULT)).toBeNull();
+    expect(validatePolicy(DEFAULT, LIMITS)).toBeNull();
   });
 
   it('rechaza una ventana parcial más lejana que la total', () => {
-    expect(validatePolicy({ ...DEFAULT, hoursFullRefund: 6, hoursPartialRefund: 24 })).toMatch(
-      /más anticipación/,
-    );
+    expect(
+      validatePolicy({ ...DEFAULT, hoursFullRefund: 6, hoursPartialRefund: 24 }, LIMITS),
+    ).toMatch(/más anticipación/);
   });
 
   it.each([
@@ -33,20 +26,7 @@ describe('validatePolicy', () => {
     [{ ...DEFAULT, hoursFullRefund: 1.5 }, /entero/],
     [{ ...DEFAULT, hoursFullRefund: Number.NaN }, /entero/],
   ])('rechaza %o', (policy, mensaje) => {
-    expect(validatePolicy(policy)).toMatch(mensaje);
-  });
-});
-
-describe('refundPercentFor', () => {
-  it.each([
-    [25, 100],
-    [24, 100],
-    [10, 50],
-    [6, 50],
-    [1, 0],
-    [-1, 0],
-  ])('a %i h del turno devuelve %i %%', (horas, esperado) => {
-    expect(refundPercentFor(DEFAULT, enHoras(horas), NOW)).toBe(esperado);
+    expect(validatePolicy(policy, LIMITS)).toMatch(mensaje);
   });
 });
 
@@ -93,21 +73,19 @@ describe('describePolicy', () => {
 });
 
 describe('refundQuoteText (ENG-65)', () => {
-  it('con el reembolso automático dice que se devuelve por MercadoPago', () => {
-    expect(refundQuoteText(50, '$ 7.500', true)).toBe(
+  it('dice que se devuelve por MercadoPago', () => {
+    expect(refundQuoteText(50, '$ 7.500')).toBe(
       'Según la política del profesional, te corresponde el 50 % ($ 7.500). ' +
         'Te lo devolvemos por MercadoPago, al mismo medio con el que pagaste.',
     );
   });
 
-  it('sin el reembolso automático no lo promete', () => {
-    expect(refundQuoteText(100, '$ 15.000', false)).toMatch(
-      /la devolución total.*se gestiona aparte/,
-    );
+  it('el 100 % es la devolución total', () => {
+    expect(refundQuoteText(100, '$ 15.000')).toMatch(/la devolución total \(\$ 15\.000\)/);
   });
 
   it('con 0 % no habla de devolución', () => {
-    expect(refundQuoteText(0, '$ 0', true)).toBe(
+    expect(refundQuoteText(0, '$ 0')).toBe(
       'Según la política del profesional, si cancelás ahora no te corresponde devolución.',
     );
   });
@@ -132,16 +110,38 @@ describe('refundOutcomeText (ENG-65)', () => {
 
 describe('validatePolicy con los límites de MediConnect (ENG-205)', () => {
   it('rechaza un total que exige más de 24 h', () => {
-    expect(validatePolicy({ ...DEFAULT, hoursFullRefund: 48 })).toMatch(/24 horas/);
+    expect(validatePolicy({ ...DEFAULT, hoursFullRefund: 48 }, LIMITS)).toMatch(/24 horas/);
   });
 
   it('rechaza un parcial menor al 30 %', () => {
-    expect(validatePolicy({ ...DEFAULT, partialRefundPercent: 20 })).toMatch(/30 %/);
+    expect(validatePolicy({ ...DEFAULT, partialRefundPercent: 20 }, LIMITS)).toMatch(/30 %/);
   });
 
   it('acepta los límites exactos', () => {
     expect(
-      validatePolicy({ hoursFullRefund: 24, hoursPartialRefund: 6, partialRefundPercent: 30 }),
+      validatePolicy(
+        { hoursFullRefund: 24, hoursPartialRefund: 6, partialRefundPercent: 30 },
+        LIMITS,
+      ),
+    ).toBeNull();
+  });
+});
+
+describe('validatePolicy con otros límites (ENG-229)', () => {
+  it('valida con lo que informa el backend, no con números propios', () => {
+    const otros = { maxHours: 100, maxFullRefundHours: 12, minPartialRefundPercent: 40 };
+    expect(validatePolicy({ ...DEFAULT, hoursFullRefund: 24 }, otros)).toMatch(/12 horas/);
+    expect(
+      validatePolicy(
+        { hoursFullRefund: 12, hoursPartialRefund: 6, partialRefundPercent: 30 },
+        otros,
+      ),
+    ).toMatch(/40 %/);
+    expect(
+      validatePolicy(
+        { hoursFullRefund: 12, hoursPartialRefund: 6, partialRefundPercent: 40 },
+        otros,
+      ),
     ).toBeNull();
   });
 });

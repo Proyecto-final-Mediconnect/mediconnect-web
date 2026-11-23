@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { withDeadlines } from '../features/appointments/testing/withDeadlines';
 import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
@@ -11,7 +12,7 @@ import type { Appointment } from '../features/appointments/types/appointment';
 
 const PATIENT_ID = '11111111-1111-4111-8111-111111111111';
 
-const TURNO: Appointment = {
+const TURNO: Appointment = withDeadlines({
   id: 'a1',
   scheduledAt: '2030-11-17T12:00:00Z',
   date: '2030-11-17',
@@ -22,7 +23,7 @@ const TURNO: Appointment = {
   status: 'CONFIRMADO',
   professional: { id: 'p1', firstName: 'Ana', lastName: 'García' },
   patient: { id: PATIENT_ID, firstName: 'Julián', lastName: 'Sosa' },
-};
+});
 
 function json(body: unknown): Response {
   return new Response(JSON.stringify(body), {

@@ -121,10 +121,17 @@ describe('AppointmentDetail (ENG-178)', () => {
       currency: 'ARS',
       cancellationPolicy: { hoursFullRefund: 24, hoursPartialRefund: 6, partialRefundPercent: 50 },
     };
-    const conHorario = (scheduledAt: string) => ({ ...LATER, scheduledAt });
+    // El porcentaje lo calcula el backend (`cancellation-quote`, con la política
+    // congelada en el turno): la web solo lo muestra (ENG-229).
+    const cotiza = (percent: number) => () =>
+      jsonResponse({ percent, amount: 150 * percent, status: null });
 
     it('confirmado y en plazo dice que devuelven el 100 %', async () => {
-      mockApi({ mine: () => jsonResponse([LATER]), profile: () => jsonResponse(PROFILE) });
+      mockApi({
+        mine: () => jsonResponse([LATER]),
+        profile: () => jsonResponse(PROFILE),
+        quote: cotiza(100),
+      });
       renderDetail(LATER.id);
 
       expect(
@@ -133,23 +140,41 @@ describe('AppointmentDetail (ENG-178)', () => {
     });
 
     it('confirmado fuera de plazo dice que no hay devolución', async () => {
-      // Faltan 3 horas: por debajo de las 6 del tramo parcial.
-      const cerca = conHorario('2026-08-17T14:00:00.000Z');
-      mockApi({ mine: () => jsonResponse([cerca]), profile: () => jsonResponse(PROFILE) });
+      mockApi({
+        mine: () => jsonResponse([LATER]),
+        profile: () => jsonResponse(PROFILE),
+        quote: cotiza(0),
+      });
       renderDetail(LATER.id);
 
       expect(await screen.findByText('Si cancelás ahora, no hay devolución.')).toBeInTheDocument();
     });
 
     it('confirmado en el tramo parcial dice el porcentaje parcial', async () => {
-      // Faltan 10 horas: entre 6 y 24.
-      const medio = conHorario('2026-08-17T21:00:00.000Z');
-      mockApi({ mine: () => jsonResponse([medio]), profile: () => jsonResponse(PROFILE) });
+      mockApi({
+        mine: () => jsonResponse([LATER]),
+        profile: () => jsonResponse(PROFILE),
+        quote: cotiza(50),
+      });
       renderDetail(LATER.id);
 
       expect(
         await screen.findByText('Si cancelás ahora, te devolvemos el 50 %.'),
       ).toBeInTheDocument();
+    });
+
+    it('sin la cotización del backend no inventa un porcentaje', async () => {
+      mockApi({
+        mine: () => jsonResponse([LATER]),
+        profile: () => jsonResponse(PROFILE),
+        quote: () => jsonResponse({}, 500),
+      });
+      renderDetail(LATER.id);
+
+      expect(
+        await screen.findByText('El horario queda libre para otro paciente.'),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/Si cancelás ahora/)).not.toBeInTheDocument();
     });
 
     it('un turno sin pagar muestra el texto genérico, sin porcentaje', async () => {
@@ -185,8 +210,9 @@ describe('AppointmentDetail (ENG-178)', () => {
       expect(await screen.findByRole('link', { name: 'Reprogramar' })).toBeInTheDocument();
     });
 
-    it('con menos anticipación avisa en lugar de ofrecer reprogramar', async () => {
-      // Faltan 10 h: la política da sólo el parcial, así que el backend rechaza.
+    it('pasado `fullRefundUntil` avisa en lugar de ofrecer reprogramar', async () => {
+      // Faltan 10 h y la devolución total era hasta 24 h antes: el backend lo
+      // dice en el turno y rechazaría la reprogramación.
       mockApi({
         mine: () =>
           jsonResponse([
@@ -195,13 +221,16 @@ describe('AppointmentDetail (ENG-178)', () => {
               scheduledAt: '2026-08-17T21:00:00.000Z',
               date: '2026-08-17',
               startTime: '18:00',
+              fullRefundUntil: '2026-08-16T21:00:00.000Z',
             },
           ]),
         profile: () => jsonResponse(PROFILE),
       });
       renderDetail(LATER.id);
 
-      expect(await screen.findByText(/ya no se puede reprogramar/)).toHaveTextContent(/24 horas/);
+      expect(await screen.findByText(/ya no\s+se puede/)).toHaveTextContent(
+        /Se podía reprogramar hasta el .*16.*18:00/,
+      );
       expect(screen.queryByRole('link', { name: 'Reprogramar' })).not.toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Cancelar turno' })).toBeInTheDocument();
     });

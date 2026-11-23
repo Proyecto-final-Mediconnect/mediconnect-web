@@ -1,10 +1,11 @@
+import { withDeadlines } from '../testing/withDeadlines';
 import { describe, expect, it } from 'vitest';
 import { appointmentTimeline, refundStep } from './timeline';
 import type { Appointment } from '../types/appointment';
 
 const NOW = new Date('2026-10-22T15:00:00Z');
 
-const BASE: Appointment = {
+const BASE: Appointment = withDeadlines({
   id: 't',
   scheduledAt: '2026-10-28T13:30:00.000Z',
   date: '2026-10-28',
@@ -16,7 +17,7 @@ const BASE: Appointment = {
   professional: null,
   patient: null,
   createdAt: '2026-10-21T21:35:00.000Z',
-};
+});
 
 const titulos = (a: Appointment, pago: Parameters<typeof appointmentTimeline>[1] = null) =>
   appointmentTimeline(a, pago, NOW).map((p) => p.title);

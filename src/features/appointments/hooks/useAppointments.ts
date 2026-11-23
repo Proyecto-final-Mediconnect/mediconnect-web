@@ -23,8 +23,9 @@ const availabilityKey = (professionalId: string, from: string, to: string) =>
 const retryServerErrorsOnly = (failureCount: number, error: Error) =>
   !isClientError(error) && failureCount < 1;
 
-export function useAvailability(professionalId: string, from: string, to: string) {
+export function useAvailability(professionalId: string, from: string, to: string, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: availabilityKey(professionalId, from, to),
     queryFn: () => getAvailability(professionalId, from, to),
     retry: retryServerErrorsOnly,

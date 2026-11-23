@@ -1,25 +1,22 @@
+import type { PublicConfig } from '../../../shared/config/publicConfig';
 import type { CancellationPolicy } from '../types/cancellationPolicy';
 
-/** Los mismos topes que valida el backend (`UpdateCancellationPolicyDto`). */
-export const MAX_POLICY_HOURS = 720;
+/** 100 %: la devolución total. */
 export const MAX_REFUND_PERCENT = 100;
 
-/**
- * Límites de plataforma (ENG-205): la devolución total aplica al menos desde
- * 24 h antes del turno y la parcial es de al menos el 30 %. Espejan
- * `MAX_FULL_REFUND_HOURS` y `MIN_PARTIAL_REFUND_PERCENT` del backend.
- */
-export const MAX_FULL_REFUND_HOURS = 24;
-export const MIN_PARTIAL_REFUND_PERCENT = 30;
+/** Los límites de la plataforma, tal como los informa el backend (`GET /config`). */
+export type PolicyLimits = PublicConfig['cancellationPolicy'];
 
 /**
  * Valida la política antes de mandarla. Devuelve el primer problema o `null`.
  *
- * Repite las reglas del backend para que el profesional vea el error sin ir y
- * volver al servidor; el backend las vuelve a chequear igual.
+ * Valida con los límites que informa el backend (ENG-229), para que el
+ * profesional vea el error sin ir y volver al servidor; el backend los vuelve a
+ * chequear igual.
  */
-export function validatePolicy(policy: CancellationPolicy): string | null {
+export function validatePolicy(policy: CancellationPolicy, limits: PolicyLimits): string | null {
   const { hoursFullRefund, hoursPartialRefund, partialRefundPercent } = policy;
+  const { maxHours, maxFullRefundHours, minPartialRefundPercent } = limits;
 
   for (const [valor, campo] of [
     [hoursFullRefund, 'Las horas para la devolución total'],
@@ -27,8 +24,8 @@ export function validatePolicy(policy: CancellationPolicy): string | null {
   ] as const) {
     if (!Number.isInteger(valor)) return `${campo} tienen que ser un número entero.`;
     if (valor < 0) return `${campo} no pueden ser negativas.`;
-    if (valor > MAX_POLICY_HOURS) {
-      return `${campo} no pueden superar ${MAX_POLICY_HOURS} (30 días).`;
+    if (valor > maxHours) {
+      return `${campo} no pueden superar ${maxHours}.`;
     }
   }
 
@@ -39,11 +36,11 @@ export function validatePolicy(policy: CancellationPolicy): string | null {
     return 'El porcentaje tiene que estar entre 0 y 100.';
   }
 
-  if (hoursFullRefund > MAX_FULL_REFUND_HOURS) {
-    return `La devolución total tiene que aplicar al menos desde ${MAX_FULL_REFUND_HOURS} horas antes del turno: podés pedir menos anticipación, no más.`;
+  if (hoursFullRefund > maxFullRefundHours) {
+    return `La devolución total tiene que aplicar al menos desde ${maxFullRefundHours} horas antes del turno: podés pedir menos anticipación, no más.`;
   }
-  if (partialRefundPercent < MIN_PARTIAL_REFUND_PERCENT) {
-    return `La devolución parcial tiene que ser de al menos el ${MIN_PARTIAL_REFUND_PERCENT} %.`;
+  if (partialRefundPercent < minPartialRefundPercent) {
+    return `La devolución parcial tiene que ser de al menos el ${minPartialRefundPercent} %.`;
   }
 
   if (hoursFullRefund < hoursPartialRefund) {
@@ -51,21 +48,6 @@ export function validatePolicy(policy: CancellationPolicy): string | null {
   }
 
   return null;
-}
-
-/**
- * Qué porcentaje se devuelve cancelando en `now` un turno de `scheduledAt`.
- *
- * Es la misma cuenta que `refundPercentFor` del backend: en el borde exacto de
- * una ventana gana el paciente, y un turno ya pasado devuelve 0.
- */
-export function refundPercentFor(policy: CancellationPolicy, scheduledAt: Date, now: Date): number {
-  const hoursUntil = (scheduledAt.getTime() - now.getTime()) / 3_600_000;
-
-  if (hoursUntil < 0) return 0;
-  if (hoursUntil >= policy.hoursFullRefund) return MAX_REFUND_PERCENT;
-  if (hoursUntil >= policy.hoursPartialRefund) return policy.partialRefundPercent;
-  return 0;
 }
 
 function horas(n: number): string {
@@ -107,22 +89,16 @@ export function describePolicy(policy: CancellationPolicy): string {
 }
 
 /**
- * Lo que se le dice al paciente antes de cancelar un turno pagado.
- *
- * `automatico` dice si el backend pide la devolución solo (ENG-65). Con un
- * backend anterior no lo hace, y el texto no lo promete.
+ * Lo que se le dice al paciente antes de cancelar un turno pagado, con la
+ * cotización del backend (ENG-65): el porcentaje y el monto los calcula él.
  */
-export function refundQuoteText(percent: number, monto: string, automatico: boolean): string {
+export function refundQuoteText(percent: number, monto: string): string {
   if (percent === 0) {
     return 'Según la política del profesional, si cancelás ahora no te corresponde devolución.';
   }
 
   const cuanto = percent === MAX_REFUND_PERCENT ? 'la devolución total' : `el ${percent} %`;
-  return `Según la política del profesional, te corresponde ${cuanto} (${monto}). ${
-    automatico
-      ? 'Te lo devolvemos por MercadoPago, al mismo medio con el que pagaste.'
-      : 'Por ahora la devolución no se hace sola: se gestiona aparte.'
-  }`;
+  return `Según la política del profesional, te corresponde ${cuanto} (${monto}). Te lo devolvemos por MercadoPago, al mismo medio con el que pagaste.`;
 }
 
 /** Qué pasó con la devolución, después de cancelar (ENG-65). `null` si no había nada que devolver. */
