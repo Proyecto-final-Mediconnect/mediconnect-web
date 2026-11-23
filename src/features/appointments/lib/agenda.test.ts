@@ -1,3 +1,4 @@
+import { withDeadlines } from '../testing/withDeadlines';
 import { describe, expect, it } from 'vitest';
 import { agendaSections, filterAgenda, formatMonthYear, inPeriod } from './agenda';
 import type { Appointment } from '../types/appointment';
@@ -6,7 +7,7 @@ const NOW = new Date('2026-10-22T15:00:00Z');
 
 function turno(id: string, date: string, status: string, name = 'Ana Médica'): Appointment {
   const [first, last] = name.split(' ');
-  return {
+  return withDeadlines({
     id,
     scheduledAt: `${date}T13:00:00.000Z`,
     date,
@@ -17,7 +18,7 @@ function turno(id: string, date: string, status: string, name = 'Ana Médica'): 
     status,
     professional: { id: 'pro', firstName: first, lastName: last },
     patient: { id: 'pac', firstName: 'Juan', lastName: 'Paciente' },
-  };
+  });
 }
 
 const pro = (a: Appointment) => a.professional;

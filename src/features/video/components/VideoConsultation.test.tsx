@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { VideoConsultation } from './VideoConsultation';
+import { withAppointmentDeadlines } from '../../appointments/testing/appointmentsMock';
 
 const APPOINTMENT = '44444444-4444-4444-8444-444444444444';
 
@@ -74,7 +75,7 @@ describe('VideoConsultation', () => {
   function mockVideo(respuesta: () => Response) {
     fetchSpy.mockImplementation((input: RequestInfo | URL) => {
       const url = String(input);
-      if (url.includes('/appointments/me')) return Promise.resolve(jsonResponse(turnos));
+      if (url.includes('/appointments/me')) return withAppointmentDeadlines(jsonResponse(turnos));
       if (url.includes('/complete')) return Promise.resolve(completar());
       if (url.includes('/reviews/me')) return Promise.resolve(jsonResponse([]));
       if (url.includes('/video')) return Promise.resolve(respuesta());
@@ -287,7 +288,7 @@ describe('VideoConsultation', () => {
         if (url.includes('/clinical-record/vital')) return Promise.resolve(vital());
         if (url.includes('/clinical-record'))
           return Promise.resolve(init?.method === 'POST' ? alta(init) : historia());
-        if (url.includes('/appointments/me')) return Promise.resolve(jsonResponse(turnos));
+        if (url.includes('/appointments/me')) return withAppointmentDeadlines(jsonResponse(turnos));
         if (url.includes('/complete')) return Promise.resolve(completar());
         if (url.includes('/video'))
           return Promise.resolve(

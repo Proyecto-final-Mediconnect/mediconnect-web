@@ -1,3 +1,4 @@
+import { withDeadlines } from '../testing/withDeadlines';
 import { describe, expect, it } from 'vitest';
 import {
   awaitsPatientChoice,
@@ -22,7 +23,7 @@ const PRO_ID = '22222222-2222-4222-8222-222222222222';
 const NOW = new Date('2026-08-17T11:00:00Z');
 
 function appointment(overrides: Partial<Appointment> = {}): Appointment {
-  return {
+  return withDeadlines({
     id: 'a1',
     scheduledAt: '2026-08-17T13:00:00.000Z', // 10:00 local, futuro respecto de NOW
     date: '2026-08-17',
@@ -34,7 +35,7 @@ function appointment(overrides: Partial<Appointment> = {}): Appointment {
     professional: { id: PRO_ID, firstName: 'Ana', lastName: 'Médica' },
     patient: { id: PATIENT_ID, firstName: 'Juan', lastName: 'Paciente' },
     ...overrides,
-  };
+  });
 }
 
 describe('splitByTime', () => {
@@ -133,6 +134,15 @@ describe('canMarkNoShow (ENG-189)', () => {
     expect(canMarkNoShow(confirmado, PATIENT_ID, at(10))).toBe(false);
   });
 
+  it('el plazo es el que manda el backend en el turno (ENG-229)', () => {
+    const conOtroPlazo = appointment({
+      status: 'CONFIRMADO',
+      manualCloseUntil: '2026-08-17T15:30:00.000Z',
+    });
+    expect(canMarkNoShow(conOtroPlazo, PRO_ID, at(150))).toBe(true);
+    expect(canMarkNoShow(conOtroPlazo, PRO_ID, at(151))).toBe(false);
+  });
+
   it('solo con el turno confirmado', () => {
     expect(canMarkNoShow(appointment({ status: 'COMPLETADO' }), PRO_ID, at(10))).toBe(false);
   });
@@ -207,19 +217,20 @@ describe('relevantWithProfessional', () => {
 
 describe('turnos que canceló el profesional (ENG-204)', () => {
   const NOW_204 = new Date('2026-10-22T15:00:00Z');
-  const turno = (overrides: Partial<Appointment> = {}): Appointment => ({
-    id: 't',
-    scheduledAt: '2026-10-28T13:30:00.000Z',
-    date: '2026-10-28',
-    startTime: '10:30',
-    durationMinutes: 30,
-    price: 15000,
-    currency: 'ARS',
-    status: 'CONFIRMADO',
-    professional: { id: 'pro', firstName: 'Ana', lastName: 'Pérez' },
-    patient: { id: 'pac', firstName: 'Julián', lastName: 'Paciente' },
-    ...overrides,
-  });
+  const turno = (overrides: Partial<Appointment> = {}): Appointment =>
+    withDeadlines({
+      id: 't',
+      scheduledAt: '2026-10-28T13:30:00.000Z',
+      date: '2026-10-28',
+      startTime: '10:30',
+      durationMinutes: 30,
+      price: 15000,
+      currency: 'ARS',
+      status: 'CONFIRMADO',
+      professional: { id: 'pro', firstName: 'Ana', lastName: 'Pérez' },
+      patient: { id: 'pac', firstName: 'Julián', lastName: 'Paciente' },
+      ...overrides,
+    });
 
   it('un turno a reprogramar espera la elección y no se muestra apagado', () => {
     const a = turno({ status: 'A_REPROGRAMAR' });

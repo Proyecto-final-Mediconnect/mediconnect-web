@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { ProfessionalDashboardPage } from './ProfessionalDashboardPage';
 import {
   jsonResponse,
+  withAppointmentDeadlines,
   mockApi,
   NOW,
   PATIENT_ID,
@@ -74,7 +75,7 @@ describe('Panel del profesional', () => {
     const conTurnos = (lista: unknown[]) =>
       api.mockImplementation((input, init) =>
         String(input).includes('/appointments/me')
-          ? Promise.resolve(jsonResponse(lista))
+          ? withAppointmentDeadlines(jsonResponse(lista))
           : resto(input, init),
       );
 

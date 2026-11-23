@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Navigate } from 'react-router-dom';
+import { usePublicConfig } from '../../../shared/config/publicConfig';
 import { isUnauthorized } from '../api/apiError';
 import { compressImage } from '../lib/compressImage';
 import {
@@ -51,6 +52,8 @@ export function ProfessionalProfileForm() {
     error,
   } = useMyProfile();
   const { data: specialties = [] } = useSpecialties();
+  // La moneda de la plataforma la informa el backend (ENG-229).
+  const currency = usePublicConfig()?.currency;
   const updateProfile = useUpdateProfile();
   const uploadPhoto = useUploadPhoto();
 
@@ -356,7 +359,7 @@ export function ProfessionalProfileForm() {
         >
           <div className="grid max-w-[280px] gap-1.5">
             <label htmlFor="price" className="text-sm font-semibold text-ink">
-              Precio de consulta (ARS)
+              Precio de consulta{currency ? ` (${currency})` : ''}
             </label>
             <input
               id="price"

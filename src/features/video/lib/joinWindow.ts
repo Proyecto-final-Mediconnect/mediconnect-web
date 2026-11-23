@@ -10,17 +10,10 @@ import type { Appointment } from '../../appointments/types/appointment';
  * entra es el backend, que revalida exactamente lo mismo en
  * `video-consultation.service.ts`. Existe acá para no tener que preguntarle al
  * servidor en cada tick del reloj, no para ahorrarle la validación.
+ *
+ * La ventana no se calcula acá: viene en el turno (`joinOpensAt` y
+ * `joinClosesAt`, ENG-229), con las reglas del backend.
  */
-
-/**
- * Minutos antes del horario en que se abre la sala. Es el criterio de aceptación
- * de ENG-56. Espeja `JOIN_OPENS_MINUTES_BEFORE` del backend: si cambia una,
- * tiene que cambiar la otra.
- */
-export const JOIN_OPENS_MINUTES_BEFORE = 10;
-
-/** Tolerancia después del final del turno. Espeja `JOIN_GRACE_MINUTES_AFTER`. */
-export const JOIN_GRACE_MINUTES_AFTER = 15;
 
 /**
  * Estados del turno que tienen videoconsulta. Espeja `JOINABLE_STATUSES`.
@@ -49,15 +42,20 @@ export interface JoinWindow {
 }
 
 export function joinWindowFor(appointment: Appointment): JoinWindow {
-  // Se calcula sobre `scheduledAt` (UTC) y no sobre `date` + `startTime`, que ya
-  // son la hora local formateada: comparar instantes no depende del huso del
-  // navegador ni de que el reloj del usuario esté en Argentina.
-  const start = new Date(appointment.scheduledAt).getTime();
-
+  // Instantes ISO-8601: compararlos no depende del huso del navegador ni de que
+  // el reloj del usuario esté en Argentina.
   return {
-    opensAt: new Date(start - JOIN_OPENS_MINUTES_BEFORE * 60_000),
-    closesAt: new Date(start + (appointment.durationMinutes + JOIN_GRACE_MINUTES_AFTER) * 60_000),
+    opensAt: new Date(appointment.joinOpensAt),
+    closesAt: new Date(appointment.joinClosesAt),
   };
+}
+
+/** Cuántos minutos antes del turno se abre la sala, para decirlo en un texto. */
+export function opensMinutesBefore(appointment: Appointment): number {
+  return Math.round(
+    (new Date(appointment.scheduledAt).getTime() - new Date(appointment.joinOpensAt).getTime()) /
+      60_000,
+  );
 }
 
 export function joinStateOf(appointment: Appointment, now: Date = new Date()): JoinState {

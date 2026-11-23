@@ -7,7 +7,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // Los turnos llevan enlaces (videoconsulta, pago): sin Router, `Link` explota.
 import { MemoryRouter } from 'react-router-dom';
 import { BookAppointment } from './BookAppointment';
-import { MAX_PAGE } from '../lib/weeks';
+import { lastPageFor } from '../lib/weeks';
+import { TEST_PUBLIC_CONFIG } from '../../../shared/config/testPublicConfig';
 
 const PRO_ID = '22222222-2222-4222-8222-222222222222';
 
@@ -447,7 +448,13 @@ describe('BookAppointment', () => {
   });
 
   it('no deja retroceder antes de hoy ni pasar el horizonte publicado', async () => {
-    mockApi();
+    // El backend devuelve todo el horizonte que informa `GET /config`.
+    const horizonte = TEST_PUBLIC_CONFIG.booking.horizonDays;
+    const dias = Array.from({ length: horizonte }, (_, i) => {
+      const fecha = new Date(Date.UTC(2026, 7, 17 + i));
+      return EMPTY_DAY(fecha.toISOString().slice(0, 10), fecha.getUTCDay());
+    });
+    mockApi({ availability: () => jsonResponse({ ...AVAILABILITY, days: dias }) });
     renderBooking();
 
     const back = await screen.findByRole('button', { name: /siete días antes/i });
@@ -457,7 +464,8 @@ describe('BookAppointment', () => {
 
     // Con dos meses de horizonte son nueve páginas: ocho clicks hasta el final.
     // Que sean ocho es justamente lo que justifica el selector de mes.
-    for (let i = 0; i < MAX_PAGE; i++) await userEvent.click(forward);
+    const lastPage = lastPageFor(horizonte);
+    for (let i = 0; i < lastPage; i++) await userEvent.click(forward);
 
     expect(forward).toBeDisabled();
     expect(back).toBeEnabled();

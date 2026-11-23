@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { formatLongDate } from '../../appointments/lib/myAppointments';
 import type { Appointment } from '../../appointments/types/appointment';
 import { formatElapsed } from '../lib/elapsed';
-import { JOIN_OPENS_MINUTES_BEFORE, timeUntilOpen } from '../lib/joinWindow';
+import { opensMinutesBefore, timeUntilOpen } from '../lib/joinWindow';
 import { DeviceCheck } from './DeviceCheck';
 
 /**
@@ -77,8 +77,8 @@ export function WaitingRoom({
               Tu turno es el {formatLongDate(appointment.date)} a las {appointment.startTime}.
             </h2>
             <p className="mt-3 text-[15px] text-on-night">
-              La sala se abre {timeUntilOpen(opensAt, now)}, {JOIN_OPENS_MINUTES_BEFORE} minutos
-              antes del turno.
+              La sala se abre {timeUntilOpen(opensAt, now)}, {opensMinutesBefore(appointment)}{' '}
+              minutos antes del turno.
             </p>
           </>
         )}

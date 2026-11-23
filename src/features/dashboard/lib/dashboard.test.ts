@@ -1,3 +1,4 @@
+import { withDeadlines } from '../../appointments/testing/withDeadlines';
 import { describe, expect, it } from 'vitest';
 import {
   completedCount,
@@ -17,7 +18,7 @@ import type { ProfessionalProfile } from '../../profile/types/professionalProfil
 const AHORA = new Date('2026-09-03T12:00:00Z');
 
 function turno(overrides: Partial<Appointment> & { id: string }): Appointment {
-  return {
+  return withDeadlines({
     scheduledAt: '2026-09-04T12:00:00Z',
     date: '2026-09-04',
     startTime: '09:00',
@@ -28,7 +29,7 @@ function turno(overrides: Partial<Appointment> & { id: string }): Appointment {
     professional: null,
     patient: null,
     ...overrides,
-  };
+  });
 }
 
 const PERFIL_PRO: ProfessionalProfile = {

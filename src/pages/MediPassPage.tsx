@@ -5,6 +5,7 @@ import { EmergencyCard } from '../features/medipass/components/EmergencyCard';
 import { EmergencyData } from '../features/medipass/components/EmergencyData';
 import { useMyMediPassCode, useMyVitalBlock } from '../features/medipass/hooks/useMediPass';
 import { cuentaRegresiva, emergencyUrl, formatCodigo } from '../features/medipass/lib/medipass';
+import { usePublicConfig } from '../shared/config/publicConfig';
 import { useNow } from '../shared/hooks/useNow';
 import { MediPassQr } from '../shared/ui/MediPassQr';
 import { DashboardLayout } from './DashboardLayout';
@@ -25,13 +26,14 @@ import { DashboardLayout } from './DashboardLayout';
  * (`GET /medipass/me/vital`): qué se ve, editarlos y la ficha del médico, y el
  * historial de accesos.
  */
-/** El código rota cada 5 minutos (ENG-72): es lo que llena la barra. */
-const CODIGO_MS = 5 * 60_000;
 
 export function MediPassPage() {
   const { user } = useSession();
   const codigo = useMyMediPassCode();
   const vital = useMyVitalBlock();
+  // Cada cuánto rota el código y cuánto dura un acceso: los informa el backend
+  // (ENG-229).
+  const medipass = usePublicConfig()?.medipass;
 
   const nombre = user?.firstName ? `${user.firstName} ${user.lastName ?? ''}`.trim() : '';
 
@@ -87,17 +89,27 @@ export function MediPassPage() {
                 </p>
               </div>
 
-              {codigo.data && <CodeCountdown expiraEl={codigo.data.expiraEl} />}
+              {codigo.data && medipass && (
+                <CodeCountdown
+                  expiraEl={codigo.data.expiraEl}
+                  periodMs={medipass.codeMinutes * 60_000}
+                />
+              )}
 
               <p className="text-[14px] leading-[1.6] text-muted">
                 Mostraselo a un médico de guardia: lo escanea con la cámara y ve tu información
-                vital durante 30 minutos, sin instalar nada.
+                vital{medipass ? ` durante ${medipass.sessionMinutes} minutos` : ''}, sin instalar
+                nada.
               </p>
 
               <ul className="flex flex-wrap justify-center gap-2 md:justify-start">
                 {[
-                  'El código cambia cada 5 minutos',
-                  'Cada acceso dura 30 minutos',
+                  ...(medipass
+                    ? [
+                        `El código cambia cada ${medipass.codeMinutes} minutos`,
+                        `Cada acceso dura ${medipass.sessionMinutes} minutos`,
+                      ]
+                    : []),
                   'Queda registrado quién entró',
                 ].map((dato) => (
                   <li
@@ -145,7 +157,7 @@ export function MediPassPage() {
  * cada segundo re-renderice solo esto y no toda la página (el QR, los datos de
  * emergencia y los accesos no cambian con el segundero).
  */
-function CodeCountdown({ expiraEl }: { expiraEl: string }) {
+function CodeCountdown({ expiraEl, periodMs }: { expiraEl: string; periodMs: number }) {
   const now = useNow(1000);
   const restante = new Date(expiraEl).getTime() - now.getTime();
 
@@ -155,7 +167,7 @@ function CodeCountdown({ expiraEl }: { expiraEl: string }) {
         <div
           className="h-full rounded-full bg-brand transition-[width] duration-1000 ease-linear"
           style={{
-            width: `${Math.max(0, Math.min(100, (restante / CODIGO_MS) * 100))}%`,
+            width: `${Math.max(0, Math.min(100, (restante / periodMs) * 100))}%`,
           }}
         />
       </div>

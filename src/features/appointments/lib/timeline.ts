@@ -40,6 +40,17 @@ export function cuando(iso: string | null | undefined): string | null {
   return `${formatDate(fecha)} · ${hora}`;
 }
 
+/** La hora de un instante ISO en Argentina: `21:35`. Para los plazos del mismo
+ *  día, como el del pago de una reserva (ENG-229). */
+export function horaAR(iso: string): string {
+  return new Intl.DateTimeFormat('es-AR', {
+    timeZone: AR,
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).format(new Date(iso));
+}
+
 /** Quién mira la línea de tiempo: los pasos se cuentan desde su lugar. */
 export type TimelineViewer = 'PACIENTE' | 'PROFESIONAL';
 

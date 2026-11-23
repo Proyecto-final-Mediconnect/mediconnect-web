@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
+import { usePublicConfig } from '../../../shared/config/publicConfig';
 import { Logo } from '../../../shared/ui/Logo';
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog';
 import { MediPassQr } from '../../../shared/ui/MediPassQr';
@@ -23,8 +24,9 @@ const FECHA = new Intl.DateTimeFormat('es-AR', {
  *
  * El código rotativo solo se ve en la pantalla del paciente: si está
  * inconsciente o sin el celular, nadie puede abrir su ficha. La tarjeta es un QR
- * **fijo** que imprime o guarda, y que abre lo mismo que el código: 30 minutos
- * de información vital, con registro y aviso.
+ * **fijo** que imprime o guarda, y que abre lo mismo que el código: un acceso a
+ * la información vital (los minutos los informa el backend), con registro y
+ * aviso.
  *
  * ## El token se muestra una sola vez
  *
@@ -36,6 +38,7 @@ const FECHA = new Intl.DateTimeFormat('es-AR', {
  */
 export function EmergencyCard({ nombre }: { nombre: string }) {
   const estado = useMyEmergencyCard();
+  const sessionMinutes = usePublicConfig()?.medipass.sessionMinutes;
   const crear = useCreateEmergencyCard();
   const desactivar = useDisableEmergencyCard();
   const [recien, setRecien] = useState<EmergencyCardCreated | null>(null);
@@ -72,8 +75,9 @@ export function EmergencyCard({ nombre }: { nombre: string }) {
           </h2>
           <p className="mt-2 max-w-[60ch] text-[14px] leading-[1.6] text-muted">
             Para que te atiendan aunque no puedas mostrar el código: si estás inconsciente o sin el
-            celular, un médico escanea la tarjeta y ve tu información vital durante 30 minutos.
-            Queda registrado quién entró y te avisamos.
+            celular, un médico escanea la tarjeta y ve tu información vital
+            {sessionMinutes ? ` durante ${sessionMinutes} minutos` : ''}. Queda registrado quién
+            entró y te avisamos.
           </p>
         </div>
         {estado.data?.activa && !recien && (
@@ -267,6 +271,7 @@ function TarjetaRecien({
  * (`index.css`, `.hoja-tarjeta`) esconde el resto de la app y deja solo esto.
  */
 function HojaTarjeta({ tarjeta, nombre }: { tarjeta: EmergencyCardCreated; nombre: string }) {
+  const sessionMinutes = usePublicConfig()?.medipass.sessionMinutes;
   return createPortal(
     <div className="hoja-tarjeta hidden bg-white text-ink print:block">
       <Logo variant="lockup" className="h-8" alt="MediConnect" />
@@ -301,7 +306,10 @@ function HojaTarjeta({ tarjeta, nombre }: { tarjeta: EmergencyCardCreated; nombr
       </div>
 
       <ul className="mt-8 grid max-w-[150mm] gap-1.5 text-[12px] leading-[1.6] text-ink">
-        <li>El código abre 30 minutos de información vital, y cada acceso queda registrado.</li>
+        <li>
+          El código abre{sessionMinutes ? ` ${sessionMinutes} minutos de` : ''} información vital, y
+          cada acceso queda registrado.
+        </li>
         <li>Es personal: no lo compartas ni lo publiques.</li>
         <li>
           Si la perdés, desactivala desde MediPass &gt; Tarjeta de emergencia y generá una nueva.

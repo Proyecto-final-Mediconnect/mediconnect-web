@@ -9,7 +9,7 @@ import { PaymentReceipt } from '../features/payments/components/PaymentReceipt';
 import { usePaymentStatus } from '../features/payments/hooks/usePayment';
 import { findAppointment } from '../features/payments/lib/checkout';
 import { DeviceCheck } from '../features/video/components/DeviceCheck';
-import { JOIN_OPENS_MINUTES_BEFORE } from '../features/video/lib/joinWindow';
+import { opensMinutesBefore } from '../features/video/lib/joinWindow';
 import { DashboardLayout } from './DashboardLayout';
 
 /**
@@ -113,8 +113,8 @@ export function AppointmentConfirmedPage() {
                   </h2>
                   <ul className="mt-4 grid gap-4 text-sm leading-[1.6] text-ink">
                     <Paso titulo="La sala se abre antes">
-                      Podés entrar a la videoconsulta {JOIN_OPENS_MINUTES_BEFORE} minutos antes del
-                      horario, desde el turno o desde Mis turnos.
+                      Podés entrar a la videoconsulta {opensMinutesBefore(appointment)} minutos
+                      antes del horario, desde el turno o desde Mis turnos.
                     </Paso>
                     <Paso titulo="Probá tu cámara y tu micrófono">
                       Hacelo antes del día, en una sala de prueba, así no perdés tiempo de la

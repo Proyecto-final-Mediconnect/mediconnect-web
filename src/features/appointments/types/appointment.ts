@@ -86,6 +86,24 @@ export interface Appointment {
   /** En qué quedó el reembolso de un turno cancelado o liberado que estaba pago
    *  (ENG-174). `null` si no hubo; falta con un backend anterior. */
   refundState?: AppointmentRefundState | null;
+  /**
+   * ENG-229: los plazos del turno, calculados por el backend con sus reglas
+   * (ISO-8601). La web no las repite: las lee de acá.
+   *
+   * Hasta cuándo se puede pagar un `RESERVADO_SIN_PAGAR` antes de que se libere
+   * el horario; `null` en otro estado.
+   */
+  paymentDueAt: string | null;
+  /** Desde y hasta cuándo se puede entrar a la videoconsulta. */
+  joinOpensAt: string;
+  joinClosesAt: string;
+  /** Hasta cuándo el profesional puede cerrar el turno o informar una falla técnica. */
+  manualCloseUntil: string;
+  /**
+   * Hasta cuándo cancelar devuelve el 100 %: un turno pagado se puede
+   * reprogramar hasta acá. `null` si no está `CONFIRMADO`.
+   */
+  fullRefundUntil: string | null;
 }
 
 /** El reembolso de un turno, tal como quedó registrado (ENG-174). */

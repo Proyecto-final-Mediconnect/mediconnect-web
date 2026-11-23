@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { withDeadlines } from '../../appointments/testing/withDeadlines';
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
@@ -14,7 +15,7 @@ const PATIENT_ID = '11111111-1111-4111-8111-111111111111';
 const NOW = new Date('2026-08-17T11:00:00Z');
 
 function turno(overrides: Partial<Appointment> = {}): Appointment {
-  return {
+  return withDeadlines({
     id: 'a1',
     scheduledAt: '2026-08-20T13:00:00Z',
     date: '2026-08-20',
@@ -26,7 +27,7 @@ function turno(overrides: Partial<Appointment> = {}): Appointment {
     professional: { id: 'p1', firstName: 'Ana', lastName: 'Médica' },
     patient: { id: PATIENT_ID, firstName: 'Juan', lastName: 'Paciente' },
     ...overrides,
-  };
+  });
 }
 
 const SESION = {

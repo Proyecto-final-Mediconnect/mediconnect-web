@@ -302,12 +302,13 @@ describe('MyAppointments (ENG-178)', () => {
       return u;
     }
 
-    it('sin la cotización de ENG-65 cuenta con la política del perfil y no promete devolución automática', async () => {
+    it('sin la cotización no calcula nada en el cliente: muestra la política (ENG-229)', async () => {
       await abrirModal();
 
-      expect(await screen.findByText(/te corresponde la devolución total/)).toHaveTextContent(
-        /15\.000.*se gestiona aparte/,
+      expect(await screen.findByText(/No pudimos calcular la devolución ahora/)).toHaveTextContent(
+        /Se aplica la política del profesional/,
       );
+      expect(screen.queryByText(/te corresponde/)).not.toBeInTheDocument();
     });
 
     it('con la cotización del backend usa la política guardada en el turno', async () => {

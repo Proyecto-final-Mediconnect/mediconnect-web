@@ -1,3 +1,5 @@
+import { vi } from 'vitest';
+
 /**
  * Ajustes del entorno de test.
  *
@@ -40,3 +42,16 @@ if (typeof HTMLImageElement !== 'undefined') {
     get: () => true,
   });
 }
+
+/**
+ * `usePublicConfig` (ENG-229) devuelve en todos los tests lo que responde hoy
+ * `GET /config`: así ningún test depende de un request más, ni de cómo cada uno
+ * simula `fetch`. `getPublicConfig` queda real y tiene su propio test.
+ */
+vi.mock('../shared/config/publicConfig', async (importOriginal) => {
+  const { TEST_PUBLIC_CONFIG } = await import('../shared/config/testPublicConfig');
+  return {
+    ...(await importOriginal<typeof import('../shared/config/publicConfig')>()),
+    usePublicConfig: () => TEST_PUBLIC_CONFIG,
+  };
+});

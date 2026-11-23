@@ -6,6 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { AppShell } from './AppShell';
+import { withDeadlines } from '../../features/appointments/testing/withDeadlines';
 import type { SessionUser } from '../../features/auth/types/session';
 
 const PACIENTE: SessionUser = {
@@ -212,7 +213,7 @@ describe('AppShell', () => {
   });
   describe('acceso a la videoconsulta', () => {
     /** Turno de las 10:00 (13:00 UTC) del 20/08/2026. */
-    const TURNO = {
+    const TURNO = withDeadlines({
       id: 'ap1',
       scheduledAt: '2026-08-20T13:00:00Z',
       date: '2026-08-20',
@@ -223,7 +224,7 @@ describe('AppShell', () => {
       status: 'CONFIRMADO',
       professional: { id: 'p1', firstName: 'Ana', lastName: 'Médica' },
       patient: { id: 'u1', firstName: 'Marina', lastName: 'Sosa' },
-    };
+    });
 
     afterEach(() => {
       vi.useRealTimers();

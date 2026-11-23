@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useMyCancellationPolicy, useSaveCancellationPolicy } from '../hooks/useCancellationPolicy';
-import {
-  describePolicy,
-  MAX_FULL_REFUND_HOURS,
-  MIN_PARTIAL_REFUND_PERCENT,
-  validatePolicy,
-} from '../lib/policy';
+import { describePolicy, validatePolicy } from '../lib/policy';
+import { usePublicConfig } from '../../../shared/config/publicConfig';
 import type { CancellationPolicy } from '../types/cancellationPolicy';
 
 /** Los inputs se editan como texto: un campo vacío tiene que poder existir
@@ -45,6 +41,8 @@ const CAMPO =
 export function CancellationPolicyForm() {
   const { data: policy, isPending, isError, error } = useMyCancellationPolicy();
   const save = useSaveCancellationPolicy();
+  // Los límites de la plataforma los informa el backend (ENG-229).
+  const limits = usePublicConfig()?.cancellationPolicy;
 
   const [valores, setValores] = useState<Valores | null>(null);
   const [tocado, setTocado] = useState(false);
@@ -65,12 +63,12 @@ export function CancellationPolicyForm() {
       </p>
     );
   }
-  if (isPending || !policy || !valores) {
+  if (isPending || !policy || !valores || !limits) {
     return <p className="text-muted">Cargando tu política de cancelación…</p>;
   }
 
   const actual = aPolicy(valores);
-  const problema = validatePolicy(actual);
+  const problema = validatePolicy(actual, limits);
 
   function cambiar(campo: keyof CancellationPolicy, valor: string) {
     setGuardado(false);
@@ -104,20 +102,20 @@ export function CancellationPolicyForm() {
       etiqueta: 'Devolución total si cancela con al menos',
       sufijo: 'horas',
       min: 0,
-      max: MAX_FULL_REFUND_HOURS,
+      max: limits.maxFullRefundHours,
     },
     {
       campo: 'hoursPartialRefund',
       etiqueta: 'Devolución parcial si cancela con al menos',
       sufijo: 'horas',
       min: 0,
-      max: MAX_FULL_REFUND_HOURS,
+      max: limits.maxFullRefundHours,
     },
     {
       campo: 'partialRefundPercent',
       etiqueta: 'Porcentaje de la devolución parcial',
       sufijo: '%',
-      min: MIN_PARTIAL_REFUND_PERCENT,
+      min: limits.minPartialRefundPercent,
       max: 100,
     },
   ];
@@ -145,9 +143,10 @@ export function CancellationPolicyForm() {
           pacientes la ven antes de reservar y al cancelar.
         </p>
         <p className="mt-1.5 text-[12px] leading-[1.6] text-muted-soft">
-          Límites de MediConnect: la devolución total aplica al menos desde {MAX_FULL_REFUND_HOURS}{' '}
-          horas antes del turno, y la parcial es de al menos el {MIN_PARTIAL_REFUND_PERCENT} %. Si
-          vos cancelás un turno, el paciente siempre recupera el 100 %.
+          Límites de MediConnect: la devolución total aplica al menos desde{' '}
+          {limits.maxFullRefundHours} horas antes del turno, y la parcial es de al menos el{' '}
+          {limits.minPartialRefundPercent} %. Si vos cancelás un turno, el paciente siempre recupera
+          el 100 %.
         </p>
       </header>
 

@@ -3,6 +3,7 @@ import { useNow } from '../shared/hooks/useNow';
 import { ConsultationEvolution } from '../features/video/components/ConsultationEvolution';
 import { LiveConsultation } from '../features/video/components/LiveConsultation';
 import { WaitingRoom } from '../features/video/components/WaitingRoom';
+import { withDeadlines } from '../features/appointments/testing/withDeadlines';
 import type { Appointment } from '../features/appointments/types/appointment';
 import type { VideoConsultationAccess } from '../features/video/types/dailyRoom';
 import { DashboardLayout } from '../pages/DashboardLayout';
@@ -53,7 +54,8 @@ type Fase = 'ESPERA' | 'CURSO' | 'CIERRE';
 function turnoDeJuguete(role: VideoConsultationAccess['role']): Appointment {
   const empieza = new Date(Date.now() + 12 * 60_000);
 
-  return {
+  // Los plazos los completa el mismo helper de los tests, como el backend.
+  return withDeadlines({
     id: 'preview',
     scheduledAt: empieza.toISOString(),
     date: empieza.toISOString().slice(0, 10),
@@ -70,7 +72,7 @@ function turnoDeJuguete(role: VideoConsultationAccess['role']): Appointment {
       role === 'PROFESIONAL'
         ? { id: 'x1', firstName: 'Marina', lastName: 'Sosa' }
         : { id: 'yo', firstName: 'Marina', lastName: 'Sosa' },
-  };
+  });
 }
 
 export function VideoConsultationPreviewPage() {
