@@ -84,7 +84,9 @@ describe('UploadDocumentForm', () => {
       { applyAccept: false },
     );
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Solo se pueden subir PDF, JPG o PNG.');
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Solo se pueden subir PDF, JPG, PNG o un resumen de salud IPS.',
+    );
     await userEvent.click(screen.getByRole('button', { name: 'Subir documento' }));
     expect(fetchMock).not.toHaveBeenCalled();
   });

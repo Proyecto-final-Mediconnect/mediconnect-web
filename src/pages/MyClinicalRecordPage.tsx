@@ -4,6 +4,8 @@ import { displayNameOf } from '../features/auth/types/session';
 import { ClinicalRecord } from '../features/clinical-records/components/ClinicalRecord';
 import { MyDocuments } from '../features/patient-documents/components/MyDocuments';
 import { UploadDocumentForm } from '../features/patient-documents/components/UploadDocumentForm';
+import { IpsSummaryDrawer } from '../features/patient-documents/components/IpsSummary';
+import { isIps } from '../features/patient-documents/lib/documents';
 import { useIsUploadingDocument } from '../features/patient-documents/hooks/usePatientDocuments';
 import { Button } from '../shared/ui/Button';
 import { Modal } from '../shared/ui/Modal';
@@ -38,6 +40,8 @@ import { DashboardLayout } from './DashboardLayout';
 export function MyClinicalRecordPage() {
   const { user, isLoading } = useSession();
   const [subiendo, setSubiendo] = useState(false);
+  /** El resumen de salud IPS abierto (ENG-246): se abre solo al subir uno. */
+  const [resumen, setResumen] = useState<string | null>(null);
   // Con la subida en vuelo, Esc, el fondo y la X no cierran: desmontar el
   // formulario escondería si falló, y el paciente lo volvería a subir.
   const subidaEnCurso = useIsUploadingDocument();
@@ -62,7 +66,7 @@ export function MyClinicalRecordPage() {
 
       {user && (
         <div className="mb-6">
-          <MyDocuments onUpload={() => setSubiendo(true)} />
+          <MyDocuments onUpload={() => setSubiendo(true)} onVerResumen={setResumen} />
         </div>
       )}
 
@@ -94,11 +98,16 @@ export function MyClinicalRecordPage() {
       >
         {subiendo && (
           <UploadDocumentForm
-            onDone={() => setSubiendo(false)}
+            onDone={(doc) => {
+              setSubiendo(false);
+              if (isIps(doc.mimeType)) setResumen(doc.id);
+            }}
             onCancel={() => setSubiendo(false)}
           />
         )}
       </Modal>
+
+      <IpsSummaryDrawer documentId={resumen} paraPaciente onClose={() => setResumen(null)} />
     </DashboardLayout>
   );
 }

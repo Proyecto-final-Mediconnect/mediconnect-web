@@ -21,6 +21,31 @@ export function hoyLocal(now = new Date()): string {
 
 export const ACCEPTED_MIME = ['application/pdf', 'image/jpeg', 'image/png'] as const;
 
+/**
+ * El resumen de salud IPS (ENG-246): un JSON que da otro centro de salud. El
+ * backend lo guarda con este tipo y lo valida al subirlo.
+ */
+export const IPS_MIME = 'application/fhir+json';
+/** El tope del backend para un resumen: es texto, no un estudio escaneado. */
+export const MAX_IPS_BYTES = 1024 * 1024;
+
+/** Lo que acepta el selector de archivos. */
+export const ACCEPT_ATTR = [...ACCEPTED_MIME, '.json', 'application/json', IPS_MIME].join(',');
+
+export const isIps = (mimeType: string) => mimeType === IPS_MIME;
+
+/**
+ * Si el archivo elegido es un resumen de salud en JSON. Algunos sistemas no le
+ * ponen tipo a un `.json` (`file.type` vacío): ahí decide la extensión.
+ */
+export function esResumenIps(file: File): boolean {
+  return (
+    file.type === 'application/json' ||
+    file.type === IPS_MIME ||
+    (!file.type && /\.json$/i.test(file.name))
+  );
+}
+
 export const TYPE_LABELS: Record<DocumentType, string> = {
   ESTUDIO: 'Estudio',
   EPICRISIS: 'Epicrisis',
@@ -35,8 +60,13 @@ export const TYPE_LABELS: Record<DocumentType, string> = {
  * subida de 30 MB para enterarse de que no entraba.
  */
 export function fileProblem(file: File): string | null {
+  if (esResumenIps(file)) {
+    if (file.size === 0) return 'El archivo está vacío.';
+    if (file.size > MAX_IPS_BYTES) return 'El resumen de salud no puede pasar 1 MB.';
+    return null;
+  }
   if (!(ACCEPTED_MIME as readonly string[]).includes(file.type)) {
-    return 'Solo se pueden subir PDF, JPG o PNG.';
+    return 'Solo se pueden subir PDF, JPG, PNG o un resumen de salud IPS.';
   }
   if (file.size === 0) return 'El archivo está vacío.';
   if (file.size > MAX_DOCUMENT_BYTES) return 'El archivo no puede pasar los 10 MB.';

@@ -1,5 +1,8 @@
+import { useState } from 'react';
 import { useOpenDocument, usePatientDocuments } from '../hooks/usePatientDocuments';
+import { isIps } from '../lib/documents';
 import { DocumentRow, ROW_ACTION } from './DocumentRow';
+import { IpsSummaryDrawer } from './IpsSummary';
 
 /**
  * Lo que aportó el paciente, visto por el profesional (ENG-164). Va en su
@@ -12,6 +15,8 @@ import { DocumentRow, ROW_ACTION } from './DocumentRow';
 export function PatientDocumentsPanel({ patientId }: { patientId: string }) {
   const documentos = usePatientDocuments(patientId);
   const abrir = useOpenDocument();
+  // El resumen de salud IPS se lee ordenado en un panel (ENG-246).
+  const [resumen, setResumen] = useState<string | null>(null);
 
   if (documentos.isPending || (documentos.data && documentos.data.length === 0)) return null;
 
@@ -45,7 +50,7 @@ export function PatientDocumentsPanel({ patientId }: { patientId: string }) {
               actions={
                 <button
                   type="button"
-                  onClick={() => abrir.mutate(doc.id)}
+                  onClick={() => (isIps(doc.mimeType) ? setResumen(doc.id) : abrir.mutate(doc.id))}
                   aria-label={`Ver ${doc.title}`}
                   className={`${ROW_ACTION} text-brand-hover hover:bg-surface-teal`}
                 >
@@ -64,6 +69,11 @@ export function PatientDocumentsPanel({ patientId }: { patientId: string }) {
           {abrir.error.message}
         </p>
       )}
+      <IpsSummaryDrawer
+        documentId={resumen}
+        paraPaciente={false}
+        onClose={() => setResumen(null)}
+      />
     </section>
   );
 }

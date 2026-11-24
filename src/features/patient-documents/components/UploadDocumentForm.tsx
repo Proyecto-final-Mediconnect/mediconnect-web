@@ -2,14 +2,15 @@ import { useId, useState } from 'react';
 import { Button } from '../../../shared/ui/Button';
 import { useUploadDocument } from '../hooks/usePatientDocuments';
 import {
-  ACCEPTED_MIME,
+  ACCEPT_ATTR,
+  esResumenIps,
   fileProblem,
   formatSize,
   hoyLocal,
   suggestedTitle,
   TYPE_LABELS,
 } from '../lib/documents';
-import { DOCUMENT_TYPES, type DocumentType } from '../types';
+import { DOCUMENT_TYPES, type DocumentType, type PatientDocument } from '../types';
 import { DocumentIcon } from './DocumentRow';
 
 /**
@@ -21,7 +22,8 @@ export function UploadDocumentForm({
   onDone,
   onCancel,
 }: {
-  onDone: () => void;
+  /** Se subió: el documento, para abrir el resumen si es uno (ENG-246). */
+  onDone: (doc: PatientDocument) => void;
   onCancel: () => void;
 }) {
   const upload = useUploadDocument();
@@ -44,7 +46,15 @@ export function UploadDocumentForm({
     const problema = fileProblem(elegido);
     setFileError(problema);
     setFile(problema ? null : elegido);
-    if (!problema && !title) setTitle(suggestedTitle(elegido));
+    if (problema) return;
+    // Un resumen de salud de otro centro es un informe, y su nombre de archivo
+    // suele ser un código: se propone uno que se entienda.
+    if (esResumenIps(elegido)) {
+      setType('INFORME');
+      if (!title) setTitle('Resumen de salud');
+    } else if (!title) {
+      setTitle(suggestedTitle(elegido));
+    }
   }
 
   function subir(event: React.FormEvent) {
@@ -69,7 +79,7 @@ export function UploadDocumentForm({
         documentDate: documentDate || undefined,
         sourceInstitution: sourceInstitution.trim() || undefined,
       },
-      { onSuccess: onDone },
+      { onSuccess: (doc) => onDone(doc) },
     );
   }
 
@@ -79,7 +89,7 @@ export function UploadDocumentForm({
           tocar, y acepta soltar un archivo encima. */}
       {file ? (
         <div className="flex items-center gap-3.5 rounded-[12px] border border-line bg-surface px-4 py-3">
-          <DocumentIcon mimeType={file.type} />
+          <DocumentIcon mimeType={esResumenIps(file) ? 'application/fhir+json' : file.type} />
           <span className="min-w-0 flex-1">
             <span className="block truncate text-[14px] font-semibold text-brand-deep">
               {file.name}
@@ -123,11 +133,13 @@ export function UploadDocumentForm({
           <span className="text-[14px] font-semibold text-brand-deep">
             Elegí un archivo o soltalo acá
           </span>
-          <span className="text-[12.5px] text-muted">PDF, JPG o PNG · hasta 10 MB</span>
+          <span className="text-[12.5px] text-muted">
+            PDF, JPG o PNG · hasta 10 MB. También tu resumen de salud (IPS) en JSON.
+          </span>
           <input
             id={inputId}
             type="file"
-            accept={ACCEPTED_MIME.join(',')}
+            accept={ACCEPT_ATTR}
             className="sr-only"
             onChange={(e) => elegir(e.target.files?.[0])}
           />
