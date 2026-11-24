@@ -127,57 +127,6 @@ body {
   }
 }
 
-/* Tarjeta de emergencia del MediPass (ENG-176): al imprimir, solo sale la hoja
- * `.hoja-tarjeta` (un portal en `body`, ver `EmergencyCard`). Se oculta el resto de
- * la app con `display: none` y no con `visibility`: lo oculto por visibilidad igual
- * ocupa lugar y en un diálogo con scroll el navegador lo recorta al paginar. */
-@media print {
-  body:has(.hoja-tarjeta) > *:not(.hoja-tarjeta) {
-    display: none !important;
-  }
-
-  .hoja-tarjeta {
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-}
-
-/* Reportes en PDF: "Mi actividad" y "Tu resumen" (ver `PrintableReport`). Igual
- * que la tarjeta: la hoja es un portal en `body` y, mientras está montada, es lo
- * único que se imprime. Usa su propia página con márgenes en cero para que el
- * navegador no agregue la URL ni la fecha arriba y abajo; el margen lo pone la
- * hoja. */
-@page reporte {
-  size: A4;
-  margin: 0;
-}
-
-@media print {
-  body:has(.hoja-reporte) > *:not(.hoja-reporte) {
-    display: none !important;
-  }
-
-  .hoja-reporte {
-    page: reporte;
-    padding: 16mm 15mm 14mm;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
-  }
-  /* La historia clínica ocupa varias hojas: el margen de arriba y de abajo lo
-     dan el \`thead\` y el \`tfoot\` de su tabla, que se repiten en cada hoja. */
-  .hoja-reporte.hoja-historia {
-    padding: 0 15mm;
-  }
-
-  .hoja-historia thead {
-    display: table-header-group;
-  }
-
-  .hoja-historia tfoot {
-    display: table-footer-group;
-  }
-}
-
 /* Panel lateral (SideDrawer, ENG-178). */
 @keyframes drawer-in {
   from {

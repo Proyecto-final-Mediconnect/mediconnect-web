@@ -6,6 +6,11 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { EmergencyCard } from './EmergencyCard';
 import type { EmergencyCardStatus } from '../types/medipass';
+import { descargarPdf } from '../../../shared/lib/pdf/pdf';
+import { textoDe } from '../../../shared/lib/pdf/hoja';
+
+// El PDF se arma de verdad en `emergencyCardPdf`; acá se mira qué se baja.
+vi.mock('../../../shared/lib/pdf/pdf', () => ({ descargarPdf: vi.fn(() => Promise.resolve()) }));
 
 /** ENG-176 — la tarjeta de emergencia: generarla, imprimirla, regenerarla y desactivarla. */
 
@@ -72,19 +77,24 @@ describe('EmergencyCard (ENG-176)', () => {
     expect(screen.queryByText(new RegExp(TOKEN))).not.toBeInTheDocument();
   });
 
-  it('Imprimir abre el diálogo de impresión del navegador', async () => {
+  it('baja la tarjeta en PDF, con el token en el QR, sin el diálogo de impresión', async () => {
+    vi.mocked(descargarPdf).mockClear();
     const user = userEvent.setup();
     const print = vi.spyOn(window, 'print').mockImplementation(() => {});
     renderCard({ activa: false, creadaEl: null });
 
     await user.click(await screen.findByRole('button', { name: 'Generar mi tarjeta' }));
-    await user.click(await screen.findByRole('button', { name: 'Imprimir o guardar PDF' }));
+    await user.click(await screen.findByRole('button', { name: 'Descargar PDF para imprimir' }));
 
-    expect(print).toHaveBeenCalledTimes(1);
-    // Lo que se imprime es la hoja A4, montada directo en `body` (fuera del diálogo).
-    const hoja = document.querySelector('.hoja-tarjeta');
-    expect(hoja?.parentElement).toBe(document.body);
-    expect(hoja).toHaveTextContent('Tu tarjeta de emergencia MediPass');
+    expect(descargarPdf).toHaveBeenCalledTimes(1);
+    expect(print).not.toHaveBeenCalled();
+    const [doc, archivo] = vi.mocked(descargarPdf).mock.calls[0];
+    expect(archivo).toBe('tarjeta-de-emergencia-medipass.pdf');
+    const texto = textoDe(doc.content);
+    expect(texto).toContain('Tu tarjeta de emergencia MediPass');
+    expect(texto).toContain('Marina Ocampo');
+    // El token va en el fragmento, igual que en el QR de la pantalla.
+    expect(texto).toContain(`/medipass/emergencia#tarjeta=${TOKEN}`);
   });
 
   it('después de "Listo", el QR desaparece y queda solo que hay una activa', async () => {

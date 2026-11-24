@@ -1,12 +1,17 @@
 // @vitest-environment jsdom
 import '@testing-library/jest-dom/vitest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ClinicalRecord } from './ClinicalRecord';
 import type { ClinicalEntry } from '../types/clinicalRecord';
 import { desplegarRegistros } from '../testing/desplegarRegistros';
+import { descargarPdf } from '../../../shared/lib/pdf/pdf';
+import { textoDe } from '../../../shared/lib/pdf/hoja';
+
+// El PDF se arma de verdad en `clinicalRecordPdf`; acá se mira qué se baja.
+vi.mock('../../../shared/lib/pdf/pdf', () => ({ descargarPdf: vi.fn(() => Promise.resolve()) }));
 
 const PATIENT = '11111111-1111-4111-8111-111111111111';
 
@@ -410,16 +415,88 @@ describe('ClinicalRecord', () => {
       expect(screen.queryByLabelText(/profesional/i)).not.toBeInTheDocument();
     });
 
-    /** No hay endpoint de exportación: la descarga es la impresión del
-     *  navegador, que ya ofrece "Guardar como PDF". */
-    it('el botón de PDF manda a imprimir', async () => {
-      const print = vi.spyOn(window, 'print').mockImplementation(() => {});
-      renderRecord();
-      await screen.findByText('La consulta');
+    /**
+     * ENG-231: "Descargar PDF" baja un archivo, sin el diálogo de impresión.
+     * Antes, el backend registra quién la descargó; sin ese registro no hay PDF.
+     */
+    describe('descargar en PDF (ENG-231)', () => {
+      const exportaciones = () =>
+        (fetchSpy.mock.calls as [RequestInfo | URL, RequestInit | undefined][]).filter(([url]) =>
+          String(url).endsWith('/clinical-record/exports'),
+        );
 
-      await userEvent.click(screen.getByRole('button', { name: /descargar historia en pdf/i }));
+      function conExportacion(respuesta: () => Response) {
+        fetchSpy.mockImplementation((url: RequestInfo | URL) =>
+          Promise.resolve(String(url).endsWith('/exports') ? respuesta() : jsonResponse(entries)),
+        );
+      }
 
-      expect(print).toHaveBeenCalledTimes(1);
+      beforeEach(() => {
+        vi.mocked(descargarPdf).mockClear();
+        conExportacion(() => new Response(null, { status: 204 }));
+      });
+
+      it('registra la descarga y baja el PDF de la historia, sin imprimir', async () => {
+        const print = vi.spyOn(window, 'print').mockImplementation(() => {});
+        renderRecord();
+        await screen.findByText('La consulta');
+
+        await userEvent.click(screen.getByRole('button', { name: /descargar historia en pdf/i }));
+
+        await waitFor(() => expect(descargarPdf).toHaveBeenCalledTimes(1));
+        expect(print).not.toHaveBeenCalled();
+        const [url, init] = exportaciones()[0];
+        expect(String(url)).toContain(`/patients/${PATIENT}/clinical-record/exports`);
+        expect(init?.method).toBe('POST');
+        expect(JSON.parse(String(init?.body))).toEqual({ entryCount: 2, filtered: false });
+
+        const [doc, archivo] = vi.mocked(descargarPdf).mock.calls[0];
+        expect(archivo).toMatch(/^historia-clinica-\d{4}-\d{2}-\d{2}\.pdf$/);
+        const texto = textoDe(doc.content);
+        expect(texto).toContain('Historia clínica');
+        expect(texto).toContain('La consulta');
+        expect(texto).toContain('La prescripción');
+      });
+
+      it('con filtros baja solo lo filtrado y lo registra así', async () => {
+        renderRecord();
+        await screen.findByText('La consulta');
+        await userEvent.click(
+          within(screen.getByRole('radiogroup', { name: /tipo de registro/i })).getByRole('radio', {
+            name: 'Prescripciones',
+          }),
+        );
+
+        await userEvent.click(screen.getByRole('button', { name: /descargar historia en pdf/i }));
+
+        await waitFor(() => expect(descargarPdf).toHaveBeenCalledTimes(1));
+        expect(JSON.parse(String(exportaciones()[0][1]?.body))).toEqual({
+          entryCount: 1,
+          filtered: true,
+        });
+        const texto = textoDe(vi.mocked(descargarPdf).mock.calls[0][0].content);
+        expect(texto).toContain('1 de 2 registros (con filtros)');
+        expect(texto).not.toContain('La consulta');
+      });
+
+      it('si el backend no pudo registrar la descarga, no baja nada y lo dice', async () => {
+        conExportacion(() =>
+          jsonResponse(
+            {
+              message:
+                'No pudimos registrar la descarga de la historia clínica, así que no la generamos. Probá de nuevo en unos minutos.',
+            },
+            500,
+          ),
+        );
+        renderRecord();
+        await screen.findByText('La consulta');
+
+        await userEvent.click(screen.getByRole('button', { name: /descargar historia en pdf/i }));
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(/no la generamos/);
+        expect(descargarPdf).not.toHaveBeenCalled();
+      });
     });
   });
 

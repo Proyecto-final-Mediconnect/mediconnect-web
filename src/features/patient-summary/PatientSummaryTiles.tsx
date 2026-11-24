@@ -4,11 +4,12 @@ import { Link } from 'react-router-dom';
 import { formatPrice } from '../appointments/lib/weeks';
 import { getMySummary, type PatientSummary } from './api';
 import { PERIOD_LABELS, periodRange, type SummaryPeriod } from './period';
-import { PatientSummaryReport } from './PatientSummaryReport';
+import { summaryPdf } from './summaryPdf';
 import { SESSION_QUERY_KEY } from '../auth/hooks/useSession';
 import { displayNameOf, type SessionUser } from '../auth/types/session';
-import { ExportPdfButton } from '../../shared/ui/PrintableReport';
-import { usePrintReport } from '../../shared/lib/printReport';
+import { ExportPdfButton } from '../../shared/ui/ExportPdfButton';
+import { useDescargaPdf } from '../../shared/lib/pdf/useDescargaPdf';
+import { nombreDeArchivo } from '../../shared/lib/pdf/hoja';
 
 /**
  * El resumen del inicio del paciente (ENG-198): consultas, lo que pagó, lo que
@@ -29,7 +30,7 @@ export function PatientSummaryTiles() {
     datos.consultas.realizadas === 0 &&
     datos.pagos.pagado === 0 &&
     datos.accesos.total === 0;
-  const { imprimiendo, imprimir } = usePrintReport();
+  const pdf = useDescargaPdf();
   // De la caché: el inicio ya cargó la sesión y no hace falta otro pedido.
   const usuario = useQueryClient().getQueryData<SessionUser | null>(SESSION_QUERY_KEY);
 
@@ -61,19 +62,23 @@ export function PatientSummaryTiles() {
             ))}
           </div>
           <ExportPdfButton
-            onClick={imprimir}
+            onClick={() => {
+              if (!datos) return;
+              void pdf.descargar(() => ({
+                doc: summaryPdf({
+                  datos,
+                  periodo: PERIOD_LABELS[periodo],
+                  persona: usuario ? displayNameOf(usuario) : undefined,
+                }),
+                archivo: `${nombreDeArchivo('mi resumen', datos.from, 'a', datos.to)}.pdf`,
+              }));
+            }}
             disabled={!datos || resumen.isFetching || !!sinActividad}
+            generando={pdf.generando}
+            error={pdf.error}
           />
         </div>
       </div>
-
-      {imprimiendo && datos && (
-        <PatientSummaryReport
-          datos={datos}
-          periodo={PERIOD_LABELS[periodo]}
-          persona={usuario ? displayNameOf(usuario) : undefined}
-        />
-      )}
 
       {resumen.isPending ? (
         <div

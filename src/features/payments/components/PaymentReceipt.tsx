@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { cuando } from '../../appointments/lib/timeline';
 import { formatPrice } from '../../appointments/lib/weeks';
 import type { Appointment } from '../../appointments/types/appointment';
-import { usePrintReport } from '../../../shared/lib/printReport';
-import { ExportPdfButton } from '../../../shared/ui/PrintableReport';
-import { ReceiptSheet } from './ReceiptSheet';
+import { useDescargaPdf } from '../../../shared/lib/pdf/useDescargaPdf';
+import { nombreDeArchivo } from '../../../shared/lib/pdf/hoja';
+import { ExportPdfButton } from '../../../shared/ui/ExportPdfButton';
+import { receiptPdf } from '../lib/receiptPdf';
 import { paymentMethodLabel } from '../lib/receipt';
 import type { PaymentReceipt as Receipt } from '../types/payment';
 
@@ -13,7 +14,7 @@ import type { PaymentReceipt as Receipt } from '../types/payment';
  * número de operación de MercadoPago, que se puede copiar para un reclamo.
  *
  * Lo usan la confirmación de la reserva y el detalle del turno. Con el turno,
- * se puede descargar en PDF (la hoja de `ReceiptSheet`).
+ * se puede descargar en PDF (`receiptPdf`).
  */
 export function PaymentReceipt({
   receipt,
@@ -28,7 +29,7 @@ export function PaymentReceipt({
   appointment?: Appointment | null;
 }) {
   const fecha = cuando(confirmedAt);
-  const { imprimiendo, imprimir } = usePrintReport();
+  const pdf = useDescargaPdf();
 
   return (
     <section
@@ -47,9 +48,6 @@ export function PaymentReceipt({
           Acreditado
         </span>
       </header>
-      {imprimiendo && appointment && (
-        <ReceiptSheet receipt={receipt} confirmedAt={confirmedAt} appointment={appointment} />
-      )}
       <dl className="grid gap-[11px] px-[22px] py-[18px] text-sm font-medium text-ink">
         <Fila titulo="Importe">
           <span className="font-bold text-brand-deep">
@@ -64,7 +62,17 @@ export function PaymentReceipt({
       {receipt.operationId && <NumeroDeOperacion numero={receipt.operationId} />}
       {appointment && (
         <div className="border-t border-line-soft px-[22px] py-3">
-          <ExportPdfButton onClick={imprimir} label="Descargar comprobante" />
+          <ExportPdfButton
+            onClick={() =>
+              void pdf.descargar(() => ({
+                doc: receiptPdf({ receipt, confirmedAt, appointment }),
+                archivo: `${nombreDeArchivo('comprobante mediconnect', appointment.date)}.pdf`,
+              }))
+            }
+            generando={pdf.generando}
+            error={pdf.error}
+            label="Descargar comprobante"
+          />
         </div>
       )}
     </section>
