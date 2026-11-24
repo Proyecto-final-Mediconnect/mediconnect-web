@@ -3,7 +3,7 @@ import '@testing-library/jest-dom/vitest';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { MemoryRouter, Route, Routes, type InitialEntry } from 'react-router-dom';
+import { MemoryRouter, Route, Routes, useLocation, type InitialEntry } from 'react-router-dom';
 import { LoginPage } from './LoginPage';
 
 /**
@@ -21,11 +21,25 @@ function renderLogin(entrada: InitialEntry) {
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[entrada]}>
         <Routes>
-          <Route path="/ingresar" element={<LoginPage />} />
+          <Route
+            path="/ingresar"
+            element={
+              <>
+                <LoginPage />
+                <UrlActual />
+              </>
+            }
+          />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   );
+}
+
+/** Lo que queda en la barra de direcciones. */
+function UrlActual() {
+  const { pathname, search, hash } = useLocation();
+  return <span data-testid="url">{`${pathname}${search}${hash}`}</span>;
 }
 
 describe('LoginPage', () => {
@@ -58,5 +72,39 @@ describe('LoginPage', () => {
 
     expect(screen.getByRole('status')).toHaveTextContent(/Tu cuenta se dio de baja/);
     expect(screen.queryByText(AVISO)).not.toBeInTheDocument();
+  });
+
+  // ENG-235: el enlace del mail de confirmación del registro vuelve acá.
+  describe('al volver del enlace de confirmación del registro', () => {
+    it('dice que el email quedó confirmado y que se puede ingresar también desde la app', () => {
+      renderLogin('/ingresar#access_token=abc&refresh_token=def&type=signup');
+
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Tu email quedó confirmado. Ya podés ingresar, acá o desde la app de MediConnect.',
+      );
+    });
+
+    it('saca los tokens de la URL', () => {
+      renderLogin('/ingresar#access_token=abc&refresh_token=def&type=signup');
+
+      expect(screen.getByTestId('url')).toHaveTextContent(/^\/ingresar$/);
+    });
+
+    it('si el enlace venció o ya se usó, lo dice y cómo pedir otro', () => {
+      renderLogin(
+        '/ingresar#error=access_denied&error_code=otp_expired&error_description=Email+link+is+invalid+or+has+expired',
+      );
+
+      expect(screen.getByRole('alert')).toHaveTextContent(/venció o ya se usó/);
+      expect(screen.getByRole('alert')).toHaveTextContent(/registrate de nuevo con el mismo email/);
+      expect(screen.getByTestId('url')).toHaveTextContent(/^\/ingresar$/);
+    });
+
+    it('un fragmento que no es de la confirmación no muestra nada ni toca la URL', () => {
+      renderLogin('/ingresar#algo');
+
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      expect(screen.getByTestId('url')).toHaveTextContent('/ingresar#algo');
+    });
   });
 });
