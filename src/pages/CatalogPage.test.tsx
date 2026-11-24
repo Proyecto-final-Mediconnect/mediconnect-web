@@ -361,6 +361,58 @@ describe('CatalogPage (ENG-49)', () => {
     expect(await screen.findByText(/Todavía no hay profesionales verificados/)).toBeVisible();
   });
 
+  describe('búsqueda por texto (ENG-233)', () => {
+    it('se la pide al backend, así encuentra a quien todavía no se cargó', async () => {
+      const user = userEvent.setup();
+      renderCatalog();
+      await screen.findByText('Nombre1 Apellido1');
+
+      professionalResponses = [page([card(37)], { total: 1 })];
+      await user.type(screen.getByLabelText('¿A quién necesitás ver?'), '  Nombre37 ');
+
+      expect(await screen.findByText('Nombre37 Apellido37')).toBeVisible();
+      expect(lastQuery()).toMatchObject({ search: 'Nombre37', page: '1' });
+      expect(screen.queryByText('Nombre1 Apellido1')).not.toBeInTheDocument();
+    });
+
+    it('espera a que se deje de escribir: no sale un pedido por tecla', async () => {
+      const user = userEvent.setup();
+      renderCatalog();
+      await screen.findByText('Nombre1 Apellido1');
+
+      await user.type(screen.getByLabelText('¿A quién necesitás ver?'), 'pediatría');
+
+      await waitFor(() => expect(lastQuery().search).toBe('pediatría'));
+      expect(professionalRequests.filter((url) => url.includes('search='))).toHaveLength(1);
+    });
+
+    it('sin resultados dice qué se buscó', async () => {
+      const user = userEvent.setup();
+      renderCatalog();
+      await screen.findByText('Nombre1 Apellido1');
+
+      professionalResponses = [page([], { total: 0, totalPages: 0 })];
+      await user.type(screen.getByLabelText('¿A quién necesitás ver?'), 'zzz');
+
+      expect(await screen.findByText('No encontramos profesionales')).toBeVisible();
+      expect(screen.getByText(/No hay resultados para “zzz”/)).toBeVisible();
+    });
+
+    it('"Limpiar" también borra la búsqueda', async () => {
+      const user = userEvent.setup();
+      renderCatalog();
+      await screen.findByText('Nombre1 Apellido1');
+
+      await user.type(screen.getByLabelText('¿A quién necesitás ver?'), 'zzz');
+      await waitFor(() => expect(lastQuery().search).toBe('zzz'));
+
+      await user.click(screen.getByRole('button', { name: /limpiar/i }));
+
+      expect(screen.getByLabelText('¿A quién necesitás ver?')).toHaveValue('');
+      await waitFor(() => expect(lastQuery().search).toBeUndefined());
+    });
+  });
+
   it('permite limpiar los filtros aplicados', async () => {
     const user = userEvent.setup();
     renderCatalog();
@@ -382,17 +434,6 @@ describe('CatalogPage (ENG-49)', () => {
       expect(screen.queryByLabelText('Disponibilidad')).not.toBeInTheDocument();
       expect(screen.queryByText('Calificación mínima')).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: '4.5+' })).not.toBeInTheDocument();
-    });
-
-    it('la búsqueda por texto sigue filtrando lo cargado', async () => {
-      const user = userEvent.setup();
-      renderCatalog();
-      await screen.findByText('Nombre1 Apellido1');
-
-      await user.type(screen.getByLabelText('¿A quién necesitás ver?'), 'zzz');
-
-      expect(await screen.findByText('No encontramos profesionales')).toBeVisible();
-      expect(screen.queryByText('Nombre1 Apellido1')).not.toBeInTheDocument();
     });
 
     it('las tarjetas dicen que no hay reseñas en vez de un puntaje', async () => {
