@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { SideDrawer } from '../../../shared/ui/SideDrawer';
 import { useMyProfile } from '../../patient-profile/hooks/usePatientProfile';
+import { IpsImport } from '../../patient-profile/components/IpsImport';
 import { VitalInfoForm, type VitalSection } from '../../patient-profile/components/VitalInfoForm';
 import { useMyScope, useUpdateScope } from '../hooks/useMediPass';
 import { recortarPorScope } from '../lib/medipass';
@@ -101,6 +102,8 @@ export function EmergencyData({ vital }: { vital: VitalBlock }) {
   const [perfilFresco, setPerfilFresco] = useState<'cargando' | 'listo' | Error>('cargando');
   const pedido = useRef(0);
   const [vistaPrevia, setVistaPrevia] = useState(false);
+  /** El panel para importar el resumen de salud IPS (ENG-246). */
+  const [importando, setImportando] = useState(false);
   const [guardado, setGuardado] = useState(false);
   const ref = useRef<HTMLElement>(null);
   const { hash } = useLocation();
@@ -158,6 +161,29 @@ export function EmergencyData({ vital }: { vital: VitalBlock }) {
             <circle cx="10" cy="10" r="2.4" />
           </svg>
           Ver como lo ve un médico
+        </button>
+        {/* Cargar desde el resumen de salud que dio otro centro (ENG-246, ADR-022). */}
+        <button
+          type="button"
+          onClick={() => {
+            setGuardado(false);
+            setImportando(true);
+          }}
+          className="inline-flex flex-none items-center gap-2 rounded-full border border-line-strong px-3.5 py-2 text-[13px] font-semibold text-brand-deep transition-colors hover:border-brand hover:bg-surface-teal focus:outline-none focus-visible:ring-2 focus-visible:ring-brand"
+        >
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 20 20"
+            className="size-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M10 13V3m0 0L6.5 6.5M10 3l3.5 3.5M4 12.5V16h12v-3.5" />
+          </svg>
+          Importar un resumen de salud
         </button>
       </header>
 
@@ -293,6 +319,21 @@ export function EmergencyData({ vital }: { vital: VitalBlock }) {
               Cargando…
             </p>
           ))}
+      </SideDrawer>
+
+      <SideDrawer
+        open={importando}
+        title="Importar un resumen de salud"
+        onClose={() => setImportando(false)}
+      >
+        {importando && (
+          <IpsImport
+            onDone={(ok) => {
+              setImportando(false);
+              setGuardado(ok);
+            }}
+          />
+        )}
       </SideDrawer>
 
       <SideDrawer
