@@ -1,4 +1,9 @@
-import type { VitalAllergy, VitalCondition, VitalMedication } from '../types/patientProfile';
+import type {
+  PatientProfile,
+  VitalAllergy,
+  VitalCondition,
+  VitalMedication,
+} from '../types/patientProfile';
 import { MAX_ROWS, type VitalForm } from './vitalInfo';
 
 /**
@@ -62,6 +67,36 @@ export function mergeIps(form: VitalForm, seleccion: IpsSeleccion): VitalForm {
       (c) => c.nombre,
     ),
   };
+}
+
+/**
+ * Los ítems del resumen que ya están en el MediPass (mismo nombre, sin importar
+ * mayúsculas), con la clave con la que se tildan: `allergies.0`. Es el mismo
+ * criterio con el que `mergeIps` evita repetirlos.
+ */
+export function yaEnMediPass(perfil: PatientProfile | undefined, resumen: IpsResumen): Set<string> {
+  const tiene = (lista: string[] | undefined, nombre: string) =>
+    (lista ?? []).some((x) => clave(x) === clave(nombre));
+  const alergias = perfil?.allergies?.map((a) => a.que);
+  const remedios = perfil?.medications?.map((m) => m.droga);
+  const condiciones = perfil?.conditions?.map((c) => c.nombre);
+  return new Set([
+    ...resumen.propuesta.allergies.flatMap((a, i) =>
+      tiene(alergias, a.que) ? [`allergies.${i}`] : [],
+    ),
+    ...resumen.propuesta.medications.flatMap((m, i) =>
+      tiene(remedios, m.droga) ? [`medications.${i}`] : [],
+    ),
+    ...resumen.propuesta.conditions.flatMap((c, i) =>
+      tiene(condiciones, c.nombre) ? [`conditions.${i}`] : [],
+    ),
+  ]);
+}
+
+/** Cuántos ítems del resumen se pueden sumar al MediPass. */
+export function cantidadDeItems(resumen: IpsResumen): number {
+  const { allergies, medications, conditions } = resumen.propuesta;
+  return allergies.length + medications.length + conditions.length;
 }
 
 /** "26 de enero de 2018" a partir de una fecha del documento, o `null`. */
