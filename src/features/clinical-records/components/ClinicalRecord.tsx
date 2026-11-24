@@ -20,7 +20,10 @@ import {
 } from '../lib/filtrarEntradas';
 import { ENTRY_TYPE_LABELS, type ClinicalEntry } from '../types/clinicalRecord';
 import { EntryCard } from './EntryCard';
-import { ClinicalRecordReport } from './ClinicalRecordReport';
+import { clinicalRecordPdf } from '../lib/clinicalRecordPdf';
+import { recordClinicalRecordExport } from '../api/clinicalRecordsApi';
+import { useDescargaPdf } from '../../../shared/lib/pdf/useDescargaPdf';
+import { hoyIso, nombreDeArchivo } from '../../../shared/lib/pdf/hoja';
 import { TONO_TIPO } from '../lib/entryTone';
 import { CorrectedChip, TypeChip } from './entryType';
 import { RecordFilters } from './RecordFilters';
@@ -179,10 +182,31 @@ export function ClinicalRecord({
 
   const seleccionada = abierta !== null ? porNumero.get(abierta) : undefined;
 
+  const pdf = useDescargaPdf();
+
+  /**
+   * Baja la HC en PDF (ENG-231), con lo que se está viendo: si hay filtros, solo
+   * lo que pasa los filtros, y el documento lo dice. Primero se registra la
+   * descarga en el backend; si no se puede, no se genera.
+   */
   function descargar() {
-    flushSync(() => setImprimiendo(true));
-    window.print();
-    setImprimiendo(false);
+    const exportadas = coincidencias;
+    void pdf.descargar(async () => {
+      await recordClinicalRecordExport(patientId, {
+        entryCount: exportadas.length,
+        filtered: exportadas.length !== entries.length,
+      });
+      return {
+        doc: clinicalRecordPdf({
+          entries: exportadas,
+          total: entries.length,
+          corregidaPor,
+          posicionDe,
+          paciente,
+        }),
+        archivo: `${nombreDeArchivo('historia clinica', paciente, hoyIso())}.pdf`,
+      };
+    });
   }
 
   /** El detalle de una entrada, con los vínculos que abren a la otra punta. */
@@ -244,17 +268,6 @@ export function ClinicalRecord({
 
   return (
     <div className="grid gap-8">
-      {/* El PDF es un documento propio (portal en `body`), no esta pantalla
-          impresa. Sale con "Descargar PDF" y también con Ctrl+P. */}
-      {imprimiendo && record.data && (
-        <ClinicalRecordReport
-          entries={visibles}
-          total={entries.length}
-          corregidaPor={corregidaPor}
-          posicionDe={posicionDe}
-          paciente={paciente}
-        />
-      )}
       <section aria-labelledby="entradas">
         {/* El título de la sección no se dibuja: la barra del panel ya dice en
             qué pantalla estás y repetirlo empujaba la cadena media pantalla
@@ -294,6 +307,8 @@ export function ClinicalRecord({
                 total={entries.length}
                 visibles={coincidencias.length}
                 onDescargar={descargar}
+                generando={pdf.generando}
+                errorDescarga={pdf.error}
               />
 
               {coincidencias.length === 0 ? (

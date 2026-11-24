@@ -5,6 +5,11 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Appointment } from '../../appointments/types/appointment';
 import { PaymentReceipt } from './PaymentReceipt';
+import { descargarPdf } from '../../../shared/lib/pdf/pdf';
+import { textoDe } from '../../../shared/lib/pdf/hoja';
+
+// El PDF se arma de verdad en el armador de cada hoja; acá se mira qué se baja.
+vi.mock('../../../shared/lib/pdf/pdf', () => ({ descargarPdf: vi.fn(() => Promise.resolve()) }));
 
 const receipt = {
   amount: 18000,
@@ -38,7 +43,8 @@ describe('PaymentReceipt: comprobante en PDF', () => {
     expect(screen.queryByRole('button', { name: /Descargar comprobante/ })).toBeNull();
   });
 
-  it('arma la hoja con el turno y el pago, e imprime', async () => {
+  it('baja el PDF con el turno y el pago, sin imprimir', async () => {
+    vi.mocked(descargarPdf).mockClear();
     const print = vi.spyOn(window, 'print').mockImplementation(() => {});
     const user = userEvent.setup();
     render(
@@ -51,20 +57,17 @@ describe('PaymentReceipt: comprobante en PDF', () => {
 
     await user.click(screen.getByRole('button', { name: /Descargar comprobante/ }));
 
-    await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
-    const hoja = document.querySelector('.hoja-reporte');
-    expect(hoja).not.toBeNull();
-    expect(hoja).toHaveTextContent('Comprobante de pago');
-    expect(hoja).toHaveTextContent('Juan Pérez');
-    expect(hoja).toHaveTextContent('Ana García');
-    expect(hoja).toHaveTextContent('Tarjeta de crédito');
-    expect(hoja).toHaveTextContent('123456789');
-    expect(hoja).toHaveTextContent('$18.000');
-    expect(hoja).toHaveTextContent('15 de noviembre de 2026 · 12:00');
-    expect(document.title).toBe('Comprobante MediConnect 2026-11-20');
-
-    // Terminada la impresión, la hoja se desmonta.
-    window.dispatchEvent(new Event('afterprint'));
-    await waitFor(() => expect(document.querySelector('.hoja-reporte')).toBeNull());
+    await waitFor(() => expect(descargarPdf).toHaveBeenCalledTimes(1));
+    expect(print).not.toHaveBeenCalled();
+    const [doc, archivo] = vi.mocked(descargarPdf).mock.calls[0];
+    expect(archivo).toBe('comprobante-mediconnect-2026-11-20.pdf');
+    const texto = textoDe(doc.content);
+    expect(texto).toContain('Comprobante de pago');
+    expect(texto).toContain('Juan Pérez');
+    expect(texto).toContain('Ana García');
+    expect(texto).toContain('Tarjeta de crédito');
+    expect(texto).toContain('123456789');
+    expect(texto).toContain('$18.000');
+    expect(texto).toContain('15 de noviembre de 2026 · 12:00');
   });
 });

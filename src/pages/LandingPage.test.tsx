@@ -58,8 +58,6 @@ describe('Landing', () => {
     expect(container).not.toHaveTextContent(/qué parte miró|qué miró/);
     // El MediPass lo carga el paciente: las consultas no lo llenan.
     expect(container).not.toHaveTextContent(/en tu historia clínica y en tu MediPass/);
-    // La historia se guarda en PDF desde el diálogo de impresión (ENG-231).
-    expect(container).not.toHaveTextContent(/descargarla en PDF/);
     expect(container).toHaveTextContent('Sabés qué profesional la abrió y cuándo.');
   });
 });

@@ -84,6 +84,26 @@ export async function correctClinicalEntry(
 }
 
 /**
+ * Registra que se descarga la HC en PDF (ENG-231): quién, cuántos registros y
+ * si estaba filtrada. Va antes de generar el archivo; si el backend no lo pudo
+ * registrar, responde error y no se genera.
+ */
+export async function recordClinicalRecordExport(
+  patientId: string,
+  exported: { entryCount: number; filtered: boolean },
+): Promise<void> {
+  const response = await apiFetch(`${base(patientId)}/exports`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(exported),
+  });
+
+  if (!response.ok) {
+    throw await toApiError(response, 'No pudimos registrar la descarga de la historia clínica.');
+  }
+}
+
+/**
  * `GET /patients/me/clinical-record/accesses`: quién abrió mi historia clínica
  * (ENG-165), de a 10. Las lecturas propias no vienen.
  */

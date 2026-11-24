@@ -6,6 +6,11 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { PatientSummaryTiles } from './PatientSummaryTiles';
+import { descargarPdf } from '../../shared/lib/pdf/pdf';
+import { textoDe } from '../../shared/lib/pdf/hoja';
+
+// El PDF se arma de verdad en el armador de cada hoja; acá se mira qué se baja.
+vi.mock('../../shared/lib/pdf/pdf', () => ({ descargarPdf: vi.fn(() => Promise.resolve()) }));
 
 const RESUMEN = {
   from: '2026-10-22',
@@ -93,6 +98,7 @@ describe('PatientSummaryTiles (ENG-198)', () => {
   });
 
   it('exporta el resumen a PDF con el detalle de pagos y accesos', async () => {
+    vi.mocked(descargarPdf).mockClear();
     const print = vi.spyOn(window, 'print').mockImplementation(() => {});
     const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
     renderTiles(() => json(RESUMEN));
@@ -100,12 +106,14 @@ describe('PatientSummaryTiles (ENG-198)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Exportar PDF' }));
 
-    await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
-    const hoja = document.querySelector('.hoja-reporte');
-    expect(hoja?.parentElement).toBe(document.body);
-    expect(hoja).toHaveTextContent('Resumen de tu actividad');
-    expect(hoja).toHaveTextContent('Últimos 30 días');
-    expect(hoja).toHaveTextContent(/Total neto\s*\$\s?45\.000/);
-    expect(hoja).toHaveTextContent('Accesos en total5');
+    await waitFor(() => expect(descargarPdf).toHaveBeenCalledTimes(1));
+    expect(print).not.toHaveBeenCalled();
+    const [doc, archivo] = vi.mocked(descargarPdf).mock.calls[0];
+    expect(archivo).toBe(`mi-resumen-${RESUMEN.from}-a-${RESUMEN.to}.pdf`);
+    const texto = textoDe(doc.content);
+    expect(texto).toContain('Resumen de tu actividad');
+    expect(texto).toContain('ÚLTIMOS 30 DÍAS');
+    expect(texto).toMatch(/Total neto \$\s?45\.000/);
+    expect(texto).toContain('Accesos en total 5');
   });
 });

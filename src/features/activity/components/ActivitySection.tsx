@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { SESSION_QUERY_KEY } from '../../auth/hooks/useSession';
 import { displayNameOf, type SessionUser } from '../../auth/types/session';
-import { ExportPdfButton } from '../../../shared/ui/PrintableReport';
-import { usePrintReport } from '../../../shared/lib/printReport';
+import { ExportPdfButton } from '../../../shared/ui/ExportPdfButton';
+import { useDescargaPdf } from '../../../shared/lib/pdf/useDescargaPdf';
+import { nombreDeArchivo } from '../../../shared/lib/pdf/hoja';
 import { Button } from '../../../shared/ui/Button';
 import { DashboardSection } from '../../dashboard/components/PanelPieces';
 import { useMyStats } from '../hooks/useMyStats';
@@ -23,7 +24,7 @@ import {
   type ActivityPeriod,
 } from '../lib/activity';
 import type { ProfessionalStats } from '../types';
-import { ActivityReport } from './ActivityReport';
+import { activityPdf } from '../lib/activityPdf';
 
 const ROTULO = 'text-[11px] font-semibold uppercase tracking-[0.12em] text-muted';
 const TARJETA = 'rounded-[14px] border border-line bg-white p-5';
@@ -43,7 +44,7 @@ export function ActivitySection() {
   const [periodo, setPeriodo] = useState<ActivityPeriod>(DEFAULT_ACTIVITY_PERIOD);
   const { from, to } = activityRange(periodo);
   const stats = useMyStats(from, to);
-  const { imprimiendo, imprimir } = usePrintReport();
+  const pdf = useDescargaPdf();
   // De la caché y no con `useSession`: el panel ya cargó la sesión, y así la
   // sección no dispara otro pedido a `/me`.
   const usuario = useQueryClient().getQueryData<SessionUser | null>(SESSION_QUERY_KEY);
@@ -53,15 +54,26 @@ export function ActivitySection() {
   return (
     <DashboardSection
       title="Mi actividad"
-      action={<ExportPdfButton onClick={imprimir} disabled={!exportable} />}
-    >
-      {imprimiendo && stats.data && (
-        <ActivityReport
-          datos={stats.data}
-          periodo={etiquetaPeriodo}
-          persona={usuario ? displayNameOf(usuario) : undefined}
+      action={
+        <ExportPdfButton
+          onClick={() => {
+            const datos = stats.data;
+            if (!datos) return;
+            void pdf.descargar(() => ({
+              doc: activityPdf({
+                datos,
+                periodo: etiquetaPeriodo,
+                persona: usuario ? displayNameOf(usuario) : undefined,
+              }),
+              archivo: `${nombreDeArchivo('mi actividad', datos.from, 'a', datos.to)}.pdf`,
+            }));
+          }}
+          disabled={!exportable}
+          generando={pdf.generando}
+          error={pdf.error}
         />
-      )}
+      }
+    >
       <div role="group" aria-label="Período" className="flex flex-wrap gap-2">
         {ACTIVITY_PERIODS.map((p) => {
           const activo = p.value === periodo;

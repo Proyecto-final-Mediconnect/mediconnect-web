@@ -7,6 +7,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter } from 'react-router-dom';
 import { ActivitySection } from './ActivitySection';
 import type { ProfessionalStats } from '../types';
+import { descargarPdf } from '../../../shared/lib/pdf/pdf';
+import { textoDe } from '../../../shared/lib/pdf/hoja';
+
+// El PDF se arma de verdad en el armador de cada hoja; acá se mira qué se baja.
+vi.mock('../../../shared/lib/pdf/pdf', () => ({ descargarPdf: vi.fn(() => Promise.resolve()) }));
 
 const NOW = new Date('2026-11-14T15:00:00Z');
 
@@ -192,24 +197,36 @@ describe('Mi actividad', () => {
     expect(intentos).toBe(2);
   });
 
-  it('exporta el reporte a PDF: arma la hoja con los números y abre la impresión', async () => {
+  it('exporta el reporte a PDF: baja el archivo con los números, sin imprimir', async () => {
+    vi.mocked(descargarPdf).mockClear();
     const print = vi.spyOn(window, 'print').mockImplementation(() => {});
     renderSection(() => json(STATS));
     await screen.findByRole('group', { name: 'Cancelaciones' });
 
     await userEvent.click(screen.getByRole('button', { name: 'Exportar PDF' }));
 
-    await waitFor(() => expect(print).toHaveBeenCalledTimes(1));
-    const hoja = document.querySelector('.hoja-reporte');
-    expect(hoja?.parentElement).toBe(document.body);
-    expect(hoja).toHaveTextContent('Reporte de actividad');
-    expect(hoja).toHaveTextContent('Últimos 3 meses');
-    expect(hoja).toHaveTextContent('Del 1 de septiembre al 30 de noviembre de 2026');
-    expect(hoja).toHaveTextContent('Turnos cerrados25');
+    await waitFor(() => expect(descargarPdf).toHaveBeenCalledTimes(1));
+    expect(print).not.toHaveBeenCalled();
+    const [doc, archivo] = vi.mocked(descargarPdf).mock.calls[0];
+    expect(archivo).toBe('mi-actividad-2026-09-01-a-2026-11-30.pdf');
+    const texto = textoDe(doc.content);
+    expect(texto).toContain('Reporte de actividad');
+    expect(texto).toContain('ÚLTIMOS 3 MESES');
+    expect(texto).toContain('Del 1 de septiembre al 30 de noviembre de 2026');
+    expect(texto).toContain('Turnos cerrados 25');
+  });
 
-    // Al terminar de imprimir, la hoja se desmonta: no queda colgada del body.
-    window.dispatchEvent(new Event('afterprint'));
-    await waitFor(() => expect(document.querySelector('.hoja-reporte')).toBeNull());
+  it('si no se puede generar el PDF, lo dice al lado del botón', async () => {
+    vi.mocked(descargarPdf).mockRejectedValueOnce(new Error('sin red'));
+    renderSection(() => json(STATS));
+    await screen.findByRole('group', { name: 'Cancelaciones' });
+
+    await userEvent.click(screen.getByRole('button', { name: 'Exportar PDF' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'No pudimos generar el PDF. Probá de nuevo.',
+    );
+    expect(screen.getByRole('button', { name: 'Exportar PDF' })).toBeEnabled();
   });
 
   it('sin turnos en el período no hay nada que exportar', async () => {

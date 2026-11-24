@@ -26,6 +26,8 @@ export function RecordFilters({
   total,
   visibles,
   onDescargar,
+  generando = false,
+  errorDescarga,
 }: {
   filtros: FiltrosHC;
   onChange: (filtros: FiltrosHC) => void;
@@ -34,6 +36,9 @@ export function RecordFilters({
   total: number;
   visibles: number;
   onDescargar: () => void;
+  /** Mientras se registra la descarga y se arma el PDF. */
+  generando?: boolean;
+  errorDescarga?: string | null;
 }) {
   const [masFiltros, setMasFiltros] = useState(false);
   const set = <K extends keyof FiltrosHC>(key: K, value: FiltrosHC[K]) =>
@@ -185,14 +190,15 @@ export function RecordFilters({
             Limpiar filtros
           </button>
         )}
-        {/* No hay endpoint de exportación: es la impresión del navegador, que
-            ofrece "Guardar como PDF". Baja lo que se está viendo, filtros
-            incluidos, y el encabezado impreso lo aclara. */}
+        {/* Baja un PDF con lo que se está viendo, filtros incluidos, y el
+            documento lo aclara (ENG-231). */}
         <button
           type="button"
           onClick={onDescargar}
+          disabled={generando}
+          aria-busy={generando}
           aria-label="Descargar historia en PDF"
-          className={`${PILDORA} ml-auto inline-flex items-center justify-center gap-2 lg:ml-0 lg:w-full`}
+          className={`${PILDORA} ml-auto inline-flex items-center justify-center gap-2 disabled:cursor-wait disabled:opacity-60 lg:ml-0 lg:w-full`}
         >
           <svg
             aria-hidden="true"
@@ -208,8 +214,13 @@ export function RecordFilters({
               strokeLinejoin="round"
             />
           </svg>
-          Descargar PDF
+          {generando ? 'Generando PDF…' : 'Descargar PDF'}
         </button>
+        {errorDescarga && (
+          <p role="alert" className="w-full text-[13px] leading-[1.5] text-danger">
+            {errorDescarga}
+          </p>
+        )}
       </div>
     </aside>
   );
