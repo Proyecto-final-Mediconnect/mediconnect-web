@@ -13,7 +13,7 @@ describe('documentos (ENG-164)', () => {
 
   it('rechaza otros tipos, vacíos y los de más de 10 MB con el mensaje del backend', () => {
     expect(fileProblem(archivo('a.docx', 'application/msword', 10))).toBe(
-      'Solo se pueden subir PDF, JPG o PNG.',
+      'Solo se pueden subir PDF, JPG, PNG o un resumen de salud IPS.',
     );
     expect(fileProblem(archivo('a.pdf', 'application/pdf', 0))).toBe('El archivo está vacío.');
     expect(fileProblem(archivo('a.pdf', 'application/pdf', 10 * 1024 * 1024 + 1))).toBe(

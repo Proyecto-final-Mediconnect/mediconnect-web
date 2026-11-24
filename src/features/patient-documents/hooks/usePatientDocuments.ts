@@ -2,6 +2,7 @@ import { useIsMutating, useMutation, useQuery, useQueryClient } from '@tanstack/
 import { apiError, isClientError } from '../../../shared/api/apiError';
 import {
   getDocumentDownload,
+  getIpsSummary,
   getMyDocuments,
   getPatientDocuments,
   uploadDocument,
@@ -23,6 +24,15 @@ export function usePatientDocuments(patientId: string) {
   return useQuery({
     queryKey: ['patient-documents', patientId],
     queryFn: () => getPatientDocuments(patientId),
+    retry: retryServerErrorsOnly,
+  });
+}
+
+/** El resumen de salud IPS de un documento, ordenado (ENG-246). */
+export function useIpsSummary(id: string) {
+  return useQuery({
+    queryKey: ['patient-documents', 'ips', id],
+    queryFn: () => getIpsSummary(id),
     retry: retryServerErrorsOnly,
   });
 }

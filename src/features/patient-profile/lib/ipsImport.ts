@@ -1,28 +1,25 @@
 import type { VitalAllergy, VitalCondition, VitalMedication } from '../types/patientProfile';
 import { MAX_ROWS, type VitalForm } from './vitalInfo';
 
-/** Lo que devuelve `POST /patients/me/ips/preview` (ENG-246). */
-export type IpsPreview = {
-  documento: {
-    titulo: string | null;
-    fecha: string | null;
-    /** Si el DNI del documento es el del paciente. `null`: no se puede saber. */
-    dniCoincide: boolean | null;
-  };
+/**
+ * El resumen de salud IPS de un documento, ordenado (ENG-246): lo que devuelve
+ * `GET /patient-documents/:id/ips`. Las alergias, la medicación y las
+ * condiciones vienen con el formato del MediPass, para poder sumarlas tal cual.
+ */
+export type IpsResumen = {
+  documento: { titulo: string | null; fecha: string | null };
   propuesta: {
     allergies: VitalAllergy[];
     medications: VitalMedication[];
     conditions: VitalCondition[];
   };
   vacunas: { vacuna: string; fecha: string | null }[];
+  /** Qué no se leyó del documento, en palabras. */
   ignorados: string[];
 };
 
-/** Lo que el paciente tildó para cargar. */
-export type IpsSeleccion = IpsPreview['propuesta'];
-
-/** El archivo más grande que acepta el backend (el body JSON tiene tope de 100 kB). */
-export const MAX_IPS_BYTES = 100 * 1024;
+/** Lo que el paciente tildó para sumar a su MediPass. */
+export type IpsSeleccion = IpsResumen['propuesta'];
 
 const clave = (s: string) => s.trim().toLocaleLowerCase('es-AR');
 
@@ -67,7 +64,7 @@ export function mergeIps(form: VitalForm, seleccion: IpsSeleccion): VitalForm {
   };
 }
 
-/** "26 de enero de 2018" a partir de la fecha del documento, o `null`. */
+/** "26 de enero de 2018" a partir de una fecha del documento, o `null`. */
 export function fechaDelDocumento(fecha: string | null): string | null {
   const dia = fecha?.slice(0, 10);
   if (!dia || !/^\d{4}-\d{2}-\d{2}$/.test(dia)) return null;

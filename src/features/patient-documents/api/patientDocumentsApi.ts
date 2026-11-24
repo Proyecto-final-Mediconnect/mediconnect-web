@@ -1,6 +1,7 @@
 import { apiFetch } from '../../../shared/api/apiFetch';
 import { apiError, toApiError } from '../../../shared/api/apiError';
-import { MAX_ACTIVE_DOCUMENTS } from '../lib/documents';
+import type { IpsResumen } from '../../patient-profile/lib/ipsImport';
+import { esResumenIps, MAX_ACTIVE_DOCUMENTS } from '../lib/documents';
 import type { DocumentDownload, PatientDocument, UploadDocumentInput } from '../types';
 
 /**
@@ -40,7 +41,13 @@ export async function getPatientDocuments(patientId: string): Promise<PatientDoc
  */
 export async function uploadDocument(input: UploadDocumentInput): Promise<PatientDocument> {
   const form = new FormData();
-  form.append('file', input.file);
+  // Un `.json` sin tipo (pasa en algunos sistemas) iría como
+  // `application/octet-stream` y el backend no lo reconocería como resumen.
+  const archivo =
+    esResumenIps(input.file) && !input.file.type
+      ? new File([input.file], input.file.name, { type: 'application/json' })
+      : input.file;
+  form.append('file', archivo);
   form.append('type', input.type);
   form.append('title', input.title);
   if (input.documentDate) form.append('documentDate', input.documentDate);
@@ -65,6 +72,16 @@ export async function withdrawDocument(id: string): Promise<void> {
   });
   if (response.status === 404) return;
   if (!response.ok) throw await toApiError(response, 'No pudimos retirar el documento.');
+}
+
+/**
+ * El resumen de salud IPS de un documento, ordenado (ENG-246). Lo leen el
+ * paciente y los profesionales que pueden leer su historia; queda auditado.
+ */
+export async function getIpsSummary(id: string): Promise<IpsResumen> {
+  const response = await apiFetch(`/patient-documents/${encodeURIComponent(id)}/ips`);
+  if (!response.ok) throw await toApiError(response, 'No pudimos abrir el resumen de salud.');
+  return (await response.json()) as IpsResumen;
 }
 
 export async function getDocumentDownload(id: string): Promise<DocumentDownload> {

@@ -1,19 +1,27 @@
 import type { ReactNode } from 'react';
-import { documentMeta, formatSize, isPdf } from '../lib/documents';
+import { documentMeta, formatSize, isIps, isPdf } from '../lib/documents';
 import type { PatientDocument } from '../types';
 
-/** El ícono del archivo: una hoja con la esquina doblada, roja si es PDF. */
+/**
+ * El ícono del archivo: una hoja con la esquina doblada, roja si es PDF y azul
+ * si es un resumen de salud (ENG-246).
+ */
 export function DocumentIcon({ mimeType }: { mimeType: string }) {
   const pdf = isPdf(mimeType);
+  const ips = isIps(mimeType);
   return (
     <span
       aria-hidden="true"
       className={`relative grid h-11 w-9 flex-none place-items-end rounded-[7px] pb-1.5 text-[9px] font-bold tracking-wide ${
-        pdf ? 'bg-danger/10 text-danger' : 'bg-surface-teal text-brand-hover'
+        pdf
+          ? 'bg-danger/10 text-danger'
+          : ips
+            ? 'bg-tag-consulta text-tag-consulta-ink'
+            : 'bg-surface-teal text-brand-hover'
       }`}
     >
       <span className="absolute right-0 top-0 size-2.5 rounded-bl-[4px] bg-white/70" />
-      {pdf ? 'PDF' : 'IMG'}
+      {pdf ? 'PDF' : ips ? 'IPS' : 'IMG'}
     </span>
   );
 }

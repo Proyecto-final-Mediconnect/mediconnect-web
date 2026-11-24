@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog';
 import { useMyDocuments, useOpenDocument, useWithdrawDocument } from '../hooks/usePatientDocuments';
+import { isIps } from '../lib/documents';
 import type { PatientDocument } from '../types';
 import { DocumentRow, ROW_ACTION } from './DocumentRow';
 
@@ -12,7 +13,17 @@ const VISIBLES = 4;
  * historia clínica pero en su propia tarjeta, con la aclaración de que no es
  * parte de lo firmado. El botón de subir está en la barra de la página.
  */
-export function MyDocuments({ onUpload }: { onUpload: () => void }) {
+export function MyDocuments({
+  onUpload,
+  onVerResumen,
+}: {
+  onUpload: () => void;
+  /**
+   * Un resumen de salud IPS se ve ordenado, no como archivo (ENG-246). Sin esto
+   * se abre el archivo, como cualquier documento.
+   */
+  onVerResumen?: (id: string) => void;
+}) {
   const documentos = useMyDocuments();
   const abrir = useOpenDocument();
   const retirar = useWithdrawDocument();
@@ -95,7 +106,11 @@ export function MyDocuments({ onUpload }: { onUpload: () => void }) {
                   <>
                     <button
                       type="button"
-                      onClick={() => abrir.mutate(doc.id)}
+                      onClick={() =>
+                        onVerResumen && isIps(doc.mimeType)
+                          ? onVerResumen(doc.id)
+                          : abrir.mutate(doc.id)
+                      }
                       aria-label={`Ver ${doc.title}`}
                       className={`${ROW_ACTION} text-brand-hover hover:bg-surface-teal`}
                     >
