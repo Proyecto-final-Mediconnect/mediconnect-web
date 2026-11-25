@@ -161,6 +161,43 @@ describe('IpsSummaryDrawer (ENG-246)', () => {
     expect(enviado(fetchMock)).toBeUndefined();
   });
 
+  it('lo que ya está en el MediPass se marca y no se vuelve a ofrecer', async () => {
+    const conAsma: PatientProfile = {
+      ...PERFIL,
+      conditions: [{ nombre: 'ASMA', codigo: 'SNOMED 195967001' }],
+    };
+    const fetchMock = renderWith(
+      <IpsSummaryDrawer documentId={DOC} paraPaciente onClose={() => undefined} />,
+      (url, init) => (url.endsWith('/patients/me') ? json(conAsma) : backend(url, init)),
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Sumar a mi MediPass' }));
+    expect(await screen.findByText('Ya está en tu MediPass')).toBeVisible();
+    expect(screen.getByRole('checkbox', { name: /asma/ })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Sumar 2 datos a mi MediPass' }));
+
+    await screen.findByText('Listo: ya se ve en tu MediPass.');
+    expect((enviado(fetchMock) as { conditions: unknown }).conditions).toEqual([
+      { nombre: 'ASMA', codigo: 'SNOMED 195967001' },
+    ]);
+  });
+
+  it('si ya está todo en el MediPass, lo dice en lugar de ofrecer sumarlo', async () => {
+    const completo: PatientProfile = {
+      ...PERFIL,
+      allergies: [{ que: 'Alergia a la penicilina', gravedad: 'Grave' }],
+      medications: [{ droga: 'salbutamol 200 MCG' }],
+      conditions: [{ nombre: 'asma' }],
+    };
+    renderWith(
+      <IpsSummaryDrawer documentId={DOC} paraPaciente onClose={() => undefined} />,
+      (url, init) => (url.endsWith('/patients/me') ? json(completo) : backend(url, init)),
+    );
+
+    expect(await screen.findByText('Ya está todo en tu MediPass.')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Sumar a mi MediPass' })).not.toBeInTheDocument();
+  });
+
   it('si no se puede leer el resumen, lo dice', async () => {
     renderWith(<IpsSummaryDrawer documentId={DOC} paraPaciente onClose={() => undefined} />, () =>
       json({ message: 'Ese documento no es un resumen de salud.' }, 404),

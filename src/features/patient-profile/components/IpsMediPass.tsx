@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMyProfile, useUpdateVitalInfo } from '../hooks/usePatientProfile';
-import { mergeIps, type IpsResumen, type IpsSeleccion } from '../lib/ipsImport';
+import { mergeIps, yaEnMediPass, type IpsResumen, type IpsSeleccion } from '../lib/ipsImport';
 import { toForm, toInput } from '../lib/vitalInfo';
 
 type Clave = keyof IpsSeleccion;
@@ -57,8 +57,14 @@ export function IpsMediPass({
   const perfil = useMyProfile();
   const guardar = useUpdateVitalInfo();
   const todos = items(resumen);
-  // Arranca todo tildado: es lo que el paciente vino a cargar, y destilda lo que no.
-  const [elegidos, setElegidos] = useState<Set<string>>(() => new Set(todos.map((i) => i.id)));
+  // Lo que ya está en el MediPass se muestra, pero no se vuelve a ofrecer.
+  const ya = yaEnMediPass(perfil.data, resumen);
+  // Arranca tildado lo que falta: es lo que el paciente vino a cargar, y destilda lo que no.
+  const [elegidos, setElegidos] = useState<Set<string>>(
+    () => new Set(todos.filter((i) => !ya.has(i.id)).map((i) => i.id)),
+  );
+  // Si el perfil llegó después de armar la selección, lo que ya estaba no cuenta.
+  const aSumar = new Set([...elegidos].filter((id) => !ya.has(id)));
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -84,9 +90,9 @@ export function IpsMediPass({
       return;
     }
     const seleccion: IpsSeleccion = {
-      allergies: resumen.propuesta.allergies.filter((_, i) => elegidos.has(`allergies.${i}`)),
-      medications: resumen.propuesta.medications.filter((_, i) => elegidos.has(`medications.${i}`)),
-      conditions: resumen.propuesta.conditions.filter((_, i) => elegidos.has(`conditions.${i}`)),
+      allergies: resumen.propuesta.allergies.filter((_, i) => aSumar.has(`allergies.${i}`)),
+      medications: resumen.propuesta.medications.filter((_, i) => aSumar.has(`medications.${i}`)),
+      conditions: resumen.propuesta.conditions.filter((_, i) => aSumar.has(`conditions.${i}`)),
     };
     const { input, errors } = toInput(mergeIps(toForm(fresco.data), seleccion));
     if (Object.keys(errors).length > 0) {
@@ -119,20 +125,32 @@ export function IpsMediPass({
               <legend className="mb-1 text-[11px] font-bold tracking-[0.08em] text-muted uppercase">
                 {titulo}
               </legend>
-              {delGrupo.map((item) => (
-                <label key={item.id} className="flex items-start gap-3 text-[14px] text-ink">
-                  <input
-                    type="checkbox"
-                    checked={elegidos.has(item.id)}
-                    onChange={() => alternar(item.id)}
-                    className="mt-[3px] h-4 w-4 shrink-0 accent-brand-deep"
-                  />
-                  <span>
-                    {item.texto}
-                    {item.detalle && <span className="text-muted"> · {item.detalle}</span>}
-                  </span>
-                </label>
-              ))}
+              {delGrupo.map((item) => {
+                const yaEsta = ya.has(item.id);
+                return (
+                  <label
+                    key={item.id}
+                    className={`flex items-start gap-3 text-[14px] ${yaEsta ? 'text-muted' : 'text-ink'}`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={yaEsta || elegidos.has(item.id)}
+                      disabled={yaEsta}
+                      onChange={() => alternar(item.id)}
+                      className="mt-[3px] h-4 w-4 shrink-0 accent-brand-deep disabled:opacity-50"
+                    />
+                    <span>
+                      {item.texto}
+                      {item.detalle && <span className="text-muted"> · {item.detalle}</span>}
+                      {yaEsta && (
+                        <span className="ml-1.5 inline-block rounded-full bg-surface-teal px-2 py-0.5 text-[11px] font-semibold text-brand-hover">
+                          Ya está en tu MediPass
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                );
+              })}
             </fieldset>
           );
         })}
@@ -156,14 +174,14 @@ export function IpsMediPass({
         <button
           type="button"
           onClick={() => void cargar()}
-          disabled={elegidos.size === 0 || guardando}
+          disabled={aSumar.size === 0 || guardando}
           className="rounded-[9px] bg-brand-deep px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-brand-deep"
         >
           {guardando
             ? 'Guardando…'
-            : elegidos.size === 1
+            : aSumar.size === 1
               ? 'Sumar 1 dato a mi MediPass'
-              : `Sumar ${elegidos.size} datos a mi MediPass`}
+              : `Sumar ${aSumar.size} datos a mi MediPass`}
         </button>
       </footer>
     </div>

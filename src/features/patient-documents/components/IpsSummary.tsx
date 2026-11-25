@@ -1,7 +1,13 @@
 import { useState, type ReactNode } from 'react';
 import { SideDrawer } from '../../../shared/ui/SideDrawer';
 import { IpsMediPass } from '../../patient-profile/components/IpsMediPass';
-import { fechaDelDocumento } from '../../patient-profile/lib/ipsImport';
+import { useMyProfile } from '../../patient-profile/hooks/usePatientProfile';
+import {
+  cantidadDeItems,
+  fechaDelDocumento,
+  yaEnMediPass,
+  type IpsResumen,
+} from '../../patient-profile/lib/ipsImport';
 import { useIpsSummary, useOpenDocument } from '../hooks/usePatientDocuments';
 
 /**
@@ -78,7 +84,6 @@ function IpsSummary({ documentId, paraPaciente }: { documentId: string; paraPaci
   const fecha = fechaDelDocumento(datos.documento.fecha);
   const vacio =
     allergies.length + medications.length + conditions.length + datos.vacunas.length === 0;
-  const hayParaMediPass = allergies.length + medications.length + conditions.length > 0;
 
   return (
     <div className="flex min-h-full flex-col gap-4">
@@ -160,20 +165,44 @@ function IpsSummary({ documentId, paraPaciente }: { documentId: string; paraPaci
         >
           Abrir el archivo original
         </button>
-        {paraPaciente && hayParaMediPass && (
-          <button
-            type="button"
-            onClick={() => {
+        {paraPaciente && (
+          <SumarAlMediPass
+            resumen={datos}
+            onSumar={() => {
               setSumado(false);
               setSumando(true);
             }}
-            className="rounded-[9px] bg-brand-deep px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
-          >
-            Sumar a mi MediPass
-          </button>
+          />
         )}
       </footer>
     </div>
+  );
+}
+
+/**
+ * El botón para sumar al MediPass, solo para el paciente: si todo lo que trae el
+ * resumen ya está en su MediPass, lo dice en lugar de ofrecer sumarlo de nuevo.
+ * Va aparte porque lee el perfil del paciente, que el profesional no puede pedir.
+ */
+function SumarAlMediPass({ resumen, onSumar }: { resumen: IpsResumen; onSumar: () => void }) {
+  const perfil = useMyProfile();
+  const total = cantidadDeItems(resumen);
+  if (total === 0) return null;
+  if (perfil.data && yaEnMediPass(perfil.data, resumen).size === total) {
+    return (
+      <p role="status" className="px-2 text-[13px] font-semibold text-brand-hover">
+        Ya está todo en tu MediPass.
+      </p>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={onSumar}
+      className="rounded-[9px] bg-brand-deep px-5 py-2.5 text-sm font-bold text-white transition-colors hover:bg-night focus:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-2"
+    >
+      Sumar a mi MediPass
+    </button>
   );
 }
 
